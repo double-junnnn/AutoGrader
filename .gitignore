@@ -24,9 +24,10 @@ Desktop.ini
 __pycache__/
 *.pyc
 
-# 注意：autograder.zip 刻意不入库。
-# 它与 autograder/ 源码 100% 重复，入库只会和源码脱节（见 HANDOVER 第 1 节）。
-# 需要时现打：python3 -c "import zipfile,pathlib; ..." 或用任意压缩工具打包 autograder/ 目录。
+# autograder.zip 刻意不入库（与 HANDOVER 第 1 节一致）：
+# 它与 autograder/ 源码 100% 重复，入库只会和源码脱节。
+# 而且 GitHub 对任何仓库都提供「Download ZIP」，再存一份纯属冗余。
+autograder.zip
 
 # 注意：index.html 与 AutoGrader-单文件版.html 是 build-single.py 的产物，
 # 但它们要入库 —— 前者是静态托管的入口，后者是「双击即用」的交付件，都必须能被直接下载。

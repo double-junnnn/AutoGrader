@@ -557,6 +557,31 @@ OpenAI 官方在部分网络环境下不可达——那是网络问题，不是�
 # 没有构建步骤，也不需要环境变量或后端服务
 ```
 
+### 13.1 推荐：GitHub 仓库 + Pages（可协作、链接固定）
+
+纯静态站点没有「在线编辑」—— 所谓改线上，本质是**让线上跟着仓库走**。
+仓库即协作面（加 collaborator 即可多人 push），Pages 提供固定地址，push 后约 1 分钟自动更新。
+
+仓库根目录的 `index.html` 是为此准备的入口：Pages 的根路径只认根目录下的 `index.html`，
+而应用真正的入口在 `autograder/` 子目录里。**该文件由 `build-single.py` 与
+`AutoGrader-单文件版.html` 同时产出，内容逐字节相同**，不会脱节。
+
+因此改完源码后**必须重跑打包**，否则线上仍是旧版：
+
+```bash
+cd autograder
+python3 build-single.py       # ← 不能省，根 index.html 靠它刷新
+node tools/scan-banned-words.mjs
+cd .. && git add -A && git commit -m "…" && git push
+```
+
+> 详细步骤（建仓、Pages 配置、协作成员管理）见仓库根目录的 `推送GitHub.md`。
+
+### 13.2 其他托管
+
+同为静态托管，Vercel / Netlify / Cloudflare Pages 均可绑定仓库自动发布，
+本项目的差别只在入口文件同样是根目录的 `index.html`。
+
 ---
 
 ## 十四、开源协议
