@@ -319,8 +319,71 @@
     return { alpha, bootstrap: bs, jackknife: jk, review, auditedAt: Date.now(), sampleCount: graded.length };
   }
 
+  /* ---------------- 篇幅偏差 ---------------- */
+  /**
+   * 篇幅偏差自检：分数里有多少是「写得长」带来的。
+   *
+   * 为什么要做：本地启发式引擎把字数**直接当作评分因子** —— analyzer.js 里有
+   * 「动态满分上限」（篇幅越厚实，可达到的分数上限越高）和篇幅质量系数。
+   * 这是刻意的取舍（一份 300 字的物理报告完全可能写得完整，所以阈值压得很低），
+   * 但代价是总分与字数天然正相关。老师有权知道这个相关性有多大 ——
+   * 否则「你这分是不是就看字数给的」这个问题无法回答。
+   *
+   * 做法：对（字数, 总分）做一元线性回归，返回
+   *   r       相关系数
+   *   per1k   每多 1000 字平均多拿的分
+   *   most/least  实际分与「篇幅预期分」偏离最远的两份，用来看谁被篇幅高估/低估
+   *
+   * 注意：这是**描述性统计**，不是对评分器的判决。样本少于 4 份时不做估计。
+   */
+  function lengthBias(docs) {
+    const rows = (docs || [])
+      .filter((d) => d && d.result && d.features)
+      .map((d) => ({ id: d.id, name: d.name, x: d.features.words || 0, y: d.result.total }));
+    const n = rows.length;
+    if (n < 4) {
+      return { ok: false, n, note: '篇幅偏差需要至少 4 份已评分报告才能估计（当前 ' + n + ' 份）' };
+    }
+
+    const xs = rows.map((d) => d.x);
+    const ys = rows.map((d) => d.y);
+    const r = pearson(xs, ys);
+
+    const mx = mean(xs), my = mean(ys);
+    let sxy = 0, sxx = 0;
+    for (let i = 0; i < n; i++) {
+      sxy += (xs[i] - mx) * (ys[i] - my);
+      sxx += (xs[i] - mx) * (xs[i] - mx);
+    }
+    // 字数完全一致时 sxx=0，回归无意义，退化成「篇幅不影响」
+    const slope = sxx ? sxy / sxx : 0;
+    const intercept = my - slope * mx;
+
+    const resid = rows.map((d, i) => {
+      const pred = intercept + slope * d.x;
+      return { id: d.id, name: d.name, x: d.x, y: ys[i], pred: pred, gap: ys[i] - pred };
+    }).sort((a, b) => b.gap - a.gap);
+
+    const abs = Math.abs(r);
+    const level = abs < 0.4 ? 'low' : abs < 0.7 ? 'mid' : 'high';
+    const grade = {
+      low: { label: '影响小', color: '#0f6e56', desc: '分数基本由内容质量决定，篇幅不是主要因素。' },
+      mid: { label: '中等', color: '#b45309', desc: '篇幅对分数有可见影响，评阅时建议结合字数一并判断。' },
+      high: { label: '偏强', color: '#a32d2d', desc: '总分与字数高度相关，可能存在「写得长就得分高」的倾向，请参考下方剔除篇幅后的对照。' },
+    }[level];
+
+    return {
+      ok: true, n, r: U.round(r, 3), level, grade,
+      per1k: U.round(slope * 1000, 1),
+      intercept: U.round(intercept, 1),
+      most: resid[0],
+      least: resid[resid.length - 1],
+      spread: U.round(resid[0].gap - resid[resid.length - 1].gap, 1),
+    };
+  }
+
   AG.reliability = {
-    cronbachAlpha, bootstrap, jackknife, audit,
+    cronbachAlpha, bootstrap, jackknife, audit, lengthBias,
     mean, variance, stdev, pearson, quantile, alphaGrade, stabilityGrade,
   };
 })(window);

@@ -767,24 +767,26 @@
 
     // 让按钮的 loading 态有机会渲染出来再跑重采样（100 次评分是同步密集计算）
     setTimeout(() => {
-      let alpha, bs, jk;
+      let alpha, bs, jk, lb;
       try {
         alpha = AG.reliability.cronbachAlpha(gs.map((d) => d.result));
         bs = AG.reliability.bootstrap(target, activeRubric(), { iterations });
         jk = AG.reliability.jackknife(target, activeRubric());
+        // 篇幅偏差是全批次统计量，与单份报告的 Bootstrap 不同
+        lb = AG.reliability.lengthBias(gs);
       } catch (e) {
         btn.disabled = false; btn.textContent = '运行自检';
         box.innerHTML = `<div class="susp"><span class="badge red">失败</span><span>${U.esc(e.message)}</span></div>`;
         return;
       }
       btn.disabled = false; btn.textContent = '运行自检';
-      box.innerHTML = renderAuditHtml(target, alpha, bs, jk);
+      box.innerHTML = renderAuditHtml(target, alpha, bs, jk, lb);
       const band = $('#bsBandBox');
       if (band && bs.ok) band.appendChild(AG.charts.bootstrapBand(bs));
     }, 30);
   }
 
-  function renderAuditHtml(target, alpha, bs, jk) {
+  function renderAuditHtml(target, alpha, bs, jk, lb) {
     let html = '';
 
     /* α 卡片 */
@@ -863,6 +865,45 @@
           </tbody></table>
         </div>`;
     }
+
+    /* 篇幅偏差：全批次统计量，回答「是不是写得长就分高」 */
+    if (lb && lb.ok) {
+      const g = lb.grade;
+      const m = lb.most;
+      const l = lb.least;
+      const sign = lb.per1k > 0 ? '+' : '';
+      html += `
+        <h4 style="font-size:13px;margin:18px 0 8px">篇幅偏差自检 · 分数有多少来自「写得长」</h4>
+        <div class="kpi-row">
+          <div class="kpi">
+            <b style="color:${g.color}">${lb.r}</b>
+            <small>字数 ↔ 总分 相关系数 · ${g.label}</small>
+            <span>${g.desc}</span>
+          </div>
+          <div class="kpi">
+            <b>${sign}${lb.per1k}</b>
+            <small>每多 1000 字平均多拿的分</small>
+            <span>由（字数, 总分）一元线性回归得出 · 样本 ${lb.n} 份</span>
+          </div>
+          <div class="kpi">
+            <b>${lb.spread}</b>
+            <small>被篇幅高估 / 低估的最大差值</small>
+            <span>实际分与「按篇幅预期分」之差的最大跨度</span>
+          </div>
+        </div>
+        <div class="susp">
+          <span class="badge">${U.esc(m.name)}</span>
+          <span>内容强于篇幅：实际 <b>${m.y}</b> 分，按篇幅只预期 ${m.pred.toFixed(1)} 分，
+          高出 <b>${m.gap.toFixed(1)}</b> 分。</span></div>
+        <div class="susp">
+          <span class="badge">${U.esc(l.name)}</span>
+          <span>篇幅超过内容：实际 <b>${l.y}</b> 分，按篇幅预期 ${l.pred.toFixed(1)} 分，
+          低了 <b>${Math.abs(l.gap).toFixed(1)}</b> 分。</span></div>`;
+    } else if (lb && !lb.ok) {
+      html += `<div class="susp warn" style="margin-top:16px">
+        <span class="badge amber">篇幅偏差</span><span>${U.esc(lb.note)}</span></div>`;
+    }
+
     return html;
   }
 
