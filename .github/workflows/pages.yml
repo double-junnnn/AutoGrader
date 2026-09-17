@@ -1,0 +1,54 @@
+# 把仓库内容发布到 GitHub Pages。
+#
+# 为什么不用「Deploy from a branch」那条老流水线：
+#   老流水线由 GitHub 隐式驱动，不产生可见的构建记录。本仓库实测 pages/builds 与
+#   actions/runs 长期为 0 —— 配置正确却从不执行，出问题时无从排查。
+#   换成这个显式工作流后，每次部署都会在 Actions 页留一条可点开的日志。
+#
+# 注意：这不是「构建步骤」。本项目是纯静态页面，没有任何编译/打包，
+#       工作流只做两件事：把仓库内容原样复制到 _site，再交给 Pages 托管。
+#       「零依赖、双击即用」的产品承诺不受影响。
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+
+      - name: 配置 Pages
+        uses: actions/configure-pages@v5
+
+      - name: 整理待发布内容（排除 .git，无任何编译）
+        run: |
+          mkdir -p _site
+          rsync -a --exclude='.git' --exclude='_site' ./ _site/
+          echo "待发布文件数：$(find _site -type f | wc -l)"
+          echo "入口文件：$(test -f _site/index.html && echo 'index.html 存在 ✓' || echo '缺少 index.html ✗')"
+
+      - name: 上传站点产物
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: 发布到 Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
