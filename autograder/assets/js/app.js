@@ -356,12 +356,18 @@
 
     const r = doc.result;
     const g = AG.rubric.gradeOf(r.total);
+    // 溯源自检：把每个维度的分拆成「证据挣的」与「结构送的」
+    const trace = AG.reliability.evidenceAudit(r);
 
     const dimsHtml = r.dims.map((d, i) => {
       const pct = Math.round(d.ratio * 100);
       const evChips = (d.evidence || []).map((e) => `<span class="chip ok">✓ ${U.esc(e.label)}</span>`).join('');
       const missChips = (d.missing || []).map((m) => `<span class="chip miss">✗ ${U.esc(m.label)}</span>`).join('');
       const penChips = (d.penalties || []).map((p) => `<span class="chip pen">- ${U.esc(p.label)} (${p.weight})</span>`).join('');
+      // 只有「主要靠结构得分」才提示 —— 其余情况不刷屏
+      const tr = trace.ok ? trace.dims[i] : null;
+      const traceChip = tr && tr.layer === 'weak'
+        ? `<span class="chip pen">⚠ 分主要来自结构特征，直接证据仅覆盖 ${Math.round(tr.raw * 100)}%</span>` : '';
       const snip = (d.evidence || []).filter((e) => e.snippets && e.snippets.length)
         .slice(0, 3).map((e) => `<div class="ev"><em>${U.esc(e.label)}</em>：${U.esc(e.snippets[0].snippet)}</div>`).join('');
 
@@ -375,6 +381,9 @@
         <div class="bd">
           <div class="desc">${U.esc(d.desc || '')}</div>
           ${evChips || missChips || penChips ? `<div class="chips">${evChips}${missChips}${penChips}</div>` : ''}
+          <div class="chips" style="margin-top:8px">
+            ${traceChip || (tr ? `<span class="chip">溯源：证据占得分依据 ${Math.round(tr.support * 100)}% · 命中 ${tr.evidenceCount} 项${tr.missingCount ? ' / 未命中 ' + tr.missingCount + ' 项' : ''}</span>` : '')}
+          </div>
           ${snip ? `<div class="grp" style="margin-top:10px"><div class="lb">命中原文证据</div>${snip}</div>` : ''}
           <div class="cmt">${U.esc(d.comment || d.advice || '')}</div>
         </div>
@@ -421,6 +430,10 @@
       <div class="overall" style="margin:16px 0 14px">${U.esc(r.overall || '')}</div>
 
       <h3 style="font-size:14px;margin:0 0 10px">逐项核查 <span class="hint" style="font-weight:500">点击维度展开证据与改进建议</span></h3>
+      ${trace.ok ? `<div class="susp" style="margin-bottom:12px">
+        <span class="badge ${trace.weak.length || trace.penalized.length ? 'amber' : 'green'}">溯源自检</span>
+        <span>${trace.dims.length} 个维度中，<b>${trace.solid.length}</b> 个由直接证据支撑（占得分依据 70% 以上）${trace.weak.length ? `，<b>${trace.weak.length}</b> 个主要靠结构特征得分` : ''}${trace.penalized.length ? `，<b>${trace.penalized.length}</b> 个被具体缺陷扣掉 25% 以上` : ''}。
+        全卷证据支撑度 <b>${Math.round(trace.supportRate * 100)}%</b>，共命中 ${trace.evidenceTotal} 项证据、未命中 ${trace.missingTotal} 项。</span></div>` : ''}
       ${dimsHtml}
     `;
 

@@ -1,16 +1,24 @@
 /* AutoGrader · 评分信度自检（Reliability Self-Check）
  *
  * 核心立场：自动评分必须回答「这个分数有多可信」，否则教师不敢采用。
- * 本模块用心理测量学的三个经典指标回答这个问题，全部本地计算：
+ * 本模块全部本地计算，不含任何网络请求。
  *
+ * 一、分数稳不稳（心理测量学三件套）
  *   1. Cronbach's α —— 量表内部一致性。把各维度视为一道"题项"，衡量它们是否在测同一个构念。
  *      α = k/(k-1) · (1 − ΣVar_i / Var_total)。α ≥ 0.8 良好，< 0.6 说明维度设计互相打架。
  *   2. Bootstrap 置信区间 —— 单份报告的稳定性。按段落有放回重采样 N 次重新评分，
  *      取 2.5%/97.5% 分位数作为 95% CI。区间越宽，说明分数对局部内容越敏感（越不稳定）。
  *   3. Jackknife 敏感度 —— 逐个剔除维度看总分漂移，识别"支配维度"：
  *      某个维度一去掉总分就剧烈变化，说明它一权独大，量表的风险敞口集中。
+ *   另附 Spearman-Brown 折半信度作为 α 的交叉验证。
  *
- * 另附 Spearman-Brown 折半信度作为 α 的交叉验证。
+ * 二、分数是怎么来的（溯源与偏差，回答「凭什么给这个分」）
+ *   4. 篇幅偏差 —— 本地引擎把字数直接当评分因子，所以总分与字数天然正相关。
+ *      对（字数, 总分）做一元线性回归，量化这个相关性有多大。
+ *   5. 评分溯源 —— 达成率是 cap×√(raw+boost)，证据与结构加成**相加**。
+ *      于是「排得整齐」本身也能换分。本项把每个维度的分拆成「证据挣的」与「结构送的」。
+ *
+ * 前三条回答「稳不稳」，后两条回答「为什么」—— 教师需要的是后者才能放心用。
  */
 (function (global) {
   'use strict';
@@ -382,8 +390,71 @@
     };
   }
 
+  /* ---------------- 评分溯源 ---------------- */
+  /**
+   * 评分溯源自检：每个维度的分，有多少是「实证据」挣来的。
+   *
+   * 起因是本地引擎的达成率公式：
+   *     ratio = cap × √(raw + boost)
+   * 其中 raw 是证据覆盖率、boost 是结构加成（有没有代码块、图表、数据点、标题层级）。
+   * 两者**相加**意味着：一个信号都没命中，只靠排得整齐也能拿到 √boost 的比例 ——
+   * boost 取满时是**七成分**。这是刻意的设计（结构完整本身就是实验报告的质量维度），
+   * 但它必须可见：哪些分是内容证据挣的，哪些是排版结构送的。
+   *
+   * 所以这不是「挑错」，是把「这个分凭什么」摊开 ——
+   * 支撑最弱的那个维度，就是最该人工复核的地方。
+   *
+   * 分层规则：
+   *   penalized  扣分项吃掉了 25% 以上的分值 → 该维度被具体缺陷压住
+   *   weak       证据覆盖率 < 15% 却拿到 > 20% 的结构加成 → 分主要来自排版
+   *   solid      证据占得分依据 70% 以上 → 账目清楚
+   *   mixed      其余
+   */
+  function evidenceAudit(result) {
+    const dims = (result && result.dims) || [];
+    if (!dims.length) return { ok: false, note: '该报告没有维度得分可供溯源' };
+
+    const rows = dims.map((d) => {
+      const raw = d.raw || 0;
+      const boost = d.boost || 0;
+      const base = raw + boost;
+      const support = base > 0 ? raw / base : 1;   // 得分依据里「证据」所占比例
+      const max = d.max || 1;
+      const penRatio = (d.penalty || 0) / max;
+      const weak = raw < 0.15 && boost > 0.2;
+      const layer = penRatio > 0.25 ? 'penalized' : weak ? 'weak' : support >= 0.7 ? 'solid' : 'mixed';
+      return {
+        id: d.id, name: d.name, score: d.score, max: d.max,
+        raw: U.round(raw, 3), boost: U.round(boost, 3), support: U.round(support, 3),
+        penalty: d.penalty || 0,
+        evidenceCount: (d.evidence || []).length,
+        missingCount: (d.missing || []).length,
+        layer,
+      };
+    });
+
+    // 全卷证据支撑度：按各维度实际得分为权重，避免 0 分维度拉低整体观感
+    const scored = rows.filter((r) => r.score > 0);
+    const weightSum = scored.reduce((s, r) => s + r.score, 0);
+    const supportRate = weightSum > 0
+      ? scored.reduce((s, r) => s + r.score * r.support, 0) / weightSum
+      : 0;
+
+    return {
+      ok: true,
+      dims: rows,
+      solid: rows.filter((r) => r.layer === 'solid'),
+      mixed: rows.filter((r) => r.layer === 'mixed'),
+      weak: rows.filter((r) => r.layer === 'weak'),
+      penalized: rows.filter((r) => r.layer === 'penalized'),
+      supportRate: U.round(supportRate, 3),
+      evidenceTotal: rows.reduce((s, r) => s + r.evidenceCount, 0),
+      missingTotal: rows.reduce((s, r) => s + r.missingCount, 0),
+    };
+  }
+
   AG.reliability = {
-    cronbachAlpha, bootstrap, jackknife, audit, lengthBias,
+    cronbachAlpha, bootstrap, jackknife, audit, lengthBias, evidenceAudit,
     mean, variance, stdev, pearson, quantile, alphaGrade, stabilityGrade,
   };
 })(window);
