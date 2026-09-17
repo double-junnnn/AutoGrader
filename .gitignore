@@ -2,6 +2,9 @@
 _recon/
 *.log
 
+# AI 助手的工作笔记（含协作过程的内部记录），不属交付内容
+.learnbuddy/
+
 # 这两个 SVG 是把 PNG 以 base64 嵌进去的中间产物，和同名 .png 内容重复且更大，
 # 由 _design/ 下的脚本可随时重生成，不入库。
 design/mascot/expression-compare.svg

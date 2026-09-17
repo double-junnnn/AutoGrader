@@ -1,0 +1,14 @@
+# 统一换行符为 LF。
+#
+# 为什么必须锁：AutoGrader-单文件版.html 是 build-single.py 的产物，
+# 我们靠「重跑打包脚本，产物与仓库内文件逐字节一致」来验证源码没改坏。
+# 如果 git 在检出时把 LF 换成 CRLF，这个校验会永远失败，而且 diff 会整文件飘红。
+* text=auto eol=lf
+
+# 二进制，别当文本处理
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.docx binary
+*.zip binary
