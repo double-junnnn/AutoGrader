@@ -1,0 +1,30 @@
+# 临时 / 中间产物，不进版本库
+_recon/
+*.log
+
+# 这两个 SVG 是把 PNG 以 base64 嵌进去的中间产物，和同名 .png 内容重复且更大，
+# 由 _design/ 下的脚本可随时重生成，不入库。
+design/mascot/expression-compare.svg
+design/mascot/mascot-平面版-前后对照.svg
+
+# 系统杂项
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
+
+# Python
+__pycache__/
+*.pyc
+
+# 注意：autograder.zip 刻意不入库。
+# 它与 autograder/ 源码 100% 重复，入库只会和源码脱节（见 HANDOVER 第 1 节）。
+# 需要时现打：python3 -c "import zipfile,pathlib; ..." 或用任意压缩工具打包 autograder/ 目录。
+
+# 注意：index.html 与 AutoGrader-单文件版.html 是 build-single.py 的产物，
+# 但它们要入库 —— 前者是静态托管的入口，后者是「双击即用」的交付件，都必须能被直接下载。
+# 改完源码记得重跑 build-single.py 再提交，否则线上会是旧版。
