@@ -87,6 +87,56 @@
     return grams;
   }
 
+  /**
+   * 批次共识术语：这一批作业里「大家都在写」的核心概念。
+   *
+   * 为什么要做：批次自适应只能在**现有维度**的空间里重分配权重，
+   * 不能凭空发现新考点（README 第 12 节记着这条限制）。
+   * 但「这批作业到底在写什么」其实可以从作业本身长出来 ——
+   * 用已有的 n-gram + 凝固度剪枝抽每份的术语，再取交集，
+   * 就得到一份**不需要老师预先编写**的检查清单。
+   *
+   * 用途是给复核线索，不直接参与打分：
+   *   1. 某份报告漏掉了多数同学都写的概念 → 可能真的没覆盖本实验的核心
+   *   2. 反过来，覆盖率极高却缺少直接证据 → 留意术语堆砌（这项在 app.js 里结合溯源判定）
+   *
+   * @param {Array} docs 形如 [{name, text}] 的文档列表
+   * @param {Object} opts {minRatio 出现在多少比例的文档里才算共识，默认 0.6；
+   *                       minDocs 最少几份文档才统计，默认 3；
+   *                       minFreq 单份文档内术语最少出现几次，默认 2}
+   */
+  function consensusTerms(docs, opts) {
+    const o = opts || {};
+    const minRatio = o.minRatio || 0.6;
+    const minDocs = o.minDocs || 3;
+    const minFreq = o.minFreq || 2;
+
+    const list = (docs || []).filter((d) => d && d.text);
+    if (list.length < minDocs) {
+      return { ok: false, total: list.length, note: '至少需要 ' + minDocs + ' 份带正文的报告才能统计共识术语（当前 ' + list.length + ' 份）' };
+    }
+
+    const perDoc = list.map((d) => new Set(extractTerms(d.text, minFreq).map((x) => x.term)));
+    const counter = new Map();
+    perDoc.forEach((set) => set.forEach((t) => counter.set(t, (counter.get(t) || 0) + 1)));
+
+    const need = Math.ceil(list.length * minRatio);
+    const raw = Array.from(counter.entries())
+      .filter(([t, c]) => c >= need)
+      .map(([term, count]) => ({ term, count, ratio: U.round(count / list.length, 2) }))
+      .sort((a, b) => (b.count - a.count) || (b.term.length - a.term.length));
+
+    // 子串合并：「哈希」和「哈希表」同现时只留更长的那个，否则清单会被半截词塞满
+    const shared = raw.filter((x) => !raw.some((y) => y.term !== x.term && y.term.indexOf(x.term) >= 0 && y.count >= x.count));
+
+    const missing = list
+      .map((d, i) => ({ name: d.name, absent: shared.filter((t) => !perDoc[i].has(t.term)).map((t) => t.term) }))
+      .filter((x) => x.absent.length)
+      .sort((a, b) => b.absent.length - a.absent.length);
+
+    return { ok: true, total: list.length, need, shared, missing, minFreq };
+  }
+
   /** 抽取章节标题 */
   function extractSections(text) {
     const out = [];
@@ -414,7 +464,7 @@
 
   AG.induce = {
     induce, toRubric, anchorsFromRubric,
-    extractTerms, extractSections, guessDim,
+    extractTerms, extractSections, consensusTerms, guessDim,
     STRUCT_SIGNALS, DIM_ANCHORS,
   };
 })(window);

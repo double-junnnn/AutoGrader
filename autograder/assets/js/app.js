@@ -780,26 +780,27 @@
 
     // 让按钮的 loading 态有机会渲染出来再跑重采样（100 次评分是同步密集计算）
     setTimeout(() => {
-      let alpha, bs, jk, lb;
+      let alpha, bs, jk, lb, ct;
       try {
         alpha = AG.reliability.cronbachAlpha(gs.map((d) => d.result));
         bs = AG.reliability.bootstrap(target, activeRubric(), { iterations });
         jk = AG.reliability.jackknife(target, activeRubric());
-        // 篇幅偏差是全批次统计量，与单份报告的 Bootstrap 不同
+        // 篇幅偏差与共识术语都是全批次统计量，与单份报告的 Bootstrap 不同
         lb = AG.reliability.lengthBias(gs);
+        ct = AG.induce.consensusTerms(gs);
       } catch (e) {
         btn.disabled = false; btn.textContent = '运行自检';
         box.innerHTML = `<div class="susp"><span class="badge red">失败</span><span>${U.esc(e.message)}</span></div>`;
         return;
       }
       btn.disabled = false; btn.textContent = '运行自检';
-      box.innerHTML = renderAuditHtml(target, alpha, bs, jk, lb);
+      box.innerHTML = renderAuditHtml(target, alpha, bs, jk, lb, ct);
       const band = $('#bsBandBox');
       if (band && bs.ok) band.appendChild(AG.charts.bootstrapBand(bs));
     }, 30);
   }
 
-  function renderAuditHtml(target, alpha, bs, jk, lb) {
+  function renderAuditHtml(target, alpha, bs, jk, lb, ct) {
     let html = '';
 
     /* α 卡片 */
@@ -917,7 +918,63 @@
         <span class="badge amber">篇幅偏差</span><span>${U.esc(lb.note)}</span></div>`;
     }
 
+    /* 批次内容覆盖：从作业本身长出来的检查清单，不靠老师预写词典 */
+    if (ct && ct.ok) {
+      const terms = ct.shared.slice(0, 18);
+      const stuffed = stuffedDocs(ct);
+      html += `
+        <h4 style="font-size:13px;margin:18px 0 8px">批次内容覆盖 · 这批作业共同在写什么</h4>
+        <div class="susp" style="margin-bottom:10px">
+          <span class="badge blue">共识术语 ${ct.shared.length} 个</span>
+          <span>${ct.total} 份报告中至少有 ${ct.need} 份提到的概念。清单由作业正文自动抽取
+          （n-gram + 凝固度剪枝），<b>不是预先编写的词典</b> —— 换一批作业它会自己变。</span></div>`;
+      if (terms.length) {
+        html += `<div class="chips" style="margin-bottom:12px">${
+          terms.map((t) => `<span class="chip">${U.esc(t.term)} <b style="opacity:.6">${t.count}/${ct.total}</b></span>`).join('')
+        }${ct.shared.length > terms.length ? `<span class="chip">…另 ${ct.shared.length - terms.length} 个</span>` : ''}</div>`;
+      }
+      if (ct.missing.length) {
+        html += `
+          <div style="overflow-x:auto">
+            <table class="tb"><thead><tr><th>报告</th><th>未覆盖的共识术语</th></tr></thead><tbody>
+            ${ct.missing.slice(0, 8).map((m) => `<tr>
+              <td>${U.esc(m.name)}</td>
+              <td>${m.absent.slice(0, 8).map((t) => `<span class="chip miss">${U.esc(t)}</span>`).join(' ')}${
+                m.absent.length > 8 ? ` <span class="hint">…另 ${m.absent.length - 8} 个</span>` : ''}</td>
+            </tr>`).join('')}
+            </tbody></table>
+          </div>
+          <div class="hint" style="margin-top:8px">漏掉共同概念不一定是错 —— 可能只是换了说法。
+          这份清单是<b>复核线索</b>，不参与打分。</div>`;
+      } else {
+        html += `<div class="susp"><span class="badge green">全员覆盖</span><span>每份报告都提到了全部共识术语。</span></div>`;
+      }
+      if (stuffed.length) {
+        html += `<div class="susp warn" style="margin-top:10px">
+          <span class="badge amber">术语堆砌提示</span>
+          <span>${stuffed.map((x) => `<b>${U.esc(x.name)}</b>`).join('、')}：
+          术语覆盖齐全，但直接证据支撑度低于 50%，留意「名词都在、内容没跟上」。</span></div>`;
+      }
+    } else if (ct && !ct.ok) {
+      html += `<div class="susp warn" style="margin-top:16px">
+        <span class="badge amber">批次内容覆盖</span><span>${U.esc(ct.note)}</span></div>`;
+    }
+
     return html;
+  }
+
+  /**
+   * 术语覆盖齐全、但溯源显示证据支撑不足的报告 → 术语堆砌嫌疑。
+   * 需要把「覆盖度」与「溯源」两件事接起来才有意义：单看任何一个都会误判。
+   */
+  function stuffedDocs(ct) {
+    const covered = gradedDocs().filter((d) => !ct.missing.some((m) => m.name === d.name));
+    const out = [];
+    covered.forEach((d) => {
+      const t = AG.reliability.evidenceAudit(d.result);
+      if (t.ok && t.supportRate < 0.5) out.push({ name: d.name, rate: t.supportRate });
+    });
+    return out;
   }
 
   /* ---------- 3. 双引擎交叉验证 ---------- */
