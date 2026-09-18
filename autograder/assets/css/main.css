@@ -1,8 +1,8 @@
 /* AutoGrader · 样式主文件（主题化）
  * 所有颜色/圆角/阴影/描边宽度都走 CSS 变量，切换 <html data-theme> 即整站换肤。
- * 主题列表：toon（动画卡通，默认）· classic（液态玻璃·浅）· tech（液态玻璃·深）
+ * 主题列表：toon（动画卡通，默认）· classic（visionOS 亮玻璃）· tech（visionOS 深玻璃）
  */
-/* ============ 基础变量 = classic（晴空蓝）取值 ============ */
+/* ============ 基础变量（未指定主题时的兜底取值） ============ */
 :root {
   color-scheme: light;
   /* 底色层级 */
@@ -62,19 +62,20 @@
 }
 
 /* ============ 主题 1：动画卡通（默认） ============
- * 画风参考美式动画：奶油底 + 粗黑描边 + 平涂高饱和 + 硬阴影（无模糊）+ 大圆角 + 圆体标题。
+ * 画风参考美式动画：**正黄底**（就是内搭长袖那个 #FFDD66，不是奶油黄）+ 粗黑描边 +
+ * 平涂高饱和 + 硬阴影（无模糊）+ 大圆角 + 圆体标题。面板留白底，保证黑字对比度。
  * 配色取自 Stewie（饺子）服装取色：内搭浅黄 #FFDD66 / 背带裤正红 #E61928 /
  * 纽扣亮黄 #FFEE22 / 鞋子浅蓝 #87C8EE。
  *
  * 两条硬规矩：
  *   1. 不要渐变 —— --grad / --grad-logo 一律是**纯色**，色块平涂到底。
  *   2. 高饱和 + 高对比 —— 装饰色用原色，文字与描边压到近黑（#100c09），
- *      鞋蓝 #87C8EE 在奶油底上对比度不够，只作装饰色块，
+ *      鞋蓝 #87C8EE 在正黄底上对比度不够，只作装饰色块，
  *      承担文字 / 图表时用加深版 #0F7FD6。
  */
 :root[data-theme="toon"] {
   color-scheme: light;
-  --bg: #ffe6ac;
+  --bg: #ffdd66;
   --panel: #fffdf6;
   --surface: #fffdf6;
   --surface-2: #fff3d6;
@@ -99,12 +100,12 @@
   --green: #1f9d16;
   --amber: #ff8f00;
   --red: #d60d1c;
-  --yellow: #ffd400;
+  --yellow: var(--stewie-shirt);
   --ok-soft: #dbfbd0; --ok-line: #100c09; --ok-ink: #2f7010;
   --warn-soft: #ffe9b0; --warn-line: #100c09; --warn-ink: #8a4f00;
   --bad-soft: #ffd6da; --bad-line: #100c09; --bad-ink: #a50f20;
   --info-soft: #d6ecfb; --info-line: #100c09;
-  --tabs-bg: #ffdf9e;
+  --tabs-bg: #f2c93c;
   --modal-ink: #100c09;
   --print-line: #100c09;
   --radius: 18px;
@@ -121,118 +122,130 @@
   --focus: rgba(230, 25, 40, .28);
 }
 
-/* ============ 主题 2：液态玻璃 · 浅 ============
- * macOS Liquid Glass 材质：半透磨砂面板 + 20px 背景模糊 + 极细高光描边 + 柔和阴影。
- * 底色是柔和弥散的蓝紫渐变（三团大范围径向光，无噪点），面板浮在上面透出底色。
- * 带 -solid 后缀的同名变量是**不透明版本**：PDF 导出与 Canvas 图表要的是实色，
- * 直接用 rgba 半透版会在白纸/透明画布上糊成灰。
+/* ============ 主题 2：visionOS · 亮玻璃 ============
+ * 苹果空间界面那套语言：面板是**悬浮在空间里的独立玻璃层**——
+ *   半透玻璃基底 + 厚重背景虚化（blur 30px）+ 真实折射感（saturate 180%）
+ *   + 上缘细腻高光 / 下缘弱反光 + 柔和蓝色环境光 + 双层阴影（近处贴地、远处悬浮）。
+ * 背景是深蓝→紫的渐变空间，叠一层极克制的体积雾与圆形光晕，不放噪点纹理。
+ * 亮玻璃版：玻璃本身偏亮（白色半透），蓝色调更重，悬浮感更强。
+ * 带 -solid 后缀的同名变量是不透明版本：PDF 导出与 Canvas 图表要实色，
+ * 直接把 rgba 半透色打进白纸/透明画布会糊成灰。
  */
 :root[data-theme="classic"] {
-  color-scheme: light;
-  --bg: #e9eef8;
+  color-scheme: dark;
+  --bg: #0d1b3e;
   --bg-image:
-    radial-gradient(1100px 680px at 10% -12%, rgba(108, 142, 255, .34), transparent 62%),
-    radial-gradient(900px 620px at 88% -4%, rgba(168, 130, 255, .26), transparent 62%),
-    radial-gradient(900px 700px at 50% 112%, rgba(96, 200, 255, .22), transparent 60%);
-  --panel: rgba(255, 255, 255, .55);
-  --panel-solid: #f7f9ff;
-  --surface: rgba(255, 255, 255, .68);
-  --surface-solid: #ffffff;
-  --surface-2: rgba(255, 255, 255, .42);
-  --surface-2-solid: #eef2fb;
-  --surface-3: rgba(255, 255, 255, .30);
-  --ink: #0a1020;
-  --ink-2: #2b3550;
-  --muted: #4e597a;
-  --line: rgba(255, 255, 255, .85);      /* 面板外沿：白色高光描边 = 玻璃感 */
-  --line-2: rgba(19, 26, 43, .16);       /* 控件描边：浅底上白线等于没有，改用暗色发丝线 */
-  --ink-line: rgba(19, 26, 43, .5);
+    radial-gradient(1200px 760px at 12% -8%, rgba(70, 130, 255, .42), transparent 60%),
+    radial-gradient(1000px 680px at 88% 4%, rgba(150, 110, 255, .34), transparent 62%),
+    radial-gradient(900px 700px at 50% 108%, rgba(40, 190, 255, .22), transparent 60%),
+    radial-gradient(1400px 900px at 50% 42%, rgba(255, 255, 255, .06), transparent 70%);
+  --panel: rgba(255, 255, 255, .16);
+  --panel-solid: #16203c;
+  --surface: rgba(255, 255, 255, .22);
+  --surface-solid: #1b2745;
+  --surface-2: rgba(255, 255, 255, .10);
+  --surface-2-solid: #131d36;
+  --surface-3: rgba(255, 255, 255, .06);
+  --ink: #ffffff;                        /* 高对比白字 */
+  --ink-2: rgba(255, 255, 255, .82);
+  --muted: rgba(255, 255, 255, .56);     /* 说明文字低饱和 */
+  --line: rgba(255, 255, 255, .28);      /* 面板上缘高光 */
+  --line-2: rgba(255, 255, 255, .18);
+  --ink-line: rgba(255, 255, 255, .6);
   --bw: 1px;
-  --brand: #4c6ef7;
-  --brand-600: #3a55d9;
-  --brand-soft: rgba(76, 110, 247, .12);
-  --cyan: #17a2c4;
-  --violet: #8b5cf6;
-  --green: #16a34a;
-  --amber: #d97706;
-  --red: #dc2626;
-  --yellow: #f7c948;
-  --ok-soft: rgba(22, 163, 74, .12); --ok-line: rgba(22, 163, 74, .34); --ok-ink: #0f6b30;
-  --warn-soft: rgba(217, 119, 6, .12); --warn-line: rgba(217, 119, 6, .34); --warn-ink: #8a4b00;
-  --bad-soft: rgba(220, 38, 38, .12); --bad-line: rgba(220, 38, 38, .34); --bad-ink: #a31515;
-  --info-soft: rgba(76, 110, 247, .12); --info-line: rgba(76, 110, 247, .32);
-  --tabs-bg: rgba(255, 255, 255, .34);
-  --modal-ink: #131a2b;
-  --print-line: #dcdcdc;
-  --radius: 20px;
-  --radius-sm: 14px;
-  --shadow: inset 0 1px 0 rgba(255, 255, 255, .75), 0 10px 30px -14px rgba(19, 26, 43, .34);
-  --shadow-sm: inset 0 1px 0 rgba(255, 255, 255, .7), 0 2px 8px -3px rgba(19, 26, 43, .22);
-  --shadow-lg: inset 0 1px 0 rgba(255, 255, 255, .8), 0 30px 70px -20px rgba(19, 26, 43, .45);
-  --glass-blur: blur(20px) saturate(180%);
+  --brand: #7fb2ff;
+  --brand-600: #5f95ff;
+  --brand-soft: rgba(127, 178, 255, .18);
+  --cyan: #5ce1f2;
+  --violet: #b79bff;
+  --green: #58e0a6;
+  --amber: #ffcf5c;
+  --red: #ff8095;
+  --yellow: #ffe066;
+  --ok-soft: rgba(88, 224, 166, .16); --ok-line: rgba(88, 224, 166, .34); --ok-ink: #7ff0bd;
+  --warn-soft: rgba(255, 207, 92, .16); --warn-line: rgba(255, 207, 92, .34); --warn-ink: #ffd884;
+  --bad-soft: rgba(255, 128, 149, .16); --bad-line: rgba(255, 128, 149, .34); --bad-ink: #ffa3b2;
+  --info-soft: rgba(127, 178, 255, .16); --info-line: rgba(127, 178, 255, .34);
+  --tabs-bg: rgba(255, 255, 255, .10);
+  --modal-ink: #ffffff;
+  --print-line: rgba(255, 255, 255, .18);
+  --radius: 22px;
+  --radius-sm: 16px;
+  /* 双层阴影：0 2px 那条是贴地接触影，0 26px 那条是悬浮距离 */
+  --shadow: inset 0 1px 0 rgba(255, 255, 255, .30), inset 0 -1px 0 rgba(255, 255, 255, .10),
+            0 2px 6px -2px rgba(0, 0, 0, .35), 0 26px 50px -26px rgba(0, 0, 0, .62);
+  --shadow-sm: inset 0 1px 0 rgba(255, 255, 255, .24),
+               0 2px 8px -3px rgba(0, 0, 0, .34);
+  --shadow-lg: inset 0 1px 0 rgba(255, 255, 255, .32),
+               0 40px 80px -28px rgba(0, 0, 0, .72);
+  --glass-blur: blur(30px) saturate(180%);
   --font-title: "Inter", "SF Pro Display", "Segoe UI Semibold", var(--font-ui);
-  --grad: linear-gradient(90deg, var(--brand), var(--violet));
-  --grad-logo: linear-gradient(135deg, var(--brand), var(--violet));
-  --focus: rgba(76, 110, 247, .18);
+  --grad: linear-gradient(135deg, #6ea8ff, #b79bff);
+  --grad-logo: linear-gradient(135deg, #7fb2ff, #b79bff);
+  --focus: rgba(127, 178, 255, .28);
 }
 /* 面板外沿走白色高光描边（玻璃感），但表格分隔线这类"要看得见"的线得用暗色，
    否则白线压在浅底上等于没有 —— 这里单独补一条。 */
 :root[data-theme="classic"] table.tb th,
 :root[data-theme="classic"] table.tb td,
 :root[data-theme="classic"] .ev,
-:root[data-theme="classic"] .dim { border-color: rgba(19, 26, 43, .10); }
+:root[data-theme="classic"] .dim { border-color: rgba(255, 255, 255, .14); }
 
-/* ============ 主题 3：液态玻璃 · 深 ============
- * 同材质，深色版：深蓝紫弥散底 + 半透深色磨砂面板 + 极细白色描边 + 轻微内发光。
+/* ============ 主题 3：visionOS · 深玻璃 ============
+ * 同一套空间玻璃语言，深色版：玻璃基底更沉（墨色半透），紫调压过蓝调，
+ * 内发光更冷，边缘高光更细，悬浮距离拉得更大。
  */
 :root[data-theme="tech"] {
   color-scheme: dark;
-  --bg: #0a0e1a;
+  --bg: #0a0620;
   --bg-image:
-    radial-gradient(1100px 700px at 14% -10%, rgba(76, 110, 247, .30), transparent 60%),
-    radial-gradient(900px 620px at 86% 2%, rgba(167, 139, 250, .26), transparent 62%),
-    radial-gradient(900px 700px at 50% 112%, rgba(34, 211, 238, .16), transparent 60%);
-  --panel: rgba(20, 25, 42, .55);
-  --panel-solid: #141a2a;
-  --surface: rgba(28, 34, 55, .62);
-  --surface-solid: #1c2237;
-  --surface-2: rgba(15, 20, 34, .48);
-  --surface-2-solid: #131828;
-  --surface-3: rgba(38, 46, 72, .55);
-  /* 深色底上的「文字更深」= 提亮到接近纯白，把对比度拉满 */
-  --ink: #f4f7ff;
-  --ink-2: #d3dcf2;
-  --muted: #97a4c6;
-  --line: rgba(255, 255, 255, .14);
-  --line-2: rgba(255, 255, 255, .2);
+    radial-gradient(1200px 760px at 14% -8%, rgba(120, 90, 255, .40), transparent 60%),
+    radial-gradient(1000px 680px at 86% 6%, rgba(210, 120, 255, .30), transparent 62%),
+    radial-gradient(900px 700px at 50% 108%, rgba(60, 150, 255, .22), transparent 60%),
+    radial-gradient(1400px 900px at 50% 42%, rgba(255, 255, 255, .05), transparent 70%);
+  --panel: rgba(18, 13, 40, .52);
+  --panel-solid: #120d28;
+  --surface: rgba(30, 22, 58, .58);
+  --surface-solid: #191133;
+  --surface-2: rgba(13, 9, 30, .46);
+  --surface-2-solid: #0d0920;
+  --surface-3: rgba(44, 32, 80, .52);
+  --ink: #ffffff;
+  --ink-2: rgba(255, 255, 255, .80);
+  --muted: rgba(255, 255, 255, .54);
+  --line: rgba(255, 255, 255, .22);
+  --line-2: rgba(255, 255, 255, .15);
   --ink-line: rgba(255, 255, 255, .5);
   --bw: 1px;
-  --brand: #7aa2ff;
-  --brand-600: #5b86f5;
-  --brand-soft: rgba(122, 162, 255, .14);
-  --cyan: #22d3ee;
-  --violet: #a78bfa;
-  --green: #34d399;
-  --amber: #fbbf24;
-  --red: #fb7185;
-  --yellow: #facc15;
-  --ok-soft: rgba(52, 211, 153, .13); --ok-line: rgba(52, 211, 153, .30); --ok-ink: #34d399;
-  --warn-soft: rgba(251, 191, 36, .13); --warn-line: rgba(251, 191, 36, .30); --warn-ink: #fbbf24;
-  --bad-soft: rgba(251, 113, 133, .13); --bad-line: rgba(251, 113, 133, .32); --bad-ink: #fb7185;
-  --info-soft: rgba(122, 162, 255, .13); --info-line: rgba(122, 162, 255, .30);
-  --tabs-bg: rgba(255, 255, 255, .06);
-  --modal-ink: #eaf0ff;
+  --brand: #a78bfa;
+  --brand-600: #8b6cf0;
+  --brand-soft: rgba(167, 139, 250, .18);
+  --cyan: #67e8f9;
+  --violet: #c4a6ff;
+  --green: #6ee7b7;
+  --amber: #fcd34d;
+  --red: #fb8fa8;
+  --yellow: #fde047;
+  --ok-soft: rgba(110, 231, 183, .16); --ok-line: rgba(110, 231, 183, .32); --ok-ink: #8ff0c8;
+  --warn-soft: rgba(252, 211, 77, .16); --warn-line: rgba(252, 211, 77, .32); --warn-ink: #ffdd8a;
+  --bad-soft: rgba(251, 143, 168, .16); --bad-line: rgba(251, 143, 168, .32); --bad-ink: #ffabbd;
+  --info-soft: rgba(167, 139, 250, .16); --info-line: rgba(167, 139, 250, .32);
+  --tabs-bg: rgba(255, 255, 255, .07);
+  --modal-ink: #ffffff;
   --print-line: rgba(255, 255, 255, .16);
-  --radius: 20px;
-  --radius-sm: 14px;
-  --shadow: inset 0 1px 0 rgba(255, 255, 255, .14), 0 12px 34px -14px rgba(0, 0, 0, .6);
-  --shadow-sm: inset 0 1px 0 rgba(255, 255, 255, .10), 0 2px 10px -4px rgba(0, 0, 0, .5);
-  --shadow-lg: inset 0 1px 0 rgba(255, 255, 255, .16), 0 30px 70px -20px rgba(0, 0, 0, .75);
-  --glass-blur: blur(20px) saturate(180%);
+  --radius: 22px;
+  --radius-sm: 16px;
+  --shadow: inset 0 1px 0 rgba(255, 255, 255, .20), inset 0 -1px 0 rgba(255, 255, 255, .07),
+            0 2px 6px -2px rgba(0, 0, 0, .45), 0 30px 56px -26px rgba(0, 0, 0, .72);
+  --shadow-sm: inset 0 1px 0 rgba(255, 255, 255, .16),
+               0 2px 8px -3px rgba(0, 0, 0, .45);
+  --shadow-lg: inset 0 1px 0 rgba(255, 255, 255, .22),
+               0 44px 84px -28px rgba(0, 0, 0, .8);
+  --glass-blur: blur(30px) saturate(180%);
   --font-title: "Inter", "SF Pro Display", "Segoe UI Semibold", var(--font-ui);
-  --grad: linear-gradient(90deg, var(--brand), var(--violet));
-  --grad-logo: linear-gradient(135deg, var(--brand), var(--violet));
-  --focus: rgba(122, 162, 255, .2);
+  --grad: linear-gradient(135deg, #8b6cf0, #5ce1f2);
+  --grad-logo: linear-gradient(135deg, #a78bfa, #67e8f9);
+  --focus: rgba(167, 139, 250, .3);
 }
 
 /* 代码、原文引用、证据片段走等宽栈：字形区分度高，逐字核对原文时不容易看串行 */
@@ -312,6 +325,24 @@ h1, h2, h3, .brand h1 { font-family: var(--font-title); }
   font-family: var(--font-title);
 }
 .card > h3 .sub { font-weight: 500; color: var(--muted); font-size: 12.5px; }
+
+/* visionOS 玻璃主题：选中胶囊带蓝紫渐变高光，主按钮走同款渐变 ——
+   这两处是提示词里点名要的「蓝紫渐变」，卡通主题保持平涂不参与。 */
+:root[data-theme="classic"] .tab.active,
+:root[data-theme="tech"] .tab.active {
+  background-image: var(--grad); color: #fff;
+  border-color: transparent; box-shadow: var(--shadow-sm);
+}
+:root[data-theme="classic"] .segbar > .seg.active,
+:root[data-theme="tech"] .segbar > .seg.active {
+  background-image: var(--grad); color: #fff; border-color: transparent;
+}
+:root[data-theme="classic"] .btn.primary,
+:root[data-theme="tech"] .btn.primary {
+  background-image: var(--grad); border-color: transparent;
+}
+:root[data-theme="classic"] .btn.primary:hover,
+:root[data-theme="tech"] .btn.primary:hover { background-image: var(--grad); filter: brightness(1.08); }
 
 /* ---------- 控件 ---------- */
 .btn {
@@ -541,8 +572,8 @@ table.tb input { padding: 5px 8px; }
 .skin .swatch i { display: block; width: 100%; height: 100%; border-radius: 50%; }
 /* 卡通色点：三块平涂硬色，跟主题一样拒绝渐变 */
 .skin i.sw-toon { background: #e61928; box-shadow: inset 8px 0 0 #ffdd66, inset -8px 0 0 #87c8ee; }
-.skin i.sw-classic { background: linear-gradient(135deg, #eaf0ff 0 40%, #aab8f0 40% 70%, #6d7fe8 70% 100%); }
-.skin i.sw-tech { background: linear-gradient(135deg, #141a2c 0 40%, #4c6ef7 40% 70%, #a78bfa 70% 100%); }
+.skin i.sw-classic { background: #16203c; box-shadow: inset 8px 0 0 #7fb2ff, inset -8px 0 0 #b79bff; }
+.skin i.sw-tech { background: #120d28; box-shadow: inset 8px 0 0 #a78bfa, inset -8px 0 0 #67e8f9; }
 
 .tone-card { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
 .tone {

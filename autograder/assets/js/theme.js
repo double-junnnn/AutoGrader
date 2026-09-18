@@ -7,8 +7,8 @@
  *      黄衫红领结），但形象本身为原创，不使用任何影视剧角色，避免版权风险。
  *      早期版本是手绘 SVG，现改为位图（见 mascots.js）；下面的 SVG 常量仅作图片加载失败时的兜底。
  *   3. 配色取自 Stewie（饺子）服装取色：内搭浅黄 #FFDD66 / 背带裤红 #E61928 /
- *      纽扣亮黄 #FFEE22 / 鞋子浅蓝 #87C8EE，底色为暖奶油。
- *   4. 吉祥物只在「动画卡通」主题出现 —— 位图是暖色调的，压进液态玻璃的冷色渐变里
+ *      纽扣亮黄 #FFEE22 / 鞋子浅蓝 #87C8EE，底色为内搭长袖那个正黄 #FFDD66。
+ *   4. 吉祥物只在「动画卡通」主题出现 —— 位图是暖色调的，压进 visionOS 玻璃的深蓝紫空间里
  *      会显得像贴纸。换主题时由 app.js 换成文字标与通用图标。
  */
 (function (global) {
@@ -17,9 +17,9 @@
   const U = AG.utils;
 
   const THEMES = [
-    { id: 'toon', name: '动画卡通', desc: '粗描边 · 平涂 · 饺子配色' },
-    { id: 'classic', name: '液态玻璃 · 浅', desc: '磨砂浅色 · 蓝紫柔光' },
-    { id: 'tech', name: '液态玻璃 · 深', desc: '磨砂深底 · 蓝紫弥散' },
+    { id: 'toon', name: '动画卡通', desc: '正黄底 · 平涂高饱和 · 饺子配色' },
+    { id: 'classic', name: 'visionOS · 亮玻璃', desc: '悬浮亮玻璃 · 蓝色空间' },
+    { id: 'tech', name: 'visionOS · 深玻璃', desc: '悬浮深玻璃 · 紫色空间' },
   ];
 
   const DEFAULT_THEME = 'toon';
@@ -146,7 +146,8 @@
       red: v('--red', '#dc2626'),
       yellow: v('--yellow', '#ffdd66'),
       fontTitle: v('--font-title', '') || 'sans-serif',
-      dark: document.documentElement.getAttribute('data-theme') === 'tech',
+      // 两套 visionOS 玻璃主题都是深色底 + 白字，PDF / 图表要按深色画
+      dark: document.documentElement.getAttribute('data-theme') !== 'toon',
     };
   }
 
