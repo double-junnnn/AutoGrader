@@ -1222,28 +1222,6 @@ table.tb input { padding: 5px 8px; }
           <input type="number" id="cfgMaxChars" step="1000" min="2000" max="60000" value="12000"></label>
       </div>
 
-      <h4 style="font-size:13px;margin:18px 0 6px">校验模型（第二意见）<span class="sub">用于双模型交叉验证</span></h4>
-      <p class="hint" style="margin:0 0 10px">
-        同一个模型两次打分都可能差几分。配一个<b>不同模型族</b>的开源模型当裁判，
-        逐维度互检分歧。留空也能用，此时第二意见退化为主模型高温复评，结论强度会打折并注明。
-      </p>
-      <div class="btn-row" style="margin-bottom:8px">
-        <button type="button" class="btn sm primary" id="btnPickReviewer">推荐一个（自动跨族）</button>
-        <button type="button" class="btn sm" data-preset-review="zhipu">智谱 GLM</button>
-        <button type="button" class="btn sm" data-preset-review="groq">Groq</button>
-        <button type="button" class="btn sm" data-preset-review="ollama">本地 Ollama</button>
-        <button type="button" class="btn sm" data-preset-review="qwen">通义千问</button>
-      </div>
-      <input type="hidden" id="cfgReviewProviderId">
-      <div class="row">
-        <label class="fld"><span>校验模型 Base URL（留空则复用主模型地址）</span>
-          <input type="text" id="cfgReviewBaseUrl" placeholder="留空 = 同主模型"></label>
-        <label class="fld"><span>校验模型 Model</span>
-          <input type="text" id="cfgReviewModel" placeholder="glm-4.7-flash"></label>
-      </div>
-      <label class="fld"><span>校验模型 API Key（留空则复用主模型 Key）</span>
-        <input type="password" id="cfgReviewApiKey" placeholder="留空 = 同主模型"></label>
-
       <div class="btn-row" style="margin-top:12px">
         <button class="btn primary" id="btnSaveCfg">保存配置</button>
         <button class="btn" id="btnTestCfg">测试连通性</button>
@@ -1262,22 +1240,13 @@ table.tb input { padding: 5px 8px; }
     <!-- ---------- 分区五：分析与校验（原「智能分析」并入设置） ---------- -->
     <div class="setsec" id="setsec-insight" style="display:none">
     <div class="card">
-      <h3>量表自动诱导 <span class="sub">区分度驱动，而非频次驱动</span></h3>
+      <h3>量表自动诱导 <span class="sub">让好报告自己告诉你要点什么</span></h3>
       <p class="hint" style="margin-bottom:12px">
-        教师手写量表最常见的两个偏差：把「人人都写」的东西列为得分点（零区分度，占分却拉不开差距），
-        以及分值凭直觉分配。本引擎要求先标注<b>优秀组</b>与<b>对照组</b>范文，
-        再对每个候选要点计算 <b>Δ = 优秀组命中率 − 对照组命中率</b>，只保留 Δ 高于阈值的要点，
-        并按 <b>Δ·√支持度</b> 分配分值——区分不出好坏的要素自动出局。
+        给已评分的报告标一下「优秀范文」和「对照范文」，点「开始诱导」即可：
+        系统对比两组，把<b>只有好报告才做到的要点</b>挑出来，并按重要程度分配分值。
+        评分参数已按教学场景配好，不需要你调。
       </p>
       <div id="induceGroups" style="margin-bottom:12px"></div>
-      <div class="row" style="margin-bottom:10px">
-        <label class="fld"><span>最小区分度 Δ（越高越严格）</span>
-          <input type="number" id="indMinDelta" step="0.05" min="0.05" max="1" value="0.20"></label>
-        <label class="fld"><span>最小支持度（术语类）</span>
-          <input type="number" id="indMinSup" step="0.05" min="0" max="1" value="0.25"></label>
-        <label class="fld"><span>候选术语上限</span>
-          <input type="number" id="indMaxTerms" step="10" min="10" max="200" value="60"></label>
-      </div>
       <div class="btn-row">
         <button class="btn primary" id="btnInduce">开始诱导</button>
         <button class="btn" id="btnInduceExport">导出量表 JSON</button>
@@ -1302,25 +1271,6 @@ table.tb input { padding: 5px 8px; }
         <button class="btn primary" id="btnAudit">运行自检</button>
       </div>
       <div id="auditResult" style="margin-top:14px"></div>
-    </div>
-
-    <div class="card">
-      <h3>双模型交叉验证 <span class="sub">分歧即信号</span></h3>
-      <p class="hint" style="margin-bottom:12px">
-        同一个模型两次打分都可能差几分。这里让<b>第二个开源模型</b>再评一遍，逐维度比对分歧——
-        这是需求里点名要解决的「每次调用模型评分结果差异化」。
-        校验模型建议选<b>不同模型族</b>（如 Qwen 配 GLM）：同族模型共享偏好，互检会把系统性偏差误当成共识。
-        未配置校验模型时，第二意见退化为主模型高温复评，结论强度会打折并在结果中注明。
-      </p>
-      <div class="row" style="margin-bottom:10px">
-        <label class="fld"><span>报告</span><select id="cvDoc"></select></label>
-        <label class="fld"><span>融合权重（主模型占比）</span>
-          <input type="number" id="cvWeight" step="0.1" min="0" max="1" value="0.5"></label>
-      </div>
-      <div class="btn-row">
-        <button class="btn primary" id="btnCV">开始对比</button>
-      </div>
-      <div id="cvResult" style="margin-top:14px"></div>
     </div>
     </div>
 
@@ -1639,8 +1589,8 @@ table.tb input { padding: 5px 8px; }
  *      于是"换模型"只是换两个字符串，不需要为每个厂商写适配层。
  *   2. 预设里优先推荐权重公开、可本地部署、可离线运行的开源模型，
  *      教师既能用云端免费额度，也能把模型搬进机房内网，不被某家商业 API 绑死。
- *   3. 提供「校验模型」用于双模型交叉验证，正面回应需求①里
- *      「每次调用模型评分结果差异化」的问题（详见 consensus.js）。
+ *   3. 预设只描述接入信息（地址 / 推荐模型 / 是否免费 / 是否本地），不掺任何评分策略 ——
+ *      换模型不该顺带换掉评分口径。
  *
  * 关于「开源」的判定口径：这里标 open:true 指的是**模型权重可获取**（可自行部署），
  * 不是指提供它的云服务商本身开源。托管在云上的开源模型依然计入，
@@ -1659,11 +1609,10 @@ table.tb input { padding: 5px 8px; }
    *   local     是否运行在本机 / 内网（无需外网）
    *   json      是否支持 response_format: json_object
    *             不支持的会被 llm.js 自动降级为「靠 prompt 指令」再试，不是硬门槛
-   *   family    模型族，用于交叉验证时挑选「不同族」的对照模型
    */
   const PRESETS = {
     siliconflow: {
-      id: 'siliconflow', label: '硅基流动 SiliconFlow', family: 'qwen',
+      id: 'siliconflow', label: '硅基流动 SiliconFlow',
       baseUrl: 'https://api.siliconflow.cn/v1',
       model: 'Qwen/Qwen2.5-7B-Instruct',
       open: true, free: true, local: false, json: true,
@@ -1677,7 +1626,7 @@ table.tb input { padding: 5px 8px; }
       ],
     },
     ollama: {
-      id: 'ollama', label: '本地 Ollama', family: 'qwen',
+      id: 'ollama', label: '本地 Ollama',
       baseUrl: 'http://localhost:11434/v1',
       model: 'qwen2.5:7b',
       open: true, free: true, local: true, json: false,
@@ -1685,7 +1634,7 @@ table.tb input { padding: 5px 8px; }
       models: ['qwen2.5:7b', 'qwen3:8b', 'glm4:9b', 'llama3.1:8b', 'deepseek-r1:7b'],
     },
     vllm: {
-      id: 'vllm', label: '自建 vLLM / Xinference', family: 'custom',
+      id: 'vllm', label: '自建 vLLM / Xinference',
       baseUrl: 'http://localhost:8000/v1',
       model: 'qwen2.5-7b-instruct',
       open: true, free: true, local: true, json: true,
@@ -1693,7 +1642,7 @@ table.tb input { padding: 5px 8px; }
       models: [],
     },
     zhipu: {
-      id: 'zhipu', label: '智谱 GLM', family: 'glm',
+      id: 'zhipu', label: '智谱 GLM',
       baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
       model: 'glm-4.7-flash',
       open: true, free: true, local: false, json: true,
@@ -1701,7 +1650,7 @@ table.tb input { padding: 5px 8px; }
       models: ['glm-4.7-flash', 'glm-4-flash', 'glm-4-plus'],
     },
     qwen: {
-      id: 'qwen', label: '通义千问 Qwen', family: 'qwen',
+      id: 'qwen', label: '通义千问 Qwen',
       baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
       model: 'qwen-plus',
       open: true, free: false, local: false, json: true,
@@ -1709,7 +1658,7 @@ table.tb input { padding: 5px 8px; }
       models: ['qwen-plus', 'qwen-turbo', 'qwen-max'],
     },
     deepseek: {
-      id: 'deepseek', label: 'DeepSeek', family: 'deepseek',
+      id: 'deepseek', label: 'DeepSeek',
       baseUrl: 'https://api.deepseek.com/v1',
       model: 'deepseek-chat',
       open: true, free: false, local: false, json: true,
@@ -1717,7 +1666,7 @@ table.tb input { padding: 5px 8px; }
       models: ['deepseek-chat', 'deepseek-reasoner'],
     },
     modelscope: {
-      id: 'modelscope', label: '魔搭 ModelScope', family: 'qwen',
+      id: 'modelscope', label: '魔搭 ModelScope',
       baseUrl: 'https://api-inference.modelscope.cn/v1',
       model: 'Qwen/Qwen2.5-7B-Instruct',
       open: true, free: true, local: false, json: true,
@@ -1725,7 +1674,7 @@ table.tb input { padding: 5px 8px; }
       models: ['Qwen/Qwen2.5-7B-Instruct', 'Qwen/Qwen3-8B'],
     },
     groq: {
-      id: 'groq', label: 'Groq', family: 'llama',
+      id: 'groq', label: 'Groq',
       baseUrl: 'https://api.groq.com/openai/v1',
       model: 'llama-3.1-8b-instant',
       open: true, free: true, local: false, json: true,
@@ -1733,7 +1682,7 @@ table.tb input { padding: 5px 8px; }
       models: ['llama-3.1-8b-instant', 'llama-3.3-70b-versatile', 'qwen-2.5-32b'],
     },
     openrouter: {
-      id: 'openrouter', label: 'OpenRouter', family: 'mixed',
+      id: 'openrouter', label: 'OpenRouter',
       baseUrl: 'https://openrouter.ai/api/v1',
       model: 'qwen/qwen-2.5-7b-instruct:free',
       open: true, free: true, local: false, json: true,
@@ -1741,7 +1690,7 @@ table.tb input { padding: 5px 8px; }
       models: ['qwen/qwen-2.5-7b-instruct:free', 'deepseek/deepseek-chat-v3-0324:free'],
     },
     openai: {
-      id: 'openai', label: 'OpenAI', family: 'gpt',
+      id: 'openai', label: 'OpenAI',
       baseUrl: 'https://api.openai.com/v1',
       model: 'gpt-4o-mini',
       open: false, free: false, local: false, json: true,
@@ -1749,7 +1698,7 @@ table.tb input { padding: 5px 8px; }
       models: ['gpt-4o-mini', 'gpt-4o'],
     },
     moonshot: {
-      id: 'moonshot', label: 'Moonshot', family: 'kimi',
+      id: 'moonshot', label: 'Moonshot',
       baseUrl: 'https://api.moonshot.cn/v1',
       model: 'moonshot-v1-8k',
       open: false, free: false, local: false, json: true,
@@ -1782,19 +1731,6 @@ table.tb input { padding: 5px 8px; }
     return list('open').filter((p) => p.free && p.json)[0] || PRESETS.siliconflow;
   }
 
-  /**
-   * 为交叉验证挑选对照模型。
-   * 关键是**跨模型族**：让 Qwen 和 GLM 互检，比让 Qwen 自检有意义得多。
-   * 同族模型共享训练数据与偏好，打分偏差方向一致，互检会把系统性偏差当成共识。
-   */
-  function pickReviewer(primaryId) {
-    const primary = get(primaryId);
-    const fam = primary ? primary.family : '';
-    const pool = list('open');
-    const other = pool.find((p) => p.id !== primaryId && p.family !== fam && p.free);
-    return other || pool.find((p) => p.id !== primaryId) || recommend();
-  }
-
   /** 判断一个模型名是否属于开源权重系列（用于 UI 标注，非精确判定） */
   const OPEN_MODEL_HINT = /qwen|glm|llama|deepseek|mistral|gemma|yi-|baichuan|internlm|chatglm|phi-|grok/i;
 
@@ -1803,7 +1739,7 @@ table.tb input { padding: 5px 8px; }
   }
 
   AG.providers = {
-    PRESETS, list, get, recommend, pickReviewer, isOpenModel, rank,
+    PRESETS, list, get, recommend, isOpenModel, rank,
     /** 旧配置迁移用：从 baseUrl 反查预设 id */
     fromBaseUrl(url) {
       const u = String(url || '').replace(/\/+$/, '').toLowerCase();
@@ -5030,7 +4966,7 @@ table.tb input { padding: 5px 8px; }
    * ------------------------------------------------------------
    * 1. 口径对不齐：需求②「评分准则」要求"指导 AI 给出比直接丢给 AI 更可靠的结果"。
    *    本地引擎靠正则命中给分，与模型的语义判断天然两套口径，
-   *    consensus 里拿它当"第二意见"实际上是拿一个更差的裁判去监督更好的裁判。
+   *    再拿它当"第二意见"，等于拿一个更差的裁判去监督更好的裁判。
    * 2. 篇幅即分数：本地引擎把字数写进了动态满分上限与质量系数，
    *    写得长就分高。这是教育评分里最该避免的偏差，而且它无法自证清白——
    *    reliability.lengthBias 只能"报告"这个偏差，改不掉。
@@ -5085,11 +5021,6 @@ table.tb input { padding: 5px 8px; }
     providerId: (AG.providers && AG.providers.recommend() && AG.providers.recommend().id) || 'siliconflow',
     temperature: 0.2,
     maxChars: 12000,
-    // 交叉验证用的第二个模型（需求①「每次调用模型评分结果差异化」）
-    reviewModel: '',
-    reviewBaseUrl: '',
-    reviewApiKey: '',
-    reviewProviderId: '',
   };
 
   function getConfig() {
@@ -5412,50 +5343,6 @@ ${toneHint ? '【语气设定】\n' + toneHint + '\n' : ''}
   }
 
   /**
-   * 用「校验模型」再评一遍（双模型交叉验证的第二意见）。
-   * 校验模型未配置时，退化为「同一模型不同温度采样」——
-   * 虽不如跨模型族严谨，但至少能暴露分数是否脆弱。
-   */
-  async function gradeWithReviewer(doc, rubric, opts) {
-    opts = opts || {};
-    const cfg = getConfig();
-    const rc = {
-      baseUrl: cfg.reviewBaseUrl || cfg.baseUrl,
-      apiKey: cfg.reviewApiKey || cfg.apiKey,
-      model: cfg.reviewModel || cfg.model,
-    };
-    if (!rc.model || rc.model === cfg.model) {
-      // 没配校验模型：用主模型 + 高温度再评一次，作为弱化的第二意见
-      const s = await sampleGrade(doc, rubric, { iterations: 2, temperature: 0.9 });
-      if (!s.ok) throw new Error(s.note || '无法生成第二意见');
-      const last = s.runs[s.runs.length - 1];
-      const dimsById = {};
-      last.dims.forEach((d) => { dimsById[d.id] = d; });
-      const dims = rubric.map((d) => ({
-        id: d.id, name: d.name, max: Number(d.max) || 0,
-        score: (dimsById[d.id] || {}).score || 0,
-        ratio: ((dimsById[d.id] || {}).score || 0) / (Number(d.max) || 1),
-        evidence: [], missing: [], penalties: [],
-        comment: '',
-      }));
-      return {
-        docName: doc.name,
-        engine: 'llm-sampled',
-        engineLabel: `主模型高温复评 · ${cfg.model}`,
-        model: cfg.model,
-        total: last.total,
-        grade: AG.rubric.gradeOf(last.total).grade,
-        gradeLabel: AG.rubric.gradeOf(last.total).label,
-        gradeColor: AG.rubric.gradeOf(last.total).color,
-        dims, features: doc.features, overall: '',
-        gradedAt: Date.now(),
-        sameModelNote: '未配置校验模型，第二意见由主模型高温重采样给出，仅作粗略参照',
-      };
-    }
-    return grade(doc, rubric, rc);
-  }
-
-  /**
    * 通用对话：供量表生成、答疑等「非评分」场景复用同一套鉴权与错误处理。
    * 所有配置项沿用单据（llmConfig），可用 cfgOverride 临时覆盖（如调大 temperature 生成量表）。
    * 默认不要求结构化输出 —— 需要 JSON 的调用方显式传 { json: true }，
@@ -5482,15 +5369,9 @@ ${toneHint ? '【语气设定】\n' + toneHint + '\n' : ''}
     return { ok: true, reply: String(text || '').trim().slice(0, 80) };
   }
 
-  /** 校验模型是否可用（用于 UI 决定要不要显示"双模型交叉验证"） */
-  function hasReviewer() {
-    const c = getConfig();
-    return !!(c.reviewModel && c.reviewApiKey);
-  }
-
   AG.llm = {
     getConfig, saveConfig, chat, chatJson, grade, testConnection,
-    buildPrompt, sampleGrade, gradeWithReviewer, hasReviewer,
+    buildPrompt, sampleGrade,
     DEFAULT_CONFIG,
   };
 })(window);
@@ -8446,173 +8327,6 @@ def quick_sort(arr):
 
 </script>
 <script>
-/* ===== consensus.js ===== */
-/* AutoGrader · 多模型交叉验证（Cross-Model Consensus）
- *
- * 【2026-09 变更】本地启发式引擎已移除（需求①「本地评分是否保留」→ 不保留），
- * 原先的「本地 vs 大模型」双引擎对比失去了其中一方。
- *
- * 但需求①还点名要解决另一件事：「需解决每次调用模型评分结果差异化的问题」。
- * 所以交叉验证不但要留，还得换个更对题的实现：
- *     旧：本地正则引擎  vs  大模型            —— 拿更差的裁判监督更好的裁判
- *     新：主模型        vs  校验模型（跨族）   —— 两个独立判断互检
- *
- * 为什么强调**跨模型族**：让 Qwen 和 GLM 互检，比让 Qwen 自检有意义得多。
- * 同族模型共享训练数据与偏好，打分偏差方向一致，互检会把系统性偏差误当成共识。
- * AG.providers.pickReviewer() 就是按这个原则挑对照模型的。
- *
- * 本模块做三件事：
- *   1. 分歧检测：逐维度计算标准化分歧度 D = |S_a − S_b| / max，分级标记
- *   2. 一致性度量：MAE、Pearson 相关、等级一致率，判断两模型是否"说得上是同一件事"
- *   3. 仲裁融合：按置信度加权给出融合分，并把高分歧维度推入人工复核队列
- */
-(function (global) {
-  'use strict';
-  const AG = (global.AG = global.AG || {});
-  const U = AG.utils;
-
-  const LEVELS = [
-    { max: 0.15, level: 'agree', label: '一致', color: '#16a34a' },
-    { max: 0.30, level: 'minor', label: '轻微分歧', color: '#d97706' },
-    { max: 1.01, level: 'major', label: '显著分歧', color: '#dc2626' },
-  ];
-
-  function levelOf(r) {
-    return LEVELS.find((l) => r < l.max) || LEVELS[LEVELS.length - 1];
-  }
-
-  /**
-   * 对比两份评分结果
-   * @param {Object} a 结果 A（主模型，作为基准）
-   * @param {Object} b 结果 B（校验模型，作为对照）
-   * @param {Array} rubric
-   */
-  function compare(a, b, rubric) {
-    if (!a || !b) throw new Error('需要两份评分结果才能对比');
-
-    const byId = {};
-    (b.dims || []).forEach((d) => { byId[d.id] = d; });
-
-    const dims = (a.dims || []).map((d) => {
-      const o = byId[d.id];
-      const max = Number(d.max) || 1;
-      const sb = o ? o.score : 0;
-      const diff = U.round(d.score - sb, 1);
-      const ratio = U.clamp(Math.abs(diff) / max, 0, 1);
-      const lv = levelOf(ratio);
-      return {
-        id: d.id, name: d.name, max: Number(d.max),
-        scoreA: d.score, scoreB: U.round(sb, 1),
-        diff, diffRatio: U.round(ratio, 3),
-        level: lv.level, levelLabel: lv.label, color: lv.color,
-        higher: diff > 0 ? 'A' : diff < 0 ? 'B' : '=',
-      };
-    }).sort((x, y) => y.diffRatio - x.diffRatio);
-
-    const totalDiff = U.round(a.total - b.total, 1);
-    const mae = U.round(dims.reduce((s, d) => s + Math.abs(d.diff), 0) / (dims.length || 1), 2);
-    const r = U.round(AG.reliability.pearson(
-      dims.map((d) => d.scoreA / (d.max || 1)),
-      dims.map((d) => d.scoreB / (d.max || 1)),
-    ), 3);
-    const agreeRate = U.round(dims.filter((d) => d.level === 'agree').length / (dims.length || 1), 3);
-    const gradeAgree = a.grade === b.grade;
-    const reviewQueue = dims.filter((d) => d.level !== 'agree');
-
-    let verdict, verdictColor, advice;
-    if (agreeRate >= 0.75 && Math.abs(totalDiff) <= 5) {
-      verdict = '双模型共识'; verdictColor = '#16a34a';
-      advice = '两个模型结论接近，可直接采用融合分。';
-    } else if (agreeRate >= 0.5) {
-      verdict = '部分分歧'; verdictColor = '#d97706';
-      advice = `有 ${reviewQueue.length} 个维度存在分歧，建议重点复核后再定分。`;
-    } else {
-      verdict = '显著分歧'; verdictColor = '#dc2626';
-      advice = '两模型判断差异过大，本报告不建议直接采用自动分，请人工评阅。';
-    }
-
-    return {
-      a: { engine: a.engine, engineLabel: a.engineLabel, total: a.total, grade: a.grade, model: a.model },
-      b: { engine: b.engine, engineLabel: b.engineLabel, total: b.total, grade: b.grade, model: b.model },
-      dims, totalDiff, mae, correlation: r, agreeRate, gradeAgree,
-      reviewQueue, verdict, verdictColor, advice,
-      // 未配校验模型时，第二意见是同模型高温度重采样，结论强度要打折——如实告知
-      degraded: !!(b && b.sameModelNote),
-      degradedNote: b && b.sameModelNote ? b.sameModelNote : null,
-      comparedAt: Date.now(),
-    };
-  }
-
-  /**
-   * 仲裁融合：按权重合并两个模型的维度分
-   * @param {number} wA A 的权重（默认 0.5：两个模型地位对等，不再默认偏袒"稳定"的一方）
-   *
-   * 旧实现默认 0.4 给本地引擎（理由是"稳定但保守"）。本地引擎删掉后，
-   * 两个都是模型，没有理由预设谁更可信，所以默认改成对半。
-   */
-  function fuse(a, b, rubric, wA) {
-    const wa = wA == null ? 0.5 : U.clamp(wA, 0, 1);
-    const wb = 1 - wa;
-    const byId = {};
-    (b.dims || []).forEach((d) => { byId[d.id] = d; });
-
-    const dims = (a.dims || []).map((d) => {
-      const o = byId[d.id];
-      const max = Number(d.max) || 0;
-      const score = U.clamp(U.round(d.score * wa + (o ? o.score : d.score) * wb, 1), 0, max);
-      return Object.assign({}, d, {
-        score,
-        ratio: U.round(score / (max || 1), 3),
-        fusedFrom: { a: d.score, b: o ? o.score : d.score, wA: wa },
-        comment: d.comment,
-      });
-    });
-
-    const raw = dims.reduce((s, d) => s + d.score, 0);
-    const scale = (rubric || []).reduce((s, d) => s + (Number(d.max) || 0), 0) || 100;
-    const total = U.clamp(U.round(raw * 100 / scale, 1), 0, 100);
-    const g = AG.rubric.gradeOf(total);
-
-    return {
-      docName: a.docName,
-      engine: 'fused',
-      engineLabel: `双模型融合（${a.engineLabel} ${Math.round(wa * 100)}% + ${b.engineLabel} ${Math.round(wb * 100)}%）`,
-      total, grade: g.grade, gradeLabel: g.label, gradeColor: g.color,
-      dims,
-      features: a.features,
-      overall: `经双模型交叉验证并加权融合，综合得分 ${total} 分（${g.grade} 级 · ${g.label}）。`,
-      gradedAt: Date.now(),
-    };
-  }
-
-  /**
-   * 采样基线：对同一份文档用同一模型评 N 次，看分数散成什么样。
-   *
-   * 这替代了原先的 Bootstrap 段落重采样基线。旧做法反复调用本地引擎打分，
-   * 测的是"删掉 15% 段落分变不变"；本地引擎没了，而且那个问题对教师也不重要——
-   * 教师真正想问的是「同一份作业，明天再评一遍会不会换个分」。
-   * 直接采样回答的正是这个问题。
-   */
-  async function samplingBaseline(doc, rubric, opts) {
-    opts = opts || {};
-    // 统计口径统一交给 reliability.stability，避免两处各算一套分位数
-    const st = await AG.reliability.stability(doc, rubric, { iterations: opts.iterations || 5 });
-    if (!st.ok) return st;
-
-    return Object.assign({}, st, {
-      engine: 'llm-sampled',
-      engineLabel: `采样基线（${st.iterations} 次 · ${st.model}）`,
-      overall: `同一份报告用 ${st.model} 连续评阅 ${st.iterations} 次：均值 ${st.mean} 分，` +
-        `区间 ${st.range[0]}–${st.range[1]} 分（极差 ${st.spread} 分）。`,
-      gradedAt: Date.now(),
-    });
-  }
-
-  AG.consensus = { compare, fuse, samplingBaseline, levelOf, LEVELS };
-})(window);
-
-</script>
-<script>
 /* ===== pdf.js ===== */
 /* AutoGrader · 零依赖 PDF 评阅报告导出
  *
@@ -9518,13 +9232,13 @@ def quick_sort(arr):
     },
     {
       id: 'batch',
-      keys: ['批量', '统计', '分布', '信度', '一致性', '交叉验证', '融合', '双模型', '平均分'],
+      keys: ['批量', '统计', '分布', '信度', '一致性', '平均分'],
       answer() {
         return '两个页面分管这些：\n' +
           '· 「批量与查重」：成绩总表、分数分布、两两相似度矩阵\n' +
-          '· 「设置 → 分析与校验」：量表自动诱导、评分信度自检（含重复评阅稳定性）、双模型交叉验证与分数融合\n' +
+          '· 「设置 → 分析与校验」：量表自动诱导、评分信度自检（含重复评阅稳定性）\n' +
           '· 「设置 → 类型设置」：内置 7 类文档类型与各自评分方向，可增删改，与工作台双向同步\n\n' +
-          '两个模型的分歧会直接摆出来让你裁决，不会偷偷取个平均值糊弄过去。';
+          '自检会直接回答「同一份作业明天再评一遍会不会换个分」。';
       },
     },
     {
@@ -9593,7 +9307,7 @@ def quick_sort(arr):
     whyScore: ['扣分', '凭什么', '分是怎么'],
     improve: ['提分', '怎么改', '提高', '补救'],
     rubric: ['量表', '分值', '权重', '比重'],
-    batch: ['批量', '信度', '交叉验证', '融合'],
+    batch: ['批量', '信度', '稳定性'],
   };
   const OWN_WEIGHT = 20;
 
@@ -9746,7 +9460,6 @@ def quick_sort(arr):
     simScope: U.store.get('simScope', 'batch'),   // 查重范围，需求③「范围待定」故做成可切换
     induceGroups: {},   // docId -> 'high' | 'low'
     induced: null,      // 最近一次诱导结果
-    lastFused: null,    // 最近一次融合结果
     labPreview: null,   // 最近一次「一句话生成」的建议量表
     autoFitKey: '',     // 上次自动适配时的文档集合指纹，用于避免重复跑同一批
     autoFitTimer: null,
@@ -9916,7 +9629,7 @@ def quick_sort(arr):
     const tip = $('#engineTip');
     if (tip) {
       tip.innerHTML = on
-        ? `当前由 <b>${U.esc(cfg.model)}</b> 评阅。可在「设置 → 模型设置」中切换开源模型，或配置第二个「校验模型」做双模型交叉验证。`
+        ? `当前由 <b>${U.esc(cfg.model)}</b> 评阅。可在「设置 → 模型设置」中切换开源模型。`
         : '<b>尚未配置模型引擎。</b>本地启发式引擎已按需求下线，评分需接入开源大模型 —— 点「配置模型」选一个免费开源服务商，填入 API Key 即可。';
     }
     const go = $('#btnEngineLLM');
@@ -10391,7 +10104,7 @@ def quick_sort(arr):
   }
 
   /* ============================================================
-   * 智能分析：量表自动诱导 / 评分信度自检 / 双模型交叉验证
+   * 智能分析：量表自动诱导 / 评分信度自检
    * ============================================================ */
 
   /* ---------- 1. 量表自动诱导 ---------- */
@@ -10412,7 +10125,6 @@ def quick_sort(arr):
     }
     renderInduceGroups();
     renderAuditOptions();
-    renderCvOptions();
   }
 
   function renderInduceGroups() {
@@ -10472,11 +10184,8 @@ def quick_sort(arr):
 
     let res;
     try {
-      res = AG.induce.induce(high, low, {
-        minDelta: Number($('#indMinDelta').value) || 0.2,
-        minSupport: Number($('#indMinSup').value) || 0.25,
-        maxTerms: Number($('#indMaxTerms').value) || 60,
-      });
+      // 这三个参数不暴露给用户：教学场景下默认值够用，摆出来只会增加理解成本
+      res = AG.induce.induce(high, low, { minDelta: 0.20, minSupport: 0.25, maxTerms: 60 });
     } catch (e) {
       box.innerHTML = `<div class="susp"><span class="badge red">失败</span><span>${U.esc(e.message)}</span></div>`;
       return;
@@ -10579,7 +10288,7 @@ def quick_sort(arr):
   /**
    * 保证评分结果与当前量表同源。
    * 场景：教师改了量表（或应用了诱导量表）却没重新评分，此时 doc.result 仍是旧量表的维度结构。
-   * 若不校验就直接拿去算 α 或做双模型对比，会出现"维度对不上、缺失维度按 0 分计"的荒谬结果
+   * 若不校验就直接拿去算 α 或做重复评阅，会出现"维度对不上、缺失维度按 0 分计"的荒谬结果
    * （表现为总分差接近 0，但平均绝对误差高达 9 分）。
    * @returns {number} 被刷新的报告数
    */
@@ -10828,104 +10537,6 @@ def quick_sort(arr):
       if (t.ok && t.supportRate < 0.5) out.push({ name: d.name, rate: t.supportRate });
     });
     return out;
-  }
-
-  /* ---------- 3. 双模型交叉验证 ---------- */
-
-  function renderCvOptions() {
-    const sel = $('#cvDoc');
-    const cur = sel.value;
-    sel.innerHTML = '';
-    const gs = gradedDocs();
-    if (!gs.length) {
-      sel.innerHTML = '<option value="">暂无已评分报告</option>';
-      return;
-    }
-    gs.forEach((d) => sel.appendChild(U.el('option', { value: d.id, html: U.esc(d.name) + '（' + d.result.total + ' 分）' })));
-    if (cur) sel.value = cur;
-  }
-
-  async function runCV() {
-    const box = $('#cvResult');
-    const gs = gradedDocs();
-    if (!gs.length) {
-      box.innerHTML = '<div class="susp warn"><span class="badge amber">无数据</span><span>请先完成至少 1 份报告的评分。</span></div>';
-      return;
-    }
-    const refreshed = await ensureFreshResults();
-    if (refreshed) toast(`量表已变更，已按新量表重新评分 ${refreshed} 份报告`, 'ok');
-
-    const doc = gs.find((d) => d.id === ($('#cvDoc').value || gs[0].id)) || gs[0];
-    const btn = $('#btnCV');
-    btn.disabled = true; btn.innerHTML = '<span class="spin"></span> 对比中…';
-
-    /* 第二意见现在来自「校验模型」（另一个开源模型，最好跨模型族）。
-     * 没配校验模型时，gradeWithReviewer 会退化成主模型高温重采样，
-     * 并在结果里标注 sameModelNote —— 结论强度要打折，界面会如实提示。 */
-    let second, srcLabel;
-    try {
-      second = await AG.llm.gradeWithReviewer(doc, activeRubric());
-      srcLabel = second.sameModelNote ? '主模型高温复评' : '校验模型';
-    } catch (e) {
-      btn.disabled = false; btn.textContent = '开始对比';
-      box.innerHTML = `<div class="susp"><span class="badge red">失败</span><span>${U.esc(e.message)}</span></div>`;
-      return;
-    }
-
-    const cmp = AG.consensus.compare(doc.result, second, activeRubric());
-    const wA = U.clamp(Number($('#cvWeight').value), 0, 1);
-    const fused = AG.consensus.fuse(doc.result, second, activeRubric(), wA);
-    state.lastFused = { docId: doc.id, fused };
-
-    btn.disabled = false; btn.textContent = '开始对比';
-
-    const rows = cmp.dims.map((d) => `<tr>
-      <td>${U.esc(d.name)}</td>
-      <td class="c">${d.max}</td>
-      <td class="c">${d.scoreA}</td>
-      <td class="c">${d.scoreB}</td>
-      <td class="c" style="font-weight:700;color:${d.color}">${d.diff > 0 ? '+' : ''}${d.diff}</td>
-      <td class="c"><span class="badge" style="background:${d.color}18;color:${d.color}">${d.levelLabel}</span></td>
-    </tr>`).join('');
-
-    box.innerHTML = `
-      <div class="susp warn" style="border-color:${cmp.verdictColor};background:${cmp.verdictColor}0f">
-        <span class="badge" style="background:${cmp.verdictColor};color:#fff">${U.esc(cmp.verdict)}</span>
-        <span>${U.esc(cmp.advice)}</span>
-      </div>
-      <div class="kpi-row" style="margin-top:12px">
-        <div class="kpi"><b>${cmp.a.total}</b><small>A · ${U.esc(cmp.a.engineLabel)}</small><span>${cmp.a.grade} 级</span></div>
-        <div class="kpi"><b>${cmp.b.total}</b><small>B · ${U.esc(cmp.b.engineLabel)}</small><span>${cmp.b.grade} 级</span></div>
-        <div class="kpi"><b style="color:${Math.abs(cmp.totalDiff) > 5 ? 'var(--amber)' : 'var(--green)'}">${cmp.totalDiff > 0 ? '+' : ''}${cmp.totalDiff}</b><small>总分差</small><span>平均绝对误差 ${cmp.mae} 分</span></div>
-        <div class="kpi"><b>${Math.round(cmp.agreeRate * 100)}%</b><small>维度一致率</small><span>跨维度相关 r = ${cmp.correlation}</span></div>
-      </div>
-      <h4 style="font-size:13px;margin:16px 0 8px">逐维度分歧（A → B，红色区间即分歧幅度）</h4>
-      <div id="dvBox"></div>
-      <div style="overflow-x:auto;margin-top:10px">
-        <table class="tb"><thead><tr>
-          <th>维度</th><th class="c">满分</th><th class="c">A ${U.esc((cmp.a && cmp.a.model) || '主模型')}</th><th class="c">B ${U.esc(srcLabel)}</th>
-          <th class="c">差值</th><th class="c">判定</th>
-        </tr></thead><tbody>${rows}</tbody></table>
-      </div>
-      <h4 style="font-size:13px;margin:18px 0 8px">仲裁融合</h4>
-      <div class="susp" style="border-color:#bbf7d0;background:#f0fdf4">
-        <span class="badge green">融合分 ${fused.total}</span>
-        <span>${U.esc(fused.engineLabel)} → ${fused.grade} 级 · ${U.esc(fused.gradeLabel)}
-        ${cmp.reviewQueue.length ? `。另有 <b>${cmp.reviewQueue.length}</b> 个维度分歧较大，采用前建议复核：${cmp.reviewQueue.map((d) => U.esc(d.name)).join('、')}。` : '，各维度无显著分歧，可直接采用。'}</span>
-      </div>
-      <div class="btn-row" style="margin-top:12px">
-        <button class="btn primary" id="btnAdoptFused">采用融合分替换原评分</button>
-      </div>`;
-
-    const dv = $('#dvBox');
-    if (dv) dv.appendChild(AG.charts.divergence(cmp));
-    $('#btnAdoptFused').addEventListener('click', () => {
-      doc.result = Object.assign({}, state.lastFused.fused);
-      persist();
-      renderDocList();
-      renderResult();
-      toast('已采用融合分', 'ok');
-    });
   }
 
   /* ---------------- 智能量表（Rubric Lab） ----------------
@@ -11547,10 +11158,6 @@ def quick_sort(arr):
     setVal('#cfgApiKey', c.apiKey);
     setVal('#cfgTemp', c.temperature);
     setVal('#cfgMaxChars', c.maxChars);
-    setVal('#cfgReviewProviderId', c.reviewProviderId);
-    setVal('#cfgReviewBaseUrl', c.reviewBaseUrl);
-    setVal('#cfgReviewModel', c.reviewModel);
-    setVal('#cfgReviewApiKey', c.reviewApiKey);
   }
 
   /* ---------------- 导出 ---------------- */
@@ -11964,9 +11571,7 @@ def quick_sort(arr):
     $('#btnInduce').addEventListener('click', runInduce);
     $('#btnInduceExport').addEventListener('click', exportInduced);
     $('#btnAudit').addEventListener('click', runAudit);
-    $('#btnCV').addEventListener('click', runCV);
     $('#auditDoc').addEventListener('change', () => { /* 换对象后需重新运行自检 */ });
-    $('#cvDoc').addEventListener('change', () => { $('#cvResult').innerHTML = ''; });
 
     // 量表
     bindRubricInputs();
@@ -11998,7 +11603,6 @@ def quick_sort(arr):
     $('#btnSaveCfg').addEventListener('click', () => {
       const val = (id) => { const el = $(id); return el ? String(el.value || '').trim() : ''; };
       const providerId = val('#cfgProviderId');
-      const reviewProviderId = val('#cfgReviewProviderId');
       AG.llm.saveConfig({
         enabled: true,
         providerId,
@@ -12007,11 +11611,6 @@ def quick_sort(arr):
         apiKey: val('#cfgApiKey'),
         temperature: Number(val('#cfgTemp')),
         maxChars: Number(val('#cfgMaxChars')),
-        // 校验模型（第二意见）：留空则由 gradeWithReviewer 退化为主模型高温复评
-        reviewProviderId,
-        reviewBaseUrl: val('#cfgReviewBaseUrl'),
-        reviewModel: val('#cfgReviewModel'),
-        reviewApiKey: val('#cfgReviewApiKey'),
       });
       refreshEngineBadge();
       toast('配置已保存到本机', 'ok');
@@ -12054,21 +11653,6 @@ def quick_sort(arr):
     $$('[data-preset]').forEach((btn) => {
       btn.addEventListener('click', () => applyPreset(PROVIDER_PRESETS[btn.dataset.preset], '#cfg'));
     });
-    $$('[data-preset-review]').forEach((btn) => {
-      btn.addEventListener('click', () => applyPreset(PROVIDER_PRESETS[btn.dataset.presetReview], '#cfgReview'));
-    });
-
-    // 一键推荐校验模型：按「跨模型族」原则挑，避免同族模型把系统性偏差当成共识
-    const pickBtn = $('#btnPickReviewer');
-    if (pickBtn) {
-      pickBtn.addEventListener('click', () => {
-        const cur = $('#cfgProviderId') ? String($('#cfgProviderId').value || '') : '';
-        const p = AG.providers.pickReviewer(cur);
-        applyPreset(p, '#cfgReview');
-        toast(`已选「${p.label}」作为校验模型（与主模型不同族，互检更有意义），还需填它的 API Key`, 'ok');
-      });
-    }
-
     // 查重范围切换（需求③范围待定，故两种都提供）
     $$('[data-simscope]').forEach((btn) => {
       btn.addEventListener('click', () => {

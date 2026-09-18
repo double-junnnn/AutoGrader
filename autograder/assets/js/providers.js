@@ -8,8 +8,8 @@
  *      于是"换模型"只是换两个字符串，不需要为每个厂商写适配层。
  *   2. 预设里优先推荐权重公开、可本地部署、可离线运行的开源模型，
  *      教师既能用云端免费额度，也能把模型搬进机房内网，不被某家商业 API 绑死。
- *   3. 提供「校验模型」用于双模型交叉验证，正面回应需求①里
- *      「每次调用模型评分结果差异化」的问题（详见 consensus.js）。
+ *   3. 预设只描述接入信息（地址 / 推荐模型 / 是否免费 / 是否本地），不掺任何评分策略 ——
+ *      换模型不该顺带换掉评分口径。
  *
  * 关于「开源」的判定口径：这里标 open:true 指的是**模型权重可获取**（可自行部署），
  * 不是指提供它的云服务商本身开源。托管在云上的开源模型依然计入，
@@ -28,11 +28,10 @@
    *   local     是否运行在本机 / 内网（无需外网）
    *   json      是否支持 response_format: json_object
    *             不支持的会被 llm.js 自动降级为「靠 prompt 指令」再试，不是硬门槛
-   *   family    模型族，用于交叉验证时挑选「不同族」的对照模型
    */
   const PRESETS = {
     siliconflow: {
-      id: 'siliconflow', label: '硅基流动 SiliconFlow', family: 'qwen',
+      id: 'siliconflow', label: '硅基流动 SiliconFlow',
       baseUrl: 'https://api.siliconflow.cn/v1',
       model: 'Qwen/Qwen2.5-7B-Instruct',
       open: true, free: true, local: false, json: true,
@@ -46,7 +45,7 @@
       ],
     },
     ollama: {
-      id: 'ollama', label: '本地 Ollama', family: 'qwen',
+      id: 'ollama', label: '本地 Ollama',
       baseUrl: 'http://localhost:11434/v1',
       model: 'qwen2.5:7b',
       open: true, free: true, local: true, json: false,
@@ -54,7 +53,7 @@
       models: ['qwen2.5:7b', 'qwen3:8b', 'glm4:9b', 'llama3.1:8b', 'deepseek-r1:7b'],
     },
     vllm: {
-      id: 'vllm', label: '自建 vLLM / Xinference', family: 'custom',
+      id: 'vllm', label: '自建 vLLM / Xinference',
       baseUrl: 'http://localhost:8000/v1',
       model: 'qwen2.5-7b-instruct',
       open: true, free: true, local: true, json: true,
@@ -62,7 +61,7 @@
       models: [],
     },
     zhipu: {
-      id: 'zhipu', label: '智谱 GLM', family: 'glm',
+      id: 'zhipu', label: '智谱 GLM',
       baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
       model: 'glm-4.7-flash',
       open: true, free: true, local: false, json: true,
@@ -70,7 +69,7 @@
       models: ['glm-4.7-flash', 'glm-4-flash', 'glm-4-plus'],
     },
     qwen: {
-      id: 'qwen', label: '通义千问 Qwen', family: 'qwen',
+      id: 'qwen', label: '通义千问 Qwen',
       baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
       model: 'qwen-plus',
       open: true, free: false, local: false, json: true,
@@ -78,7 +77,7 @@
       models: ['qwen-plus', 'qwen-turbo', 'qwen-max'],
     },
     deepseek: {
-      id: 'deepseek', label: 'DeepSeek', family: 'deepseek',
+      id: 'deepseek', label: 'DeepSeek',
       baseUrl: 'https://api.deepseek.com/v1',
       model: 'deepseek-chat',
       open: true, free: false, local: false, json: true,
@@ -86,7 +85,7 @@
       models: ['deepseek-chat', 'deepseek-reasoner'],
     },
     modelscope: {
-      id: 'modelscope', label: '魔搭 ModelScope', family: 'qwen',
+      id: 'modelscope', label: '魔搭 ModelScope',
       baseUrl: 'https://api-inference.modelscope.cn/v1',
       model: 'Qwen/Qwen2.5-7B-Instruct',
       open: true, free: true, local: false, json: true,
@@ -94,7 +93,7 @@
       models: ['Qwen/Qwen2.5-7B-Instruct', 'Qwen/Qwen3-8B'],
     },
     groq: {
-      id: 'groq', label: 'Groq', family: 'llama',
+      id: 'groq', label: 'Groq',
       baseUrl: 'https://api.groq.com/openai/v1',
       model: 'llama-3.1-8b-instant',
       open: true, free: true, local: false, json: true,
@@ -102,7 +101,7 @@
       models: ['llama-3.1-8b-instant', 'llama-3.3-70b-versatile', 'qwen-2.5-32b'],
     },
     openrouter: {
-      id: 'openrouter', label: 'OpenRouter', family: 'mixed',
+      id: 'openrouter', label: 'OpenRouter',
       baseUrl: 'https://openrouter.ai/api/v1',
       model: 'qwen/qwen-2.5-7b-instruct:free',
       open: true, free: true, local: false, json: true,
@@ -110,7 +109,7 @@
       models: ['qwen/qwen-2.5-7b-instruct:free', 'deepseek/deepseek-chat-v3-0324:free'],
     },
     openai: {
-      id: 'openai', label: 'OpenAI', family: 'gpt',
+      id: 'openai', label: 'OpenAI',
       baseUrl: 'https://api.openai.com/v1',
       model: 'gpt-4o-mini',
       open: false, free: false, local: false, json: true,
@@ -118,7 +117,7 @@
       models: ['gpt-4o-mini', 'gpt-4o'],
     },
     moonshot: {
-      id: 'moonshot', label: 'Moonshot', family: 'kimi',
+      id: 'moonshot', label: 'Moonshot',
       baseUrl: 'https://api.moonshot.cn/v1',
       model: 'moonshot-v1-8k',
       open: false, free: false, local: false, json: true,
@@ -151,19 +150,6 @@
     return list('open').filter((p) => p.free && p.json)[0] || PRESETS.siliconflow;
   }
 
-  /**
-   * 为交叉验证挑选对照模型。
-   * 关键是**跨模型族**：让 Qwen 和 GLM 互检，比让 Qwen 自检有意义得多。
-   * 同族模型共享训练数据与偏好，打分偏差方向一致，互检会把系统性偏差当成共识。
-   */
-  function pickReviewer(primaryId) {
-    const primary = get(primaryId);
-    const fam = primary ? primary.family : '';
-    const pool = list('open');
-    const other = pool.find((p) => p.id !== primaryId && p.family !== fam && p.free);
-    return other || pool.find((p) => p.id !== primaryId) || recommend();
-  }
-
   /** 判断一个模型名是否属于开源权重系列（用于 UI 标注，非精确判定） */
   const OPEN_MODEL_HINT = /qwen|glm|llama|deepseek|mistral|gemma|yi-|baichuan|internlm|chatglm|phi-|grok/i;
 
@@ -172,7 +158,7 @@
   }
 
   AG.providers = {
-    PRESETS, list, get, recommend, pickReviewer, isOpenModel, rank,
+    PRESETS, list, get, recommend, isOpenModel, rank,
     /** 旧配置迁移用：从 baseUrl 反查预设 id */
     fromBaseUrl(url) {
       const u = String(url || '').replace(/\/+$/, '').toLowerCase();

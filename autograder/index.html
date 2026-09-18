@@ -298,28 +298,6 @@
           <input type="number" id="cfgMaxChars" step="1000" min="2000" max="60000" value="12000"></label>
       </div>
 
-      <h4 style="font-size:13px;margin:18px 0 6px">校验模型（第二意见）<span class="sub">用于双模型交叉验证</span></h4>
-      <p class="hint" style="margin:0 0 10px">
-        同一个模型两次打分都可能差几分。配一个<b>不同模型族</b>的开源模型当裁判，
-        逐维度互检分歧。留空也能用，此时第二意见退化为主模型高温复评，结论强度会打折并注明。
-      </p>
-      <div class="btn-row" style="margin-bottom:8px">
-        <button type="button" class="btn sm primary" id="btnPickReviewer">推荐一个（自动跨族）</button>
-        <button type="button" class="btn sm" data-preset-review="zhipu">智谱 GLM</button>
-        <button type="button" class="btn sm" data-preset-review="groq">Groq</button>
-        <button type="button" class="btn sm" data-preset-review="ollama">本地 Ollama</button>
-        <button type="button" class="btn sm" data-preset-review="qwen">通义千问</button>
-      </div>
-      <input type="hidden" id="cfgReviewProviderId">
-      <div class="row">
-        <label class="fld"><span>校验模型 Base URL（留空则复用主模型地址）</span>
-          <input type="text" id="cfgReviewBaseUrl" placeholder="留空 = 同主模型"></label>
-        <label class="fld"><span>校验模型 Model</span>
-          <input type="text" id="cfgReviewModel" placeholder="glm-4.7-flash"></label>
-      </div>
-      <label class="fld"><span>校验模型 API Key（留空则复用主模型 Key）</span>
-        <input type="password" id="cfgReviewApiKey" placeholder="留空 = 同主模型"></label>
-
       <div class="btn-row" style="margin-top:12px">
         <button class="btn primary" id="btnSaveCfg">保存配置</button>
         <button class="btn" id="btnTestCfg">测试连通性</button>
@@ -338,22 +316,13 @@
     <!-- ---------- 分区五：分析与校验（原「智能分析」并入设置） ---------- -->
     <div class="setsec" id="setsec-insight" style="display:none">
     <div class="card">
-      <h3>量表自动诱导 <span class="sub">区分度驱动，而非频次驱动</span></h3>
+      <h3>量表自动诱导 <span class="sub">让好报告自己告诉你要点什么</span></h3>
       <p class="hint" style="margin-bottom:12px">
-        教师手写量表最常见的两个偏差：把「人人都写」的东西列为得分点（零区分度，占分却拉不开差距），
-        以及分值凭直觉分配。本引擎要求先标注<b>优秀组</b>与<b>对照组</b>范文，
-        再对每个候选要点计算 <b>Δ = 优秀组命中率 − 对照组命中率</b>，只保留 Δ 高于阈值的要点，
-        并按 <b>Δ·√支持度</b> 分配分值——区分不出好坏的要素自动出局。
+        给已评分的报告标一下「优秀范文」和「对照范文」，点「开始诱导」即可：
+        系统对比两组，把<b>只有好报告才做到的要点</b>挑出来，并按重要程度分配分值。
+        评分参数已按教学场景配好，不需要你调。
       </p>
       <div id="induceGroups" style="margin-bottom:12px"></div>
-      <div class="row" style="margin-bottom:10px">
-        <label class="fld"><span>最小区分度 Δ（越高越严格）</span>
-          <input type="number" id="indMinDelta" step="0.05" min="0.05" max="1" value="0.20"></label>
-        <label class="fld"><span>最小支持度（术语类）</span>
-          <input type="number" id="indMinSup" step="0.05" min="0" max="1" value="0.25"></label>
-        <label class="fld"><span>候选术语上限</span>
-          <input type="number" id="indMaxTerms" step="10" min="10" max="200" value="60"></label>
-      </div>
       <div class="btn-row">
         <button class="btn primary" id="btnInduce">开始诱导</button>
         <button class="btn" id="btnInduceExport">导出量表 JSON</button>
@@ -378,25 +347,6 @@
         <button class="btn primary" id="btnAudit">运行自检</button>
       </div>
       <div id="auditResult" style="margin-top:14px"></div>
-    </div>
-
-    <div class="card">
-      <h3>双模型交叉验证 <span class="sub">分歧即信号</span></h3>
-      <p class="hint" style="margin-bottom:12px">
-        同一个模型两次打分都可能差几分。这里让<b>第二个开源模型</b>再评一遍，逐维度比对分歧——
-        这是需求里点名要解决的「每次调用模型评分结果差异化」。
-        校验模型建议选<b>不同模型族</b>（如 Qwen 配 GLM）：同族模型共享偏好，互检会把系统性偏差误当成共识。
-        未配置校验模型时，第二意见退化为主模型高温复评，结论强度会打折并在结果中注明。
-      </p>
-      <div class="row" style="margin-bottom:10px">
-        <label class="fld"><span>报告</span><select id="cvDoc"></select></label>
-        <label class="fld"><span>融合权重（主模型占比）</span>
-          <input type="number" id="cvWeight" step="0.1" min="0" max="1" value="0.5"></label>
-      </div>
-      <div class="btn-row">
-        <button class="btn primary" id="btnCV">开始对比</button>
-      </div>
-      <div id="cvResult" style="margin-top:14px"></div>
     </div>
     </div>
 
@@ -510,7 +460,6 @@
 <script src="assets/js/induce.js"></script>
 <script src="assets/js/rubriclab.js"></script>
 <script src="assets/js/reliability.js"></script>
-<script src="assets/js/consensus.js"></script>
 <script src="assets/js/pdf.js"></script>
 <script src="assets/js/chat.js"></script>
 <script src="assets/js/app.js"></script>

@@ -28,7 +28,6 @@
     simScope: U.store.get('simScope', 'batch'),   // 查重范围，需求③「范围待定」故做成可切换
     induceGroups: {},   // docId -> 'high' | 'low'
     induced: null,      // 最近一次诱导结果
-    lastFused: null,    // 最近一次融合结果
     labPreview: null,   // 最近一次「一句话生成」的建议量表
     autoFitKey: '',     // 上次自动适配时的文档集合指纹，用于避免重复跑同一批
     autoFitTimer: null,
@@ -198,7 +197,7 @@
     const tip = $('#engineTip');
     if (tip) {
       tip.innerHTML = on
-        ? `当前由 <b>${U.esc(cfg.model)}</b> 评阅。可在「设置 → 模型设置」中切换开源模型，或配置第二个「校验模型」做双模型交叉验证。`
+        ? `当前由 <b>${U.esc(cfg.model)}</b> 评阅。可在「设置 → 模型设置」中切换开源模型。`
         : '<b>尚未配置模型引擎。</b>本地启发式引擎已按需求下线，评分需接入开源大模型 —— 点「配置模型」选一个免费开源服务商，填入 API Key 即可。';
     }
     const go = $('#btnEngineLLM');
@@ -673,7 +672,7 @@
   }
 
   /* ============================================================
-   * 智能分析：量表自动诱导 / 评分信度自检 / 双模型交叉验证
+   * 智能分析：量表自动诱导 / 评分信度自检
    * ============================================================ */
 
   /* ---------- 1. 量表自动诱导 ---------- */
@@ -694,7 +693,6 @@
     }
     renderInduceGroups();
     renderAuditOptions();
-    renderCvOptions();
   }
 
   function renderInduceGroups() {
@@ -754,11 +752,8 @@
 
     let res;
     try {
-      res = AG.induce.induce(high, low, {
-        minDelta: Number($('#indMinDelta').value) || 0.2,
-        minSupport: Number($('#indMinSup').value) || 0.25,
-        maxTerms: Number($('#indMaxTerms').value) || 60,
-      });
+      // 这三个参数不暴露给用户：教学场景下默认值够用，摆出来只会增加理解成本
+      res = AG.induce.induce(high, low, { minDelta: 0.20, minSupport: 0.25, maxTerms: 60 });
     } catch (e) {
       box.innerHTML = `<div class="susp"><span class="badge red">失败</span><span>${U.esc(e.message)}</span></div>`;
       return;
@@ -861,7 +856,7 @@
   /**
    * 保证评分结果与当前量表同源。
    * 场景：教师改了量表（或应用了诱导量表）却没重新评分，此时 doc.result 仍是旧量表的维度结构。
-   * 若不校验就直接拿去算 α 或做双模型对比，会出现"维度对不上、缺失维度按 0 分计"的荒谬结果
+   * 若不校验就直接拿去算 α 或做重复评阅，会出现"维度对不上、缺失维度按 0 分计"的荒谬结果
    * （表现为总分差接近 0，但平均绝对误差高达 9 分）。
    * @returns {number} 被刷新的报告数
    */
@@ -1110,104 +1105,6 @@
       if (t.ok && t.supportRate < 0.5) out.push({ name: d.name, rate: t.supportRate });
     });
     return out;
-  }
-
-  /* ---------- 3. 双模型交叉验证 ---------- */
-
-  function renderCvOptions() {
-    const sel = $('#cvDoc');
-    const cur = sel.value;
-    sel.innerHTML = '';
-    const gs = gradedDocs();
-    if (!gs.length) {
-      sel.innerHTML = '<option value="">暂无已评分报告</option>';
-      return;
-    }
-    gs.forEach((d) => sel.appendChild(U.el('option', { value: d.id, html: U.esc(d.name) + '（' + d.result.total + ' 分）' })));
-    if (cur) sel.value = cur;
-  }
-
-  async function runCV() {
-    const box = $('#cvResult');
-    const gs = gradedDocs();
-    if (!gs.length) {
-      box.innerHTML = '<div class="susp warn"><span class="badge amber">无数据</span><span>请先完成至少 1 份报告的评分。</span></div>';
-      return;
-    }
-    const refreshed = await ensureFreshResults();
-    if (refreshed) toast(`量表已变更，已按新量表重新评分 ${refreshed} 份报告`, 'ok');
-
-    const doc = gs.find((d) => d.id === ($('#cvDoc').value || gs[0].id)) || gs[0];
-    const btn = $('#btnCV');
-    btn.disabled = true; btn.innerHTML = '<span class="spin"></span> 对比中…';
-
-    /* 第二意见现在来自「校验模型」（另一个开源模型，最好跨模型族）。
-     * 没配校验模型时，gradeWithReviewer 会退化成主模型高温重采样，
-     * 并在结果里标注 sameModelNote —— 结论强度要打折，界面会如实提示。 */
-    let second, srcLabel;
-    try {
-      second = await AG.llm.gradeWithReviewer(doc, activeRubric());
-      srcLabel = second.sameModelNote ? '主模型高温复评' : '校验模型';
-    } catch (e) {
-      btn.disabled = false; btn.textContent = '开始对比';
-      box.innerHTML = `<div class="susp"><span class="badge red">失败</span><span>${U.esc(e.message)}</span></div>`;
-      return;
-    }
-
-    const cmp = AG.consensus.compare(doc.result, second, activeRubric());
-    const wA = U.clamp(Number($('#cvWeight').value), 0, 1);
-    const fused = AG.consensus.fuse(doc.result, second, activeRubric(), wA);
-    state.lastFused = { docId: doc.id, fused };
-
-    btn.disabled = false; btn.textContent = '开始对比';
-
-    const rows = cmp.dims.map((d) => `<tr>
-      <td>${U.esc(d.name)}</td>
-      <td class="c">${d.max}</td>
-      <td class="c">${d.scoreA}</td>
-      <td class="c">${d.scoreB}</td>
-      <td class="c" style="font-weight:700;color:${d.color}">${d.diff > 0 ? '+' : ''}${d.diff}</td>
-      <td class="c"><span class="badge" style="background:${d.color}18;color:${d.color}">${d.levelLabel}</span></td>
-    </tr>`).join('');
-
-    box.innerHTML = `
-      <div class="susp warn" style="border-color:${cmp.verdictColor};background:${cmp.verdictColor}0f">
-        <span class="badge" style="background:${cmp.verdictColor};color:#fff">${U.esc(cmp.verdict)}</span>
-        <span>${U.esc(cmp.advice)}</span>
-      </div>
-      <div class="kpi-row" style="margin-top:12px">
-        <div class="kpi"><b>${cmp.a.total}</b><small>A · ${U.esc(cmp.a.engineLabel)}</small><span>${cmp.a.grade} 级</span></div>
-        <div class="kpi"><b>${cmp.b.total}</b><small>B · ${U.esc(cmp.b.engineLabel)}</small><span>${cmp.b.grade} 级</span></div>
-        <div class="kpi"><b style="color:${Math.abs(cmp.totalDiff) > 5 ? 'var(--amber)' : 'var(--green)'}">${cmp.totalDiff > 0 ? '+' : ''}${cmp.totalDiff}</b><small>总分差</small><span>平均绝对误差 ${cmp.mae} 分</span></div>
-        <div class="kpi"><b>${Math.round(cmp.agreeRate * 100)}%</b><small>维度一致率</small><span>跨维度相关 r = ${cmp.correlation}</span></div>
-      </div>
-      <h4 style="font-size:13px;margin:16px 0 8px">逐维度分歧（A → B，红色区间即分歧幅度）</h4>
-      <div id="dvBox"></div>
-      <div style="overflow-x:auto;margin-top:10px">
-        <table class="tb"><thead><tr>
-          <th>维度</th><th class="c">满分</th><th class="c">A ${U.esc((cmp.a && cmp.a.model) || '主模型')}</th><th class="c">B ${U.esc(srcLabel)}</th>
-          <th class="c">差值</th><th class="c">判定</th>
-        </tr></thead><tbody>${rows}</tbody></table>
-      </div>
-      <h4 style="font-size:13px;margin:18px 0 8px">仲裁融合</h4>
-      <div class="susp" style="border-color:#bbf7d0;background:#f0fdf4">
-        <span class="badge green">融合分 ${fused.total}</span>
-        <span>${U.esc(fused.engineLabel)} → ${fused.grade} 级 · ${U.esc(fused.gradeLabel)}
-        ${cmp.reviewQueue.length ? `。另有 <b>${cmp.reviewQueue.length}</b> 个维度分歧较大，采用前建议复核：${cmp.reviewQueue.map((d) => U.esc(d.name)).join('、')}。` : '，各维度无显著分歧，可直接采用。'}</span>
-      </div>
-      <div class="btn-row" style="margin-top:12px">
-        <button class="btn primary" id="btnAdoptFused">采用融合分替换原评分</button>
-      </div>`;
-
-    const dv = $('#dvBox');
-    if (dv) dv.appendChild(AG.charts.divergence(cmp));
-    $('#btnAdoptFused').addEventListener('click', () => {
-      doc.result = Object.assign({}, state.lastFused.fused);
-      persist();
-      renderDocList();
-      renderResult();
-      toast('已采用融合分', 'ok');
-    });
   }
 
   /* ---------------- 智能量表（Rubric Lab） ----------------
@@ -1829,10 +1726,6 @@
     setVal('#cfgApiKey', c.apiKey);
     setVal('#cfgTemp', c.temperature);
     setVal('#cfgMaxChars', c.maxChars);
-    setVal('#cfgReviewProviderId', c.reviewProviderId);
-    setVal('#cfgReviewBaseUrl', c.reviewBaseUrl);
-    setVal('#cfgReviewModel', c.reviewModel);
-    setVal('#cfgReviewApiKey', c.reviewApiKey);
   }
 
   /* ---------------- 导出 ---------------- */
@@ -2246,9 +2139,7 @@
     $('#btnInduce').addEventListener('click', runInduce);
     $('#btnInduceExport').addEventListener('click', exportInduced);
     $('#btnAudit').addEventListener('click', runAudit);
-    $('#btnCV').addEventListener('click', runCV);
     $('#auditDoc').addEventListener('change', () => { /* 换对象后需重新运行自检 */ });
-    $('#cvDoc').addEventListener('change', () => { $('#cvResult').innerHTML = ''; });
 
     // 量表
     bindRubricInputs();
@@ -2280,7 +2171,6 @@
     $('#btnSaveCfg').addEventListener('click', () => {
       const val = (id) => { const el = $(id); return el ? String(el.value || '').trim() : ''; };
       const providerId = val('#cfgProviderId');
-      const reviewProviderId = val('#cfgReviewProviderId');
       AG.llm.saveConfig({
         enabled: true,
         providerId,
@@ -2289,11 +2179,6 @@
         apiKey: val('#cfgApiKey'),
         temperature: Number(val('#cfgTemp')),
         maxChars: Number(val('#cfgMaxChars')),
-        // 校验模型（第二意见）：留空则由 gradeWithReviewer 退化为主模型高温复评
-        reviewProviderId,
-        reviewBaseUrl: val('#cfgReviewBaseUrl'),
-        reviewModel: val('#cfgReviewModel'),
-        reviewApiKey: val('#cfgReviewApiKey'),
       });
       refreshEngineBadge();
       toast('配置已保存到本机', 'ok');
@@ -2336,21 +2221,6 @@
     $$('[data-preset]').forEach((btn) => {
       btn.addEventListener('click', () => applyPreset(PROVIDER_PRESETS[btn.dataset.preset], '#cfg'));
     });
-    $$('[data-preset-review]').forEach((btn) => {
-      btn.addEventListener('click', () => applyPreset(PROVIDER_PRESETS[btn.dataset.presetReview], '#cfgReview'));
-    });
-
-    // 一键推荐校验模型：按「跨模型族」原则挑，避免同族模型把系统性偏差当成共识
-    const pickBtn = $('#btnPickReviewer');
-    if (pickBtn) {
-      pickBtn.addEventListener('click', () => {
-        const cur = $('#cfgProviderId') ? String($('#cfgProviderId').value || '') : '';
-        const p = AG.providers.pickReviewer(cur);
-        applyPreset(p, '#cfgReview');
-        toast(`已选「${p.label}」作为校验模型（与主模型不同族，互检更有意义），还需填它的 API Key`, 'ok');
-      });
-    }
-
     // 查重范围切换（需求③范围待定，故两种都提供）
     $$('[data-simscope]').forEach((btn) => {
       btn.addEventListener('click', () => {

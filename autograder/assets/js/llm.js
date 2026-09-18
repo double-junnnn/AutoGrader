@@ -29,11 +29,6 @@
     providerId: (AG.providers && AG.providers.recommend() && AG.providers.recommend().id) || 'siliconflow',
     temperature: 0.2,
     maxChars: 12000,
-    // 交叉验证用的第二个模型（需求①「每次调用模型评分结果差异化」）
-    reviewModel: '',
-    reviewBaseUrl: '',
-    reviewApiKey: '',
-    reviewProviderId: '',
   };
 
   function getConfig() {
@@ -356,50 +351,6 @@ ${toneHint ? '【语气设定】\n' + toneHint + '\n' : ''}
   }
 
   /**
-   * 用「校验模型」再评一遍（双模型交叉验证的第二意见）。
-   * 校验模型未配置时，退化为「同一模型不同温度采样」——
-   * 虽不如跨模型族严谨，但至少能暴露分数是否脆弱。
-   */
-  async function gradeWithReviewer(doc, rubric, opts) {
-    opts = opts || {};
-    const cfg = getConfig();
-    const rc = {
-      baseUrl: cfg.reviewBaseUrl || cfg.baseUrl,
-      apiKey: cfg.reviewApiKey || cfg.apiKey,
-      model: cfg.reviewModel || cfg.model,
-    };
-    if (!rc.model || rc.model === cfg.model) {
-      // 没配校验模型：用主模型 + 高温度再评一次，作为弱化的第二意见
-      const s = await sampleGrade(doc, rubric, { iterations: 2, temperature: 0.9 });
-      if (!s.ok) throw new Error(s.note || '无法生成第二意见');
-      const last = s.runs[s.runs.length - 1];
-      const dimsById = {};
-      last.dims.forEach((d) => { dimsById[d.id] = d; });
-      const dims = rubric.map((d) => ({
-        id: d.id, name: d.name, max: Number(d.max) || 0,
-        score: (dimsById[d.id] || {}).score || 0,
-        ratio: ((dimsById[d.id] || {}).score || 0) / (Number(d.max) || 1),
-        evidence: [], missing: [], penalties: [],
-        comment: '',
-      }));
-      return {
-        docName: doc.name,
-        engine: 'llm-sampled',
-        engineLabel: `主模型高温复评 · ${cfg.model}`,
-        model: cfg.model,
-        total: last.total,
-        grade: AG.rubric.gradeOf(last.total).grade,
-        gradeLabel: AG.rubric.gradeOf(last.total).label,
-        gradeColor: AG.rubric.gradeOf(last.total).color,
-        dims, features: doc.features, overall: '',
-        gradedAt: Date.now(),
-        sameModelNote: '未配置校验模型，第二意见由主模型高温重采样给出，仅作粗略参照',
-      };
-    }
-    return grade(doc, rubric, rc);
-  }
-
-  /**
    * 通用对话：供量表生成、答疑等「非评分」场景复用同一套鉴权与错误处理。
    * 所有配置项沿用单据（llmConfig），可用 cfgOverride 临时覆盖（如调大 temperature 生成量表）。
    * 默认不要求结构化输出 —— 需要 JSON 的调用方显式传 { json: true }，
@@ -426,15 +377,9 @@ ${toneHint ? '【语气设定】\n' + toneHint + '\n' : ''}
     return { ok: true, reply: String(text || '').trim().slice(0, 80) };
   }
 
-  /** 校验模型是否可用（用于 UI 决定要不要显示"双模型交叉验证"） */
-  function hasReviewer() {
-    const c = getConfig();
-    return !!(c.reviewModel && c.reviewApiKey);
-  }
-
   AG.llm = {
     getConfig, saveConfig, chat, chatJson, grade, testConnection,
-    buildPrompt, sampleGrade, gradeWithReviewer, hasReviewer,
+    buildPrompt, sampleGrade,
     DEFAULT_CONFIG,
   };
 })(window);

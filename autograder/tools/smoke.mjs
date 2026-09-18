@@ -82,12 +82,12 @@ const need = [
   ['utils', 'clamp'], ['rubric', 'DEFAULT_RUBRIC'], ['rubric', 'gradeOf'],
   ['parser', 'extractFeatures'],
   ['analyzer', 'genreCheck'], ['analyzer', 'similarity'], ['analyzer', 'verifyEvidence'],
-  ['providers', 'PRESETS'], ['providers', 'recommend'], ['providers', 'pickReviewer'],
-  ['llm', 'grade'], ['llm', 'sampleGrade'], ['llm', 'gradeWithReviewer'], ['llm', 'getConfig'],
+  ['providers', 'PRESETS'], ['providers', 'recommend'],
+  ['llm', 'grade'], ['llm', 'sampleGrade'], ['llm', 'getConfig'],
   ['reliability', 'cronbachAlpha'], ['reliability', 'stability'], ['reliability', 'evidenceAudit'],
   ['reliability', 'jackknife'], ['reliability', 'lengthBias'], ['reliability', 'stabilityGrade'],
-  ['consensus', 'compare'], ['consensus', 'fuse'], ['consensus', 'samplingBaseline'],
   ['induce', 'induce'], ['rubriclab', 'fit'], ['theme', 'apply'], ['voice', 'TONES'],
+  ['pet', 'lookAt'],
   ['doctypes', 'all'], ['doctypes', 'get'], ['doctypes', 'match'], ['doctypes', 'upsert'],
   ['doctypes', 'remove'], ['doctypes', 'toggle'], ['doctypes', 'resetAll'], ['doctypes', 'on'],
   ['doctypes', 'pickTerms'], ['doctypes', 'draftFromDoc'], ['doctypes', 'blankType'],
@@ -156,15 +156,10 @@ await ok('providers.recommend 给出免费开源服务商', () => {
   const p = AG.providers.recommend();
   return p && p.open && p.free ? true : JSON.stringify(p);
 });
-await ok('providers.pickReviewer 跨模型族', () => {
-  const a = AG.providers.pickReviewer('siliconflow');
-  const b = AG.providers.PRESETS.siliconflow;
-  return a && a.family !== b.family ? true : `${a && a.family} vs ${b.family}`;
-});
-
 await ok('analyzer 不再导出 grade（本地评分已移除）', () => AG.analyzer.grade === undefined);
 await ok('reliability 不再导出 bootstrap', () => AG.reliability.bootstrap === undefined);
-await ok('consensus 不再导出 resampleBaseline', () => AG.consensus.resampleBaseline === undefined);
+await ok('双模型交叉验证已下线（consensus 模块移除）', () => AG.consensus === undefined);
+await ok('llm 不再导出 gradeWithReviewer', () => AG.llm.gradeWithReviewer === undefined);
 
 await ok('reliability.stability 无 Key 时给出明确说明', async () => {
   const r = await AG.reliability.stability({ name: 'x', text: TEXT, features: AG.parser.extractFeatures(TEXT) }, AG.rubric.DEFAULT_RUBRIC);
