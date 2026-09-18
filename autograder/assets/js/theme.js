@@ -6,9 +6,10 @@
  *   2. 吉祥物为「原创卡通小评审员」——画风借鉴美式动画（大头小身、粗描边、平涂高饱和、
  *      黄衫红领结），但形象本身为原创，不使用任何影视剧角色，避免版权风险。
  *      早期版本是手绘 SVG，现改为位图（见 mascots.js）；下面的 SVG 常量仅作图片加载失败时的兜底。
- *   3. 配色取自经典动画童装色板：芥末黄 / 番茄红 / 天蓝 / 草绿，底色为暖奶油。
- *   4. 吉祥物只在「动画卡通」主题出现 —— 位图配色与另两套主题的冷色调不兼容，
- *      硬塞进去会显得像贴纸。换主题时由 app.js 换成文字标与通用图标。
+ *   3. 配色取自 Stewie（饺子）服装取色：内搭浅黄 #FFDD66 / 背带裤红 #E61928 /
+ *      纽扣亮黄 #FFEE22 / 鞋子浅蓝 #87C8EE，底色为暖奶油。
+ *   4. 吉祥物只在「动画卡通」主题出现 —— 位图是暖色调的，压进液态玻璃的冷色渐变里
+ *      会显得像贴纸。换主题时由 app.js 换成文字标与通用图标。
  */
 (function (global) {
   'use strict';
@@ -16,9 +17,9 @@
   const U = AG.utils;
 
   const THEMES = [
-    { id: 'toon', name: '动画卡通', desc: '粗描边 · 平涂 · 黄红撞色' },
-    { id: 'classic', name: '晴空蓝', desc: '清爽默认 · 通用稳妥' },
-    { id: 'tech', name: '深空霓虹', desc: '深色底 · 青紫发光' },
+    { id: 'toon', name: '动画卡通', desc: '粗描边 · 平涂 · 饺子配色' },
+    { id: 'classic', name: '液态玻璃 · 浅', desc: '磨砂浅色 · 蓝紫柔光' },
+    { id: 'tech', name: '液态玻璃 · 深', desc: '磨砂深底 · 蓝紫弥散' },
   ];
 
   const DEFAULT_THEME = 'toon';
@@ -51,15 +52,15 @@
   const MASCOT_FULL_SVG =
     '<svg class="mascot bob" viewBox="0 0 96 116" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="小评审员">' +
     /* 身体：黄衫 */
-    '<path d="M20 112c0-19 12-30 28-30s28 11 28 30z" fill="#f7c948" stroke="#1f1a17" stroke-width="2.8" stroke-linejoin="round"/>' +
+    '<path d="M20 112c0-19 12-30 28-30s28 11 28 30z" fill="#ffdd66" stroke="#1f1a17" stroke-width="2.8" stroke-linejoin="round"/>' +
     /* 手臂 + 红笔 */
     '<path d="M62 92l18 12" stroke="#1f1a17" stroke-width="2.8" stroke-linecap="round" fill="none"/>' +
-    '<path d="M76 100l14-16" stroke="#e23d28" stroke-width="5.5" stroke-linecap="round" fill="none"/>' +
+    '<path d="M76 100l14-16" stroke="#e61928" stroke-width="5.5" stroke-linecap="round" fill="none"/>' +
     '<path d="M89 82l3-4 4 3-3 4z" fill="#1f1a17"/>' +
     /* 领结 */
-    '<path d="M48 82l-11-6v13z" fill="#e23d28" stroke="#1f1a17" stroke-width="2.4" stroke-linejoin="round"/>' +
-    '<path d="M48 82l11-6v13z" fill="#e23d28" stroke="#1f1a17" stroke-width="2.4" stroke-linejoin="round"/>' +
-    '<circle cx="48" cy="82.5" r="3" fill="#e23d28" stroke="#1f1a17" stroke-width="2.2"/>' +
+    '<path d="M48 82l-11-6v13z" fill="#e61928" stroke="#1f1a17" stroke-width="2.4" stroke-linejoin="round"/>' +
+    '<path d="M48 82l11-6v13z" fill="#e61928" stroke="#1f1a17" stroke-width="2.4" stroke-linejoin="round"/>' +
+    '<circle cx="48" cy="82.5" r="3" fill="#e61928" stroke="#1f1a17" stroke-width="2.2"/>' +
     /* 头 */
     '<path d="M41 12c-1.5-4.5 .5-7 3-8.5" fill="none" stroke="#1f1a17" stroke-width="2.6" stroke-linecap="round"/>' +
     '<circle cx="21" cy="34" r="5.6" fill="#f6d2a9" stroke="#1f1a17" stroke-width="2.4"/>' +
@@ -118,16 +119,20 @@
     return t;
   }
 
-  /** 从 CSS 变量实时读取当前主题配色，供 Canvas（PDF/图表）使用 */
+  /** 从 CSS 变量实时读取当前主题配色，供 Canvas（PDF/图表）使用。
+   *  玻璃主题的 --panel / --surface 是半透 rgba：屏幕上要靠它透出弥散底色，
+   *  但 Canvas 与 PDF 要的是实色（半透色打在白纸上会糊成灰），
+   *  因此这里优先取同名的 -solid 版本，取不到再回落半透版。 */
   function palette() {
     const cs = getComputedStyle(document.documentElement);
     const v = (k, fb) => (cs.getPropertyValue(k) || '').trim() || fb;
+    const solid = (k, fb) => v(k + '-solid', '') || v(k, fb);
     return {
       id: get(),
       bg: v('--bg', '#f5f7fb'),
-      panel: v('--panel', '#ffffff'),
-      surface: v('--surface', '#ffffff'),
-      surface2: v('--surface-2', '#f8fafc'),
+      panel: solid('--panel', '#ffffff'),
+      surface: solid('--surface', '#ffffff'),
+      surface2: solid('--surface-2', '#f8fafc'),
       ink: v('--ink', '#0f172a'),
       ink2: v('--ink-2', '#334155'),
       muted: v('--muted', '#64748b'),
@@ -139,7 +144,7 @@
       green: v('--green', '#16a34a'),
       amber: v('--amber', '#d97706'),
       red: v('--red', '#dc2626'),
-      yellow: v('--yellow', '#f7c948'),
+      yellow: v('--yellow', '#ffdd66'),
       fontTitle: v('--font-title', '') || 'sans-serif',
       dark: document.documentElement.getAttribute('data-theme') === 'tech',
     };
