@@ -178,6 +178,17 @@ h1, h2, h3, .brand h1 { font-family: var(--font-title); }
 .tab:hover { color: var(--brand); }
 .tab.active { background: var(--surface); color: var(--brand); box-shadow: var(--shadow-sm); }
 
+/* 设置模块的分区导航（个性化 / 类型 / 模型 / 量表 / 分析 / 关于）。
+   与诱导面板里那个 .seg 容器同名，所以全部规则都收在 .segbar 下，避免互相污染。 */
+.segbar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; padding: 5px; background: var(--tabs-bg); border-radius: 12px; }
+.segbar > .seg {
+  display: inline-flex; align-items: center; padding: 6px 14px;
+  border: 0; background: transparent; border-radius: 9px; cursor: pointer;
+  color: var(--muted); font: inherit; font-size: 13px; font-weight: 600; transition: .15s;
+}
+.segbar > .seg:hover { color: var(--brand); background: var(--surface-2); }
+.segbar > .seg.active { background: var(--surface); color: var(--brand); box-shadow: var(--shadow-sm); }
+
 .layout { display: grid; grid-template-columns: 320px 1fr; gap: 16px; align-items: start; }
 @media (max-width: 980px) { .layout { grid-template-columns: 1fr; } }
 
@@ -450,6 +461,7 @@ table.tb input { padding: 5px 8px; }
 :root[data-theme="toon"] .btn:not(:disabled):hover { transform: translate(-1px, -1px); box-shadow: 3px 3px 0 var(--ink-line); }
 :root[data-theme="toon"] .btn:not(:disabled):active { transform: translate(3px, 3px); box-shadow: 0 0 0 var(--ink-line); }
 :root[data-theme="toon"] .tab.active { border: 2px solid var(--ink-line); }
+:root[data-theme="toon"] .segbar > .seg.active { border: 2px solid var(--ink-line); font-weight: 800; }
 :root[data-theme="toon"] .doclist li.active { border-width: 2.5px; }
 :root[data-theme="toon"] .badge { font-weight: 800; }
 :root[data-theme="toon"] .dim .bar { height: 12px; border: 2px solid var(--ink-line); background: var(--surface-3); }

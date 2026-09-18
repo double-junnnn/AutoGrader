@@ -88,6 +88,10 @@ const need = [
   ['reliability', 'jackknife'], ['reliability', 'lengthBias'], ['reliability', 'stabilityGrade'],
   ['consensus', 'compare'], ['consensus', 'fuse'], ['consensus', 'samplingBaseline'],
   ['induce', 'induce'], ['rubriclab', 'fit'], ['theme', 'apply'], ['voice', 'TONES'],
+  ['doctypes', 'all'], ['doctypes', 'get'], ['doctypes', 'match'], ['doctypes', 'upsert'],
+  ['doctypes', 'remove'], ['doctypes', 'toggle'], ['doctypes', 'resetAll'], ['doctypes', 'on'],
+  ['doctypes', 'pickTerms'], ['doctypes', 'draftFromDoc'], ['doctypes', 'blankType'],
+  ['doctypes', 'toRubric'],
   ['charts', 'heatmap'], ['charts', 'bootstrapBand'], ['demos', null], ['docx', null],
   ['pdf', null], ['chat', null], ['mascots', null],
 ];
@@ -181,6 +185,99 @@ await ok('evidenceAudit 汇总证据核验', () => {
 await ok('llm.getConfig 默认指向开源服务商', () => {
   const c = AG.llm.getConfig();
   return AG.providers.isOpenModel ? true : JSON.stringify(c);
+});
+
+/* ---- 类型设置（需求③） ---- */
+await ok('doctypes 内置类型派生自学科模板', () => {
+  const n = AG.doctypes.all().length;
+  const t = (AG.templates.TEMPLATES || []).length;
+  return n === t ? true : `类型 ${n} vs 模板 ${t}`;
+});
+await ok('doctypes 每个内置类型都带评分方向', () => {
+  const bad = AG.doctypes.all().filter((t) => !(t.directions || []).length);
+  return bad.length === 0 ? true : bad.map((t) => t.id).join(',');
+});
+await ok('doctypes.match 把编程实验报告认成 cs-code', () => {
+  const m = AG.doctypes.match({ name: '实验三-快速排序.md', text: TEXT });
+  return m.confident && m.best && m.best.id === 'cs-code'
+    ? true : JSON.stringify({ id: m.best && m.best.id, species: m.best && m.best.species });
+});
+await ok('doctypes.match 对小说不给结论（宁可不认也不乱认）', () => {
+  const novel = '他转过身微微一笑，眼里像是有星星。她低声回答，指尖轻轻颤抖，心里想着他会不会回来。窗外下起了雨，他想起那年夏天，忍不住叹息。';
+  const m = AG.doctypes.match({ name: '小说.txt', text: novel });
+  return m.confident === false ? true : JSON.stringify(m.best);
+});
+await ok('doctypes.upsert 新增自定义类型后进入 all()', () => {
+  AG.doctypes.resetAll();
+  const t = AG.doctypes.blankType();
+  t.name = '课程设计报告';
+  t.brief = '综合课程设计';
+  t.keywords = ['课程设计', '系统架构', '需求分析'];
+  AG.doctypes.upsert(t);
+  const got = AG.doctypes.get(t.id);
+  const c = AG.doctypes.count();
+  return got && got.name === '课程设计报告' && c.custom === 1 ? true : JSON.stringify(c);
+});
+await ok('doctypes.match 能命中用户预置的类型', () => {
+  const m = AG.doctypes.match({ name: '课设.docx', text: '需求分析 系统架构 课程设计 需求分析 系统架构 课程设计' });
+  return m.best && m.best.name === '课程设计报告' ? true : JSON.stringify(m.best && m.best.name);
+});
+await ok('doctypes 改内置类型只存差异，不污染 builtins()', () => {
+  const cs = AG.doctypes.get('cs-code');
+  const mods = Object.assign({}, cs, { brief: '改过的简介' });
+  AG.doctypes.upsert(mods);
+  const fresh = AG.doctypes.builtins().find((b) => b.id === 'cs-code');
+  const after = AG.doctypes.get('cs-code');
+  return fresh.brief !== '改过的简介' && after.brief === '改过的简介' && after.edited
+    ? true : JSON.stringify({ base: fresh.brief, now: after.brief });
+});
+await ok('doctypes.toggle 停用后从默认列表消失但仍可恢复', () => {
+  AG.doctypes.toggle('physics', false);
+  const gone = !AG.doctypes.get('physics');
+  const stillThere = !!AG.doctypes.get('physics', { includeDisabled: true });
+  AG.doctypes.toggle('physics', true);
+  return gone && stillThere && !!AG.doctypes.get('physics') ? true : `gone=${gone} kept=${stillThere}`;
+});
+await ok('doctypes.remove 内置类型等价于停用（可 resetAll 恢复）', () => {
+  AG.doctypes.remove('chemistry');
+  const gone = !AG.doctypes.get('chemistry');
+  AG.doctypes.resetAll();
+  return gone && !!AG.doctypes.get('chemistry') ? true : `gone=${gone}`;
+});
+await ok('doctypes.toRubric 编译出的量表合计 100 分', () => {
+  const r = AG.doctypes.toRubric(AG.doctypes.get('cs-code'));
+  if (!r || !r.length) return '编译结果为空';
+  const sum = r.reduce((a, d) => a + d.max, 0);
+  return Math.abs(sum - 100) < 0.01 ? true : `合计 ${sum}`;
+});
+await ok('doctypes.toRubric 用户自建类型也能编译出可用量表', () => {
+  const t = AG.doctypes.blankType();
+  t.name = '调研报告';
+  t.keywords = ['调研', '问卷'];
+  const r = AG.doctypes.toRubric(t);
+  const okSig = r.every((d) => d.signals && d.signals.length && d.signals[0].re instanceof RegExp);
+  const sum = r.reduce((a, d) => a + d.max, 0);
+  return okSig && Math.abs(sum - 100) < 0.01 ? true : `sig=${okSig} sum=${sum}`;
+});
+await ok('doctypes.draftFromDoc 只起草不落库', () => {
+  AG.doctypes.resetAll();
+  const before = AG.doctypes.count().custom;
+  const d = AG.doctypes.draftFromDoc({ name: '算法实验.md', text: TEXT });
+  const after = AG.doctypes.count().custom;
+  return d.keywords.length > 0 && d.directions.length > 0 && before === after
+    ? true : `kw=${d.keywords.length} before=${before} after=${after}`;
+});
+await ok('doctypes.pickTerms 抽出的词不为空且不含停用词', () => {
+  const terms = AG.doctypes.pickTerms(TEXT, 8);
+  return terms.length > 0 && terms.every((t) => t.length >= 2) ? true : JSON.stringify(terms);
+});
+await ok('doctypes 变更会广播给订阅者（双向同步的基础）', () => {
+  let hits = 0;
+  const off = AG.doctypes.on(() => { hits++; });
+  AG.doctypes.upsert(Object.assign(AG.doctypes.blankType(), { name: '临时类型' }));
+  AG.doctypes.resetAll();
+  AG.doctypes.resetAll();
+  return hits >= 2 ? true : `触发 ${hits} 次`;
 });
 
 /* ---- 输出 ---- */

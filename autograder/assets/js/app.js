@@ -34,7 +34,12 @@
     autoFitTimer: null,
     autoFitMuted: U.store.get('autoFitMuted', false), // 用户显式关闭过自动建议
     chat: U.store.get('chat', []),                    // 答疑会话，刷新后还在
+    setSection: U.store.get('setSection', 'personal'), // 设置模块上次停留的分区
   };
+
+  /* 设置模块的分区。需求③：原「智能分析」与「量表与模型」合并为一个「设置」，
+   * 下设个性化 / 类型 / 模型 / 量表 / 分析 / 关于 六个分区。 */
+  const SET_SECTIONS = ['personal', 'type', 'model', 'rubric', 'insight', 'about'];
 
   /* ---------------- 基础 UI ---------------- */
   // 批量评阅时，同一条错误会按文档逐条抛出（3 篇报告 = 3 条一模一样的红框，糊满屏幕）。
@@ -61,14 +66,35 @@
     toastCache.set(msg, rec);
   }
 
+  /**
+   * 设置模块内部的分区切换。
+   * 分区内容各自独立，切换时只渲染**当前分区真正需要的东西**——
+   * 「分析」分区要填报告下拉框，「类型」分区要重绘类型表，全量渲染既浪费也不必要。
+   */
+  function switchSettingsSection(name) {
+    if (SET_SECTIONS.indexOf(name) < 0) name = 'personal';
+    state.setSection = name;
+    U.store.set('setSection', name);
+    SET_SECTIONS.forEach((s) => {
+      const el = $('#setsec-' + s);
+      if (el) el.style.display = s === name ? 'block' : 'none';
+    });
+    $$('#setSeg .seg').forEach((b) => b.classList.toggle('active', b.dataset.sec === name));
+    // 「加载示例」等入口会带 hash 直接跳到某个分区
+    if (name === 'type') renderTypeTable();
+    if (name === 'rubric') { renderRubricTable(); renderLabChrome(); }
+    if (name === 'model') loadCfgForm();
+    if (name === 'insight') renderInsight();
+  }
+
   function switchView(name) {
-    ['work', 'batch', 'insight', 'settings'].forEach((v) => {
+    ['work', 'batch', 'settings'].forEach((v) => {
       $('#view-' + v).style.display = v === name ? (v === 'work' ? 'grid' : 'block') : 'none';
     });
     $$('.tab').forEach((b) => b.classList.toggle('active', b.dataset.view === name));
     if (name === 'batch') renderBatch();
-    if (name === 'insight') renderInsight();
-    if (name === 'settings') { renderRubricTable(); loadCfgForm(); renderLabChrome(); }
+    if (name === 'settings') switchSettingsSection(state.setSection);
+    if (name === 'work') renderTypeBox();
   }
 
   function activeRubric() {
@@ -164,12 +190,12 @@
     const label = on ? '模型引擎 · ' + cfg.model : '未配置模型引擎';
     badge.className = 'badge ' + (on ? 'blue' : 'gray');
     badge.innerHTML = '<i class="dot"></i>' + U.esc(label);
-    badge.title = on ? '当前使用 ' + cfg.model : '点击前往「量表与模型」配置开源模型 API Key';
+    badge.title = on ? '当前使用 ' + cfg.model : '点击前往「设置 → 模型设置」配置开源模型 API Key';
 
     const tip = $('#engineTip');
     if (tip) {
       tip.innerHTML = on
-        ? `当前由 <b>${U.esc(cfg.model)}</b> 评阅。可在「量表与模型」中切换开源模型，或配置第二个「校验模型」做双模型交叉验证。`
+        ? `当前由 <b>${U.esc(cfg.model)}</b> 评阅。可在「设置 → 模型设置」中切换开源模型，或配置第二个「校验模型」做双模型交叉验证。`
         : '<b>尚未配置模型引擎。</b>本地启发式引擎已按需求下线，评分需接入开源大模型 —— 点「配置模型」选一个免费开源服务商，填入 API Key 即可。';
     }
     const go = $('#btnEngineLLM');
@@ -189,11 +215,38 @@
     };
     state.docs.push(doc);
     state.currentId = doc.id;
+    /* 需求③：加入文档后**先检索**系统自带 + 用户预置的类型，
+     * 认得出来就先挂上（教师可在工作台改判），认不出来留空由 UI 提示是否新增。
+     * 这里只"建议"，绝不因为认出了类型就擅自替换量表——那等于替教师改评分标准。 */
+    detectDocType(doc);
     persist();
     renderDocList();
     renderResult();
+    renderTypeBox();
     maybeAutoFit();
     return doc;
+  }
+
+  /* ---------------- 文档类型（与设置模块双向同步） ---------------- */
+
+  /**
+   * 对单份文档做类型检索。
+   * @param {Boolean} force 忽略已有的手动指定，重新按内容识别
+   */
+  function detectDocType(doc, force) {
+    if (!doc) return null;
+    if (!force && doc.typeId && doc.typeSource === 'manual') return doc.typeMatch || null;
+    const m = AG.doctypes.match(doc);
+    doc.typeMatch = m;
+    doc.typeId = m.confident && !m.ambiguous ? m.best.id : null;
+    doc.typeSource = doc.typeId ? 'auto' : '';
+    persist();
+    return m;
+  }
+
+  function typeOfDoc(doc) {
+    if (!doc || !doc.typeId) return null;
+    return AG.doctypes.get(doc.typeId, { includeDisabled: true });
   }
 
   async function handleFiles(files) {
@@ -256,7 +309,7 @@
      * 这里**不**再静默改用别的口径打分——那样教师会以为拿到了分，
      * 实际拿到的是另一套标准的结果，比直接告诉他"评不了"更糟。 */
     if (!cfg.apiKey) {
-      toast('尚未配置模型引擎：请到「量表与模型」选择一个开源服务商并填入 API Key', 'err');
+      toast('尚未配置模型引擎：请到「设置 → 模型设置」选择一个开源服务商并填入 API Key', 'err');
       return null;
     }
 
@@ -294,8 +347,9 @@
     if (!state.docs.length) return toast('请先录入报告', 'err');
     // 没配 Key 时逐份弹同一句报错没有意义，在这里一次性拦掉
     if (!AG.llm.getConfig().apiKey) {
-      toast('尚未配置模型引擎：请到「量表与模型」选择开源服务商并填入 API Key', 'err');
+      toast('尚未配置模型引擎：请到「设置 → 模型设置」选择开源服务商并填入 API Key', 'err');
       switchView('settings');
+      switchSettingsSection('model');
       return;
     }
     const btn = $('#btnGradeAll');
@@ -347,7 +401,7 @@
         maybeAutoFit();
       });
       li.appendChild(del);
-      li.addEventListener('click', () => { state.currentId = d.id; renderDocList(); renderResult(); });
+      li.addEventListener('click', () => { state.currentId = d.id; renderDocList(); renderResult(); renderTypeBox(); });
       ul.appendChild(li);
     });
   }
@@ -774,6 +828,7 @@
     renderRubricTable();
     toast('已应用诱导量表，请重新评分以生效', 'ok');
     switchView('settings');
+    switchSettingsSection('rubric');
   }
 
   function exportInduced() {
@@ -1434,6 +1489,255 @@
     if (payload.tooFew) toast('至少需要 4 份作业才能做批次自适应（当前 ' + payload.count + ' 份）', 'warn');
   }
 
+  /* ---------------- 类型设置：渲染与编辑 ----------------
+   *
+   * 双向同步的两个方向：
+   *   · 工作台 → 设置：在工作台「按此文档新建类型」保存后，类型表立刻出现这一行；
+   *   · 设置 → 工作台：在设置里改名/增删特征词/停用后，工作台的识别结果重算。
+   * 两者的连接点是 AG.doctypes 的变更事件，任一侧都不直接调另一侧的渲染函数，
+   * 否则以后再加一个入口就得改两处。
+   */
+
+  function curDoc() {
+    return state.docs.find((d) => d.id === state.currentId) || null;
+  }
+
+  /** 工作台左栏「文档类型」卡片 */
+  function renderTypeBox() {
+    const box = $('#typeBox');
+    const sub = $('#typeBoxSub');
+    if (!box) return;
+    const doc = curDoc();
+    if (!doc) {
+      box.innerHTML = '<p class="hint">还没有文档。加入报告后，系统会先检索<b>内置类型</b>与你在设置里<b>预置的类型</b>；都不像时，再提示你是否新增一个。</p>';
+      if (sub) sub.textContent = '加入文档后自动识别';
+      return;
+    }
+
+    const m = doc.typeMatch || detectDocType(doc);
+    const picked = typeOfDoc(doc);
+    const hits = (m && m.best && m.best.matched || []).slice(0, 5)
+      .map((x) => `<span class="chip">${U.esc(x.kw)}<b style="opacity:.6"> ×${x.count}</b></span>`).join('');
+
+    if (picked) {
+      if (sub) sub.textContent = doc.typeSource === 'manual' ? '已手动指定' : '自动识别';
+      box.innerHTML = `
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+          <span class="badge ${picked.builtin ? 'blue' : 'green'}">${U.esc(picked.name)}</span>
+          <span class="hint">${picked.builtin ? '内置类型' : '自定义类型'} · ${picked.directions.length} 个评分方向</span>
+        </div>
+        <div class="chips" style="margin-bottom:8px">${hits || '<span class="hint">未命中特征词</span>'}</div>
+        <div class="btn-row">
+          <button class="btn sm" id="tbApply">套用为评分准则</button>
+          <button class="btn sm" id="tbChange">更改类型</button>
+          <button class="btn sm" id="tbRedetect">重新识别</button>
+        </div>
+        <p class="hint" style="margin-top:8px">「套用为评分准则」会把该类型的评分方向写进下方量表，覆盖现有维度（量表本身可再手改）。</p>`;
+      const apply = $('#tbApply');
+      if (apply) apply.addEventListener('click', () => applyTypeToRubric(picked));
+      const chg = $('#tbChange');
+      if (chg) chg.addEventListener('click', () => openTypePicker(doc));
+      const re = $('#tbRedetect');
+      if (re) re.addEventListener('click', () => { detectDocType(doc, true); renderTypeBox(); toast('已按内容重新识别文档类型', 'ok'); });
+      return;
+    }
+
+    // 没认出来：把最接近的几个摆出来让人选，而不是替他随便选一个
+    const cands = (m && m.ranked || []).slice(0, 3);
+    if (sub) sub.textContent = cands.length ? '未确定（有接近的候选）' : '未匹配到已有类型';
+    box.innerHTML = `
+      <p class="hint" style="margin-bottom:8px">现有类型里没有能确定的匹配${cands.length ? '，以下几个比较接近：' : '。'}</p>
+      ${cands.length ? `<div class="btn-row" style="margin-bottom:8px">${cands.map((c) =>
+        `<button class="btn sm" data-pick-type="${U.esc(c.id)}">${U.esc(c.name)} <span class="hint">命中 ${c.species} 词</span></button>`).join('')}</div>` : ''}
+      <div class="chips" style="margin-bottom:8px">${hits}</div>
+      <div class="btn-row">
+        <button class="btn sm primary" id="tbNew">按此文档新增类型</button>
+        ${cands.length ? '<button class="btn sm" id="tbManual">手动指定</button>' : ''}
+      </div>
+      <p class="hint" style="margin-top:8px">新增后会写进「设置 → 类型设置」，两边始终一致。</p>`;
+    const nb = $('#tbNew');
+    if (nb) nb.addEventListener('click', () => openTypeModal(AG.doctypes.draftFromDoc(doc), doc));
+    const mb = $('#tbManual');
+    if (mb) mb.addEventListener('click', () => openTypePicker(doc));
+    $$('[data-pick-type]', box).forEach((b) => b.addEventListener('click', () => {
+      assignDocType(doc, b.dataset.pickType, 'manual');
+    }));
+  }
+
+  /** 手动指定类型的下拉（所有类型，含已停用的内置类型不列出） */
+  function openTypePicker(doc) {
+    const types = AG.doctypes.all();
+    if (!types.length) return toast('还没有任何可用类型，请先新增一个', 'warn');
+    const names = types.map((t, i) => `${i + 1}. ${t.name}${t.builtin ? '' : '（自定义）'}`).join('\n');
+    const raw = prompt('输入序号为《' + doc.name + '》指定类型：\n\n' + names, '1');
+    if (raw == null) return;
+    const idx = parseInt(raw, 10) - 1;
+    if (!(idx >= 0 && idx < types.length)) return toast('序号无效', 'warn');
+    assignDocType(doc, types[idx].id, 'manual');
+  }
+
+  function assignDocType(doc, typeId, source) {
+    const t = AG.doctypes.get(typeId, { includeDisabled: true });
+    if (!t) return;
+    doc.typeId = typeId;
+    doc.typeSource = source || 'manual';
+    doc.typeMatch = doc.typeMatch || null;
+    persist();
+    renderTypeBox();
+    toast('已将《' + doc.name + '》指定为「' + t.name + '」', 'ok');
+  }
+
+  /** 把类型的评分方向写进当前量表（覆盖式，但会提示） */
+  function applyTypeToRubric(type) {
+    if (!type) return;
+    const dims = AG.doctypes.toRubric(type);
+    if (!dims || !dims.length) return toast('该类型还没有评分方向，请先在类型设置里添加', 'warn');
+    if (!confirm('将把当前量表替换为「' + type.name + '」的 ' + dims.length + ' 个评分方向（分值合计 100）。\n当前量表的手动改动会被覆盖，确定继续？')) return;
+    state.rubric = dims;
+    U.store.set('rubric', AG.rubric.serializeRubric(state.rubric));
+    renderRubricTable();
+    toast('已套用「' + type.name + '」的评分方向，请检查分值是否合意', 'ok');
+    switchSettingsSection('rubric');
+  }
+
+  /* ---------------- 类型设置：表格 ---------------- */
+
+  function renderTypeTable() {
+    const table = $('#typeTable');
+    if (!table) return;
+    const tbody = table.querySelector('tbody');
+    const types = AG.doctypes.all({ includeDisabled: true });
+    const c = AG.doctypes.count();
+    const cnt = $('#typeCount');
+    if (cnt) cnt.textContent = `内置 ${c.builtin} 类 · 自定义 ${c.custom} 类` + (c.disabled ? ` · 停用 ${c.disabled}` : '');
+    tbody.innerHTML = '';
+
+    if (!types.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="hint" style="text-align:center;padding:20px">还没有任何类型，点「新增类型」开始</td></tr>';
+      return;
+    }
+
+    types.forEach((t) => {
+      const tr = U.el('tr', { style: t.enabled ? '' : 'opacity:.55' });
+      const kws = (t.keywords || []).slice(0, 6).map((k) => `<span class="chip">${U.esc(k)}</span>`).join('');
+      const dirs = (t.directions || []).map((d) => `<span class="chip">${U.esc(d.name)} ${d.max}</span>`).join('');
+      const src = t.builtin
+        ? (t.edited ? '<span class="badge amber">内置·已改</span>' : '<span class="badge blue">内置</span>')
+        : '<span class="badge green">自定义</span>';
+      tr.innerHTML = `
+        <td class="c"><input type="checkbox" data-toggle-type="${U.esc(t.id)}" ${t.enabled ? 'checked' : ''} title="停用后不参与自动识别"></td>
+        <td><b>${U.esc(t.name)}</b>${t.brief ? `<div class="hint">${U.esc(t.brief)}</div>` : ''}</td>
+        <td><div class="chips">${kws || '<span class="hint">无</span>'}${(t.keywords || []).length > 6 ? `<span class="chip">+${t.keywords.length - 6}</span>` : ''}</div></td>
+        <td><div class="chips">${dirs || '<span class="hint">无</span>'}</div></td>
+        <td class="c">${src}</td>
+        <td class="r">
+          <button class="btn sm" data-apply-type="${U.esc(t.id)}">套用为评分准则</button>
+          <button class="btn sm" data-edit-type="${U.esc(t.id)}">编辑</button>
+          <button class="btn sm danger" data-del-type="${U.esc(t.id)}">${t.builtin ? '停用' : '删除'}</button>
+        </td>`;
+      tbody.appendChild(tr);
+    });
+  }
+
+  /* ---------------- 类型设置：编辑弹窗 ---------------- */
+
+  let typeDraft = null;   // 正在编辑的类型对象（未保存）
+  let typeDraftDoc = null; // 若是从文档提取的，记住来源文档，保存后回填给该文档
+
+  function renderDirEditor() {
+    const box = $('#tpDirs');
+    if (!box) return;
+    const dirs = (typeDraft && typeDraft.directions) || [];
+    box.innerHTML = '';
+    if (!dirs.length) {
+      box.appendChild(U.el('div', { class: 'hint', html: '还没有评分方向，点下方按钮添加' }));
+      return;
+    }
+    dirs.forEach((d, i) => {
+      const row = U.el('div', { class: 'row', style: 'margin-bottom:6px;align-items:flex-end' });
+      row.innerHTML = `
+        <label class="fld" style="margin-bottom:0;flex:2"><span>方向名称</span>
+          <input type="text" data-dir="name" data-i="${i}" value="${U.esc(d.name)}"></label>
+        <label class="fld" style="margin-bottom:0;flex:0 0 78px"><span>分值</span>
+          <input type="number" data-dir="max" data-i="${i}" value="${Number(d.max) || 10}" min="2" max="60"></label>
+        <button class="btn sm danger" data-dir="del" data-i="${i}" style="flex:0 0 auto">删除</button>`;
+      box.appendChild(row);
+      const desc = U.el('label', { class: 'fld', style: 'margin-bottom:8px' });
+      desc.innerHTML = `<span>考察要点（选填）</span>
+        <input type="text" data-dir="desc" data-i="${i}" value="${U.esc(d.desc || '')}" placeholder="例：是否给出结果并做有依据的分析">`;
+      box.appendChild(desc);
+    });
+  }
+
+  function readDirEditor() {
+    const box = $('#tpDirs');
+    if (!box || !typeDraft) return [];
+    const dirs = typeDraft.directions.map((d) => Object.assign({}, d));
+    $$('input[data-dir]', box).forEach((inp) => {
+      const i = +inp.dataset.i;
+      if (!dirs[i]) return;
+      const f = inp.dataset.dir;
+      if (f === 'max') dirs[i].max = Number(inp.value) || 10;
+      else dirs[i][f] = String(inp.value || '').trim();
+    });
+    return dirs.filter((d) => d.name);
+  }
+
+  function openTypeModal(type, fromDoc) {
+    typeDraft = JSON.parse(JSON.stringify(type || AG.doctypes.blankType()));
+    typeDraftDoc = fromDoc || null;
+    $('#typeModalTitle').textContent = type && type.id && !type.__new ? '编辑类型：' + (type.name || '') : '新增文档类型';
+    $('#tpName').value = typeDraft.name || '';
+    $('#tpBrief').value = typeDraft.brief || '';
+    $('#tpKeywords').value = (typeDraft.keywords || []).join(', ');
+    const note = $('#tpFromDoc');
+    if (note) {
+      note.innerHTML = fromDoc
+        ? `特征词与类型名由《${U.esc(fromDoc.name)}》自动提取，<b>请核对后再保存</b>——自动提取只保证"有得改"，不保证改对了。`
+        : '';
+    }
+    renderDirEditor();
+    $('#typeMask').classList.add('on');
+    $('#tpName').focus();
+  }
+
+  function closeTypeModal() {
+    $('#typeMask').classList.remove('on');
+    typeDraft = null;
+    typeDraftDoc = null;
+  }
+
+  function saveTypeModal() {
+    if (!typeDraft) return;
+    const name = ($('#tpName').value || '').trim();
+    if (!name) return toast('请先填写类型名称', 'warn');
+    const kws = ($('#tpKeywords').value || '')
+      .split(/[,，\n、;；]+/)
+      .map((s) => s.trim())
+      .filter((s) => s.length >= 2);
+    if (kws.length < 2) return toast('至少填 2 个特征词，否则系统无法把文档识别成这一类', 'warn');
+    const dirs = readDirEditor();
+    if (!dirs.length) return toast('至少保留 1 个评分方向', 'warn');
+
+    const payload = Object.assign({}, typeDraft, {
+      name,
+      brief: ($('#tpBrief').value || '').trim(),
+      keywords: kws,
+      directions: dirs,
+    });
+    const saved = AG.doctypes.upsert(payload);
+    closeTypeModal();
+    if (!saved) return toast('保存失败', 'err');
+
+    // 从工作台提取的类型，保存后直接挂到那份文档上——否则用户还得回去再点一次
+    if (typeDraftDoc) {
+      assignDocType(typeDraftDoc, saved.id, 'manual');
+    }
+    renderTypeTable();
+    renderTypeBox();
+    toast('已保存类型「' + saved.name + '」，工作台与设置两处已同步', 'ok');
+  }
+
   /* ---------------- 渲染：量表 ---------------- */
   function renderRubricTable() {
     const tbody = $('#rubricTable').querySelector('tbody');
@@ -1672,9 +1976,13 @@
       };
     }
 
+    // 当前文档判定的类型名（供答疑助手回答"这是什么类型"类问题）
+    const dtype = doc ? typeOfDoc(doc) : null;
+
     return {
       docCount: state.docs.length,
       doc: cur,
+      docType: dtype ? dtype.name : '',
       rubric: state.rubric.map((d) => ({ name: d.name, max: d.max, enabled: d.enabled !== false })),
       llmReady: !!(cfg && cfg.apiKey),
       llmModel: (cfg && cfg.model) || '',
@@ -1781,6 +2089,76 @@
   function bind() {
     $$('.tab').forEach((b) => b.addEventListener('click', () => switchView(b.dataset.view)));
 
+    // 设置模块：分区切换
+    $$('#setSeg .seg').forEach((b) => b.addEventListener('click', () => switchSettingsSection(b.dataset.sec)));
+
+    /* ---------------- 类型设置 ---------------- */
+    const typeTbody = $('#typeTable') ? $('#typeTable').querySelector('tbody') : null;
+    if (typeTbody) {
+      typeTbody.addEventListener('click', (e) => {
+        const btn = e.target.closest('button');
+        if (!btn) return;
+        const id = btn.dataset.editType || btn.dataset.delType || btn.dataset.applyType;
+        if (btn.dataset.editType) {
+          const t = AG.doctypes.get(id, { includeDisabled: true });
+          if (t) openTypeModal(t);
+        } else if (btn.dataset.delType) {
+          const t = AG.doctypes.get(id, { includeDisabled: true });
+          if (!t) return;
+          const isBuiltin = !!t.builtin;
+          if (!confirm(isBuiltin
+            ? `停用内置类型「${t.name}」？它不会再参与自动识别，可随时重新启用。`
+            : `删除自定义类型「${t.name}」？不可恢复。`)) return;
+          AG.doctypes.remove(id);
+          toast(isBuiltin ? `已停用「${t.name}」` : `已删除「${t.name}」`, 'ok');
+        } else if (btn.dataset.applyType) {
+          applyTypeToRubric(AG.doctypes.get(id, { includeDisabled: true }));
+        }
+      });
+      // 启用/停用是复选框，走 change 事件
+      typeTbody.addEventListener('change', (e) => {
+        const cb = e.target.closest('[data-toggle-type]');
+        if (!cb) return;
+        AG.doctypes.toggle(cb.dataset.toggleType, cb.checked);
+        const t = AG.doctypes.get(cb.dataset.toggleType, { includeDisabled: true });
+        toast((cb.checked ? '已启用「' : '已停用「') + (t ? t.name : '') + '」', 'ok');
+      });
+    }
+
+    $('#btnAddType').addEventListener('click', () => {
+      const t = AG.doctypes.blankType();
+      t.__new = true;
+      openTypeModal(t);
+    });
+    $('#btnTypeFromDoc').addEventListener('click', () => {
+      const doc = curDoc();
+      if (!doc) return toast('工作台上还没有文档，先录入一份再来提取', 'warn');
+      openTypeModal(AG.doctypes.draftFromDoc(doc), doc);
+    });
+    $('#btnTypeReset').addEventListener('click', () => {
+      if (!confirm('将清空全部自定义类型，并撤销对内置类型的所有改动（不可恢复）。确定？')) return;
+      AG.doctypes.resetAll();
+      toast('已恢复内置默认类型', 'ok');
+    });
+
+    // 类型编辑弹窗
+    $('#tpCancel').addEventListener('click', closeTypeModal);
+    $('#tpSave').addEventListener('click', saveTypeModal);
+    $('#typeMask').addEventListener('click', (e) => { if (e.target.id === 'typeMask') closeTypeModal(); });
+    $('#tpAddDir').addEventListener('click', () => {
+      if (!typeDraft) return;
+      typeDraft.directions = readDirEditor();
+      typeDraft.directions.push({ name: '', max: 10, desc: '' });
+      renderDirEditor();
+    });
+    $('#tpDirs').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-dir="del"]');
+      if (!btn || !typeDraft) return;
+      typeDraft.directions = readDirEditor();
+      typeDraft.directions.splice(+btn.dataset.i, 1);
+      renderDirEditor();
+    });
+
     // 答疑助手
     $('#chatFab').addEventListener('click', () => toggleChat());
     $('#chatClose').addEventListener('click', () => toggleChat(false));
@@ -1846,6 +2224,7 @@
     if (goEngine) {
       goEngine.addEventListener('click', () => {
         switchView('settings');
+        switchSettingsSection('model');
         if (!AG.llm.getConfig().apiKey) {
           toast('请选择一个开源服务商，填入 API Key 后保存', 'err');
           const el = $('#cfgApiKey'); if (el) el.focus();
@@ -1997,6 +2376,24 @@
     }
     renderDocList();
     renderResult();
+    renderTypeBox();
+
+    /* 类型库的变更订阅——「双向同步」的另一半。
+     * 在工作台新建的类型，设置模块要立刻能看到；在设置里改动的类型，
+     * 工作台已挂类型的文档要重新判定（类型被删了就不能再挂着）。 */
+    AG.doctypes.on(() => {
+      state.docs.forEach((d) => {
+        // 类型被删除/停用后，文档上的引用要落下，否则会一直显示一个不存在的类型
+        if (d.typeId && !AG.doctypes.get(d.typeId)) {
+          d.typeId = null;
+          d.typeSource = '';
+          d.typeMatch = null;
+        }
+      });
+      persist();
+      renderTypeTable();
+      renderTypeBox();
+    });
   }
 
   document.addEventListener('DOMContentLoaded', init);

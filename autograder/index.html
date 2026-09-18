@@ -25,8 +25,7 @@
     <div class="tabs">
       <button class="tab active" data-view="work">评分工作台</button>
       <button class="tab" data-view="batch">批量与查重</button>
-      <button class="tab" data-view="insight">智能分析</button>
-      <button class="tab" data-view="settings">量表与模型</button>
+      <button class="tab" data-view="settings">设置</button>
     </div>
   </div>
 
@@ -57,11 +56,18 @@
       </div>
 
       <div class="card side">
+        <h3>文档类型 <span class="sub" id="typeBoxSub">加入文档后自动识别</span></h3>
+        <div id="typeBox">
+          <p class="hint">还没有文档。加入报告后，系统会先检索<b>内置类型</b>与你在设置里<b>预置的类型</b>；都不像时，再提示你是否新增一个。</p>
+        </div>
+      </div>
+
+      <div class="card side">
         <h3>评阅引擎 <span class="sub">开源大模型</span></h3>
         <div class="row" style="margin-bottom:10px">
           <button class="btn sm" id="btnEngineLLM" style="flex:1">配置模型</button>
         </div>
-        <p class="hint" id="engineTip">尚未配置模型引擎。评阅由开源大模型完成，需先在「量表与模型」中选一个服务商并填入 API Key（多家提供永久免费额度）。</p>
+        <p class="hint" id="engineTip">尚未配置模型引擎。评阅由开源大模型完成，需先在「设置 → 模型设置」中选一个服务商并填入 API Key（多家提供永久免费额度）。</p>
       </div>
     </div>
 
@@ -126,73 +132,22 @@
     </div>
   </div>
 
-  <!-- ============ 视图四：智能分析（量表诱导 / 信度自检 / 交叉验证） ============ -->
-  <div id="view-insight" style="display:none">
-    <div class="card">
-      <h3>量表自动诱导 <span class="sub">区分度驱动，而非频次驱动</span></h3>
-      <p class="hint" style="margin-bottom:12px">
-        教师手写量表最常见的两个偏差：把「人人都写」的东西列为得分点（零区分度，占分却拉不开差距），
-        以及分值凭直觉分配。本引擎要求先标注<b>优秀组</b>与<b>对照组</b>范文，
-        再对每个候选要点计算 <b>Δ = 优秀组命中率 − 对照组命中率</b>，只保留 Δ 高于阈值的要点，
-        并按 <b>Δ·√支持度</b> 分配分值——区分不出好坏的要素自动出局。
-      </p>
-      <div id="induceGroups" style="margin-bottom:12px"></div>
-      <div class="row" style="margin-bottom:10px">
-        <label class="fld"><span>最小区分度 Δ（越高越严格）</span>
-          <input type="number" id="indMinDelta" step="0.05" min="0.05" max="1" value="0.20"></label>
-        <label class="fld"><span>最小支持度（术语类）</span>
-          <input type="number" id="indMinSup" step="0.05" min="0" max="1" value="0.25"></label>
-        <label class="fld"><span>候选术语上限</span>
-          <input type="number" id="indMaxTerms" step="10" min="10" max="200" value="60"></label>
-      </div>
-      <div class="btn-row">
-        <button class="btn primary" id="btnInduce">开始诱导</button>
-        <button class="btn" id="btnInduceExport">导出量表 JSON</button>
-      </div>
-      <div id="induceResult" style="margin-top:14px"></div>
-    </div>
-
-    <div class="card">
-      <h3>评分信度自检 <span class="sub">Cronbach's α · Bootstrap CI · Jackknife 敏感度</span></h3>
-      <p class="hint" style="margin-bottom:12px">
-        自动评分必须回答「这个分数有多可信」。α 衡量各维度是否在测同一件事；
-        稳定性检验让同一模型对同一份报告<b>连续评阅多次</b>，给出总分的波动区间——
-        这直接回答「同一份作业明天再评一遍会不会换个分」。
-        Jackknife 逐维度剔除，识别「一权独大」的支配维度。
-      </p>
-      <div class="row" style="margin-bottom:10px">
-        <label class="fld"><span>自检对象</span><select id="auditDoc"></select></label>
-        <label class="fld"><span>采样次数（每次都是一次真实调用）</span>
-          <input type="number" id="auditIter" step="1" min="3" max="15" value="8"></label>
-      </div>
-      <div class="btn-row">
-        <button class="btn primary" id="btnAudit">运行自检</button>
-      </div>
-      <div id="auditResult" style="margin-top:14px"></div>
-    </div>
-
-    <div class="card">
-      <h3>双模型交叉验证 <span class="sub">分歧即信号</span></h3>
-      <p class="hint" style="margin-bottom:12px">
-        同一个模型两次打分都可能差几分。这里让<b>第二个开源模型</b>再评一遍，逐维度比对分歧——
-        这是需求里点名要解决的「每次调用模型评分结果差异化」。
-        校验模型建议选<b>不同模型族</b>（如 Qwen 配 GLM）：同族模型共享偏好，互检会把系统性偏差误当成共识。
-        未配置校验模型时，第二意见退化为主模型高温复评，结论强度会打折并在结果中注明。
-      </p>
-      <div class="row" style="margin-bottom:10px">
-        <label class="fld"><span>报告</span><select id="cvDoc"></select></label>
-        <label class="fld"><span>融合权重（主模型占比）</span>
-          <input type="number" id="cvWeight" step="0.1" min="0" max="1" value="0.5"></label>
-      </div>
-      <div class="btn-row">
-        <button class="btn primary" id="btnCV">开始对比</button>
-      </div>
-      <div id="cvResult" style="margin-top:14px"></div>
-    </div>
-  </div>
-
-  <!-- ============ 视图三：量表与模型 ============ -->
+  <!-- ============ 视图三：设置 ============
+       需求③：原「智能分析」与「量表与模型」合并为统一的设置模块。
+       下设六个分区：个性化 / 类型 / 模型 / 量表 / 分析 / 关于。
+       分区用分段条切换——八张卡片堆在一页里，等于没有入口。 -->
   <div id="view-settings" style="display:none">
+    <div class="segbar" id="setSeg">
+      <button class="seg active" data-sec="personal">个性化设置</button>
+      <button class="seg" data-sec="type">类型设置</button>
+      <button class="seg" data-sec="model">模型设置</button>
+      <button class="seg" data-sec="rubric">量表与评分准则</button>
+      <button class="seg" data-sec="insight">分析与校验</button>
+      <button class="seg" data-sec="about">关于</button>
+    </div>
+
+    <!-- ---------- 分区一：个性化设置 ---------- -->
+    <div class="setsec" id="setsec-personal">
     <div class="card">
       <h3>外观与语气 <span class="sub">主题 + 评语人格，即时生效</span></h3>
       <p class="hint" style="margin-bottom:12px">
@@ -215,7 +170,45 @@
         用于正式存档时，切回「学院派」即可。
       </p>
     </div>
+    </div>
 
+    <!-- ---------- 分区二：类型设置 ---------- -->
+    <div class="setsec" id="setsec-type" style="display:none">
+    <div class="card">
+      <h3>文档类型设置 <span class="sub" id="typeCount">内置 7 类 · 自定义 0 类</span></h3>
+      <p class="hint" style="margin-bottom:12px">
+        类型决定<b>评分方向</b>：用编程实验的量表去评化学实验，「代码实现」那几分永远拿不到——
+        那不是分低，是评错了。这里内置了 7 类常见实验/报告类型（每类自带学科特征词与评分方向），
+        可改名、改特征词、增删评分方向，也可<b>在开评之前预置新类型</b>。
+        评分工作台加入文档后，会先在这张表里检索；<b>在此处新增或修改，工作台立刻可见，反之亦然</b>。
+      </p>
+      <div class="btn-row" style="margin-bottom:10px">
+        <button class="btn sm primary" id="btnAddType">新增类型</button>
+        <button class="btn sm" id="btnTypeFromDoc">从工作台当前文档提取</button>
+        <button class="btn sm danger" id="btnTypeReset">恢复内置默认</button>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="tb" id="typeTable">
+          <thead><tr>
+            <th style="width:52px" class="c">启用</th>
+            <th style="width:170px">类型名称</th>
+            <th>特征词（自动识别用）</th>
+            <th>评分方向</th>
+            <th style="width:76px" class="c">来源</th>
+            <th style="width:170px" class="r">操作</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="hint" style="margin-top:10px">
+        停用内置类型只是从检索池里移除，不会丢失，随时可再启用；「恢复内置默认」会清空全部自定义类型与对内置类型的改动。
+        特征词写得越具体，自动识别越准——建议填学科术语而非通用词（「示波器」比「仪器」好）。
+      </p>
+    </div>
+    </div>
+
+    <!-- ---------- 分区四：量表与评分准则 ---------- -->
+    <div class="setsec" id="setsec-rubric" style="display:none">
     <div class="card">
       <h3>智能量表 <span class="sub">一句话生成 · 按作业自动适配</span></h3>
       <p class="hint" style="margin-bottom:12px">
@@ -244,7 +237,8 @@
 
     <div class="card">
       <h3>评分量表 <span class="sub" id="rubricTotal">总分 100</span></h3>
-      <p class="hint" style="margin-bottom:12px">量表即「评分准则」：每个维度的得分要点与扣分情形会作为约束下发给模型，让它逐项覆盖、不漏维度。可调整维度名称与分值，总分需为 100。<b>手动改动分值会自动锁定该维度</b>（解锁后自动策略才可调它），锁定列也可自行勾选。</p>
+      <p class="hint" style="margin-bottom:12px">量表即「评分准则」：每个维度的得分要点与扣分情形会作为约束下发给模型，让它逐项覆盖、不漏维度。可调整维度名称与分值，总分需为 100。<b>手动改动分值会自动锁定该维度</b>（解锁后自动策略才可调它），锁定列也可自行勾选。<br>
+        想整体换成另一类作业的评分方向，去「类型设置」对相应类型点「套用为评分准则」——类型与这里的维度<b>双向同步</b>。</p>
       <div style="overflow-x:auto">
         <table class="tb" id="rubricTable">
           <thead><tr>
@@ -261,6 +255,10 @@
       </div>
     </div>
 
+    </div>
+
+    <!-- ---------- 分区三：模型设置 ---------- -->
+    <div class="setsec" id="setsec-model" style="display:none">
     <div class="card">
       <h3>模型引擎配置 <span class="sub">开源模型优先 · 兼容 OpenAI 风格接口</span></h3>
       <p class="hint" style="margin:0 0 12px">
@@ -334,6 +332,75 @@
       </p>
     </div>
 
+    </div>
+
+    <!-- ---------- 分区五：分析与校验（原「智能分析」并入设置） ---------- -->
+    <div class="setsec" id="setsec-insight" style="display:none">
+    <div class="card">
+      <h3>量表自动诱导 <span class="sub">区分度驱动，而非频次驱动</span></h3>
+      <p class="hint" style="margin-bottom:12px">
+        教师手写量表最常见的两个偏差：把「人人都写」的东西列为得分点（零区分度，占分却拉不开差距），
+        以及分值凭直觉分配。本引擎要求先标注<b>优秀组</b>与<b>对照组</b>范文，
+        再对每个候选要点计算 <b>Δ = 优秀组命中率 − 对照组命中率</b>，只保留 Δ 高于阈值的要点，
+        并按 <b>Δ·√支持度</b> 分配分值——区分不出好坏的要素自动出局。
+      </p>
+      <div id="induceGroups" style="margin-bottom:12px"></div>
+      <div class="row" style="margin-bottom:10px">
+        <label class="fld"><span>最小区分度 Δ（越高越严格）</span>
+          <input type="number" id="indMinDelta" step="0.05" min="0.05" max="1" value="0.20"></label>
+        <label class="fld"><span>最小支持度（术语类）</span>
+          <input type="number" id="indMinSup" step="0.05" min="0" max="1" value="0.25"></label>
+        <label class="fld"><span>候选术语上限</span>
+          <input type="number" id="indMaxTerms" step="10" min="10" max="200" value="60"></label>
+      </div>
+      <div class="btn-row">
+        <button class="btn primary" id="btnInduce">开始诱导</button>
+        <button class="btn" id="btnInduceExport">导出量表 JSON</button>
+      </div>
+      <div id="induceResult" style="margin-top:14px"></div>
+    </div>
+
+    <div class="card">
+      <h3>评分信度自检 <span class="sub">Cronbach's α · Bootstrap CI · Jackknife 敏感度</span></h3>
+      <p class="hint" style="margin-bottom:12px">
+        自动评分必须回答「这个分数有多可信」。α 衡量各维度是否在测同一件事；
+        稳定性检验让同一模型对同一份报告<b>连续评阅多次</b>，给出总分的波动区间——
+        这直接回答「同一份作业明天再评一遍会不会换个分」。
+        Jackknife 逐维度剔除，识别「一权独大」的支配维度。
+      </p>
+      <div class="row" style="margin-bottom:10px">
+        <label class="fld"><span>自检对象</span><select id="auditDoc"></select></label>
+        <label class="fld"><span>采样次数（每次都是一次真实调用）</span>
+          <input type="number" id="auditIter" step="1" min="3" max="15" value="8"></label>
+      </div>
+      <div class="btn-row">
+        <button class="btn primary" id="btnAudit">运行自检</button>
+      </div>
+      <div id="auditResult" style="margin-top:14px"></div>
+    </div>
+
+    <div class="card">
+      <h3>双模型交叉验证 <span class="sub">分歧即信号</span></h3>
+      <p class="hint" style="margin-bottom:12px">
+        同一个模型两次打分都可能差几分。这里让<b>第二个开源模型</b>再评一遍，逐维度比对分歧——
+        这是需求里点名要解决的「每次调用模型评分结果差异化」。
+        校验模型建议选<b>不同模型族</b>（如 Qwen 配 GLM）：同族模型共享偏好，互检会把系统性偏差误当成共识。
+        未配置校验模型时，第二意见退化为主模型高温复评，结论强度会打折并在结果中注明。
+      </p>
+      <div class="row" style="margin-bottom:10px">
+        <label class="fld"><span>报告</span><select id="cvDoc"></select></label>
+        <label class="fld"><span>融合权重（主模型占比）</span>
+          <input type="number" id="cvWeight" step="0.1" min="0" max="1" value="0.5"></label>
+      </div>
+      <div class="btn-row">
+        <button class="btn primary" id="btnCV">开始对比</button>
+      </div>
+      <div id="cvResult" style="margin-top:14px"></div>
+    </div>
+    </div>
+
+    <!-- ---------- 分区六：关于 ---------- -->
+    <div class="setsec" id="setsec-about" style="display:none">
     <div class="card">
       <h3>关于</h3>
       <p class="hint">
@@ -361,6 +428,31 @@
     <div class="btn-row" style="justify-content:flex-end">
       <button class="btn" id="pasteCancel">取消</button>
       <button class="btn primary" id="pasteOk">确认录入</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 类型编辑弹窗（设置模块 / 评分工作台共用，保证两侧数据结构一致） ===== -->
+<div class="mask" id="typeMask">
+  <div class="modal">
+    <h3 id="typeModalTitle">新增文档类型</h3>
+    <div class="row">
+      <label class="fld"><span>类型名称</span>
+        <input type="text" id="tpName" placeholder="例：电路设计与仿真报告"></label>
+      <label class="fld"><span>一句话说明（选填）</span>
+        <input type="text" id="tpBrief" placeholder="例：以电路搭建与仿真为主的电类实验"></label>
+    </div>
+    <label class="fld"><span>特征词（自动识别用，逗号或换行分隔；建议 ≥3 个学科术语）</span>
+      <textarea id="tpKeywords" rows="3" placeholder="例：电路, 仿真, multisim, 示波器, 波特图, 幅频特性"></textarea></label>
+    <div class="grp">
+      <div class="lb">评分方向（分值会自动按比例归一到 100）</div>
+      <div id="tpDirs"></div>
+      <button class="btn sm" id="tpAddDir" type="button" style="margin-top:6px">+ 添加评分方向</button>
+    </div>
+    <p class="hint" id="tpFromDoc" style="margin:0 0 10px"></p>
+    <div class="btn-row" style="justify-content:flex-end">
+      <button class="btn" id="tpCancel">取消</button>
+      <button class="btn primary" id="tpSave">保存类型</button>
     </div>
   </div>
 </div>
@@ -406,6 +498,7 @@
 <script src="assets/js/voice.js"></script>
 <script src="assets/js/rubric.js"></script>
 <script src="assets/js/rubric-templates.js"></script>
+<script src="assets/js/doctypes.js"></script>
 <script src="assets/js/parser.js"></script>
 <script src="assets/js/analyzer.js"></script>
 <script src="assets/js/llm.js"></script>
