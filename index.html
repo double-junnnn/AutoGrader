@@ -8,7 +8,7 @@
 <style>
 /* AutoGrader · 样式主文件（主题化）
  * 所有颜色/圆角/阴影/描边宽度都走 CSS 变量，切换 <html data-theme> 即整站换肤。
- * 主题列表：toon（动画卡通，默认）· classic（visionOS 亮玻璃）· tech（visionOS 深玻璃）
+ * 主题列表：toon（动画卡通，默认）· classic（浅玻璃）· tech（深玻璃）
  */
 /* ============ 基础变量（未指定主题时的兜底取值） ============ */
 :root {
@@ -70,8 +70,9 @@
 }
 
 /* ============ 主题 1：动画卡通（默认） ============
- * 画风参考美式动画：**淡黄底**（内搭长袖 #FFDD66 降饱和、调淡后的 #F2E3B0 —— 还是黄，
- * 只是没那么扎眼）+ 粗黑描边 + 平涂高饱和 + 硬阴影（无模糊）+ 大圆角 + 圆体标题。
+ * 画风参考美式动画：**明黄底**（从 Stewie 剧照直接提取内搭长袖的衬衫黄
+ * #FDE182，再提一档饱和得到 #FFD75C —— 有食欲的正黄）+ 粗黑描边 + 平涂高饱和
+ * + 硬阴影（无模糊）+ 大圆角 + 圆体标题。
  * 面板留白底，保证黑字对比度。
  * 配色取自 Stewie（饺子）服装取色：内搭浅黄 #FFDD66 / 背带裤正红 #E61928 /
  * 纽扣亮黄 #FFEE22 / 鞋子浅蓝 #87C8EE。
@@ -84,11 +85,11 @@
  */
 :root[data-theme="toon"] {
   color-scheme: light;
-  --bg: #f2e3b0;
+  --bg: #ffd75c;              /* 衬衫黄 #FDE182 提饱和后的正黄 */
   --panel: #fffdf6;
   --surface: #fffdf6;
-  --surface-2: #fdf9ea;
-  --surface-3: #f7ecc9;
+  --surface-2: #fffaea;
+  --surface-3: #ffe9a8;
   --ink: #100c09;
   --ink-2: #33291f;
   --muted: #6b573f;
@@ -114,7 +115,7 @@
   --warn-soft: #fdf3dc; --warn-line: #100c09; --warn-ink: #8a4f00;
   --bad-soft: #fce3e6; --bad-line: #100c09; --bad-ink: #a50f20;
   --info-soft: #d6ecfb; --info-line: #100c09;
-  --tabs-bg: #e3d3a2;
+  --tabs-bg: #edc855;
   --modal-ink: #100c09;
   --print-line: #100c09;
   --radius: 18px;
@@ -131,7 +132,7 @@
   --focus: rgba(230, 25, 40, .28);
 }
 
-/* ============ 主题 2：visionOS · 亮玻璃（浅色） ============
+/* ============ 主题 2：浅玻璃（visionOS · 白蓝渐变） ============
  * 与「深玻璃」共用一套空间玻璃语言，但底座是**白 → 蓝的过渡**：
  *   背景从近白渐变到浅蓝，面板是白色半透玻璃，文字回到深色（浅底深字）。
  *   这样两套玻璃一个亮一个暗，区分度靠明度而不是靠色调 —— 一眼能分出来。
@@ -198,7 +199,7 @@
 :root[data-theme="classic"] .ev,
 :root[data-theme="classic"] .dim { border-color: rgba(10, 16, 32, .10); }
 
-/* ============ 主题 3：visionOS · 深玻璃 ============
+/* ============ 主题 3：深玻璃（visionOS · 深蓝紫渐变） ============
  * 同一套空间玻璃语言，深色版：玻璃基底更沉（墨色半透），紫调压过蓝调，
  * 内发光更冷，边缘高光更细，悬浮距离拉得更大。
  */
@@ -577,9 +578,9 @@ table.tb input { padding: 5px 8px; }
 .skin-bar--top .skin { padding: 5px; }
 .skin .swatch { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid rgba(0, 0, 0, .18); flex: none; }
 .skin .swatch i { display: block; width: 100%; height: 100%; border-radius: 50%; }
-/* 三个色点一律纯色单块：淡黄（卡通）/ 浅蓝（亮玻璃）/ 深紫（深玻璃），
+/* 三个色点一律纯色单块：明黄（卡通）/ 浅蓝（浅玻璃）/ 深紫（深玻璃），
    由浅到深排开，一眼能分出三套皮肤，不再用多色拼接或渐变。 */
-.skin i.sw-toon { background: #ffdd66; }
+.skin i.sw-toon { background: #ffd75c; }
 .skin i.sw-classic { background: #a7c6f7; }
 .skin i.sw-tech { background: #2b2154; }
 
@@ -1982,9 +1983,9 @@ table.tb input { padding: 5px 8px; }
   const U = AG.utils;
 
   const THEMES = [
-    { id: 'toon', name: '动画卡通', desc: '淡黄底 · 平涂高饱和 · 饺子配色' },
-    { id: 'classic', name: 'visionOS · 亮玻璃', desc: '白蓝渐变 · 浅色玻璃' },
-    { id: 'tech', name: 'visionOS · 深玻璃', desc: '深蓝紫 · 墨色玻璃' },
+    { id: 'toon', name: '动画卡通', desc: '明黄底 · 平涂高饱和 · 饺子配色' },
+    { id: 'classic', name: '浅玻璃', desc: 'visionOS · 白蓝渐变 · 浅底深字' },
+    { id: 'tech', name: '深玻璃', desc: 'visionOS · 深蓝紫渐变 · 白字' },
   ];
 
   const DEFAULT_THEME = 'toon';
@@ -2111,7 +2112,7 @@ table.tb input { padding: 5px 8px; }
       red: v('--red', '#dc2626'),
       yellow: v('--yellow', '#ffdd66'),
       fontTitle: v('--font-title', '') || 'sans-serif',
-      // 亮玻璃是浅底深字，只有深玻璃按深色画；PDF / 图表据此决定底色与文字色
+      // 浅玻璃是浅底深字，只有深玻璃按深色画；PDF / 图表据此决定底色与文字色
       dark: document.documentElement.getAttribute('data-theme') === 'tech',
     };
   }

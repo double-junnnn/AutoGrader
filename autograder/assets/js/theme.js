@@ -17,9 +17,9 @@
   const U = AG.utils;
 
   const THEMES = [
-    { id: 'toon', name: '动画卡通', desc: '淡黄底 · 平涂高饱和 · 饺子配色' },
-    { id: 'classic', name: 'visionOS · 亮玻璃', desc: '白蓝渐变 · 浅色玻璃' },
-    { id: 'tech', name: 'visionOS · 深玻璃', desc: '深蓝紫 · 墨色玻璃' },
+    { id: 'toon', name: '动画卡通', desc: '明黄底 · 平涂高饱和 · 饺子配色' },
+    { id: 'classic', name: '浅玻璃', desc: 'visionOS · 白蓝渐变 · 浅底深字' },
+    { id: 'tech', name: '深玻璃', desc: 'visionOS · 深蓝紫渐变 · 白字' },
   ];
 
   const DEFAULT_THEME = 'toon';
@@ -146,7 +146,7 @@
       red: v('--red', '#dc2626'),
       yellow: v('--yellow', '#ffdd66'),
       fontTitle: v('--font-title', '') || 'sans-serif',
-      // 亮玻璃是浅底深字，只有深玻璃按深色画；PDF / 图表据此决定底色与文字色
+      // 浅玻璃是浅底深字，只有深玻璃按深色画；PDF / 图表据此决定底色与文字色
       dark: document.documentElement.getAttribute('data-theme') === 'tech',
     };
   }
