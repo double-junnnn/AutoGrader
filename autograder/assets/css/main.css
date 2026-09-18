@@ -171,12 +171,20 @@
   --print-line: #dbe4f2;
   --radius: 22px;
   --radius-sm: 16px;
-  /* 双层阴影：0 2px 贴地，0 26px 撑出悬浮距离 */
-  --shadow: inset 0 1px 0 rgba(255, 255, 255, .90), inset 0 -1px 0 rgba(255, 255, 255, .55),
-  /* 三层阴影：贴地接触影 + 中层带蓝调环境影 + 远距悬浮影，撑出「浮在空间里」的距离 */
+  /* 玻璃立体阴影（对照 Apple Liquid Glass 的四个特征逐条落地）：
+     1. 上缘迎光壁最亮 —— 光从左上来，顶边是入射面；
+     2. 下缘一道冷色折射亮线 —— 光穿过玻璃从底边折射出去（rim 色散的"蓝"端）；
+     3. 左右壁一暖一冷 —— 同一道 rim 光因色散被拆成红/蓝两缕（RGB 偏移）；
+     4. 玻璃壁 + 边缘折射暗环 —— 边缘处背景纹理被压缩，视觉上"更密"；
+     5. 底部内侧厚度暗部 + 外层三层影（接触/环境/悬浮）撑出离底距离。
+     注：此处曾残留一行没写分号的旧 --shadow 声明，把整段值吞进自身，
+     box-shadow: var(--shadow) 随之失效——浅玻璃一度完全没立体感，已修复。 */
   --shadow: inset 0 1.5px 0 rgba(255, 255, 255, .96),   /* 上缘厚高光 —— 玻璃切口厚度 */
-            inset 0 -1.5px 0 rgba(255, 255, 255, .66),  /* 下缘：地面反射回玻璃的光 */
-            inset 0 0 0 1px rgba(255, 255, 255, .38),   /* 四周玻璃壁（折射亮边） */
+            inset 0 -2px 5px -2px rgba(158, 200, 255, .80), /* 下缘折射亮线（色散·蓝）*/
+            inset 2px 0 4px -3px rgba(255, 228, 242, .60),  /* 左壁掠射（色散·红）*/
+            inset -2px 0 4px -3px rgba(172, 208, 255, .55), /* 右壁掠射（色散·蓝）*/
+            inset 0 0 0 1px rgba(255, 255, 255, .38),   /* 四周玻璃壁（折射亮边）*/
+            inset 0 0 10px -4px rgba(38, 74, 140, .28), /* 边缘折射暗环：边缘更"密" */
             inset 0 -24px 36px -30px rgba(52, 104, 200, .55), /* 底部内侧厚度暗部 */
             0 1px 2px rgba(16, 32, 64, .10),            /* 接触影 */
             0 6px 14px -6px rgba(28, 62, 130, .20),     /* 中层环境遮蔽 */
@@ -184,22 +192,32 @@
   --shadow-sm: inset 0 1px 0 rgba(255, 255, 255, .92), inset 0 -1px 0 rgba(255, 255, 255, .50),
                inset 0 0 0 1px rgba(255, 255, 255, .28),
                0 2px 8px -3px rgba(16, 32, 64, .16);
-  --shadow-lg: inset 0 1.5px 0 rgba(255, 255, 255, 1), inset 0 -1.5px 0 rgba(255, 255, 255, .70),
+  --shadow-lg: inset 0 1.5px 0 rgba(255, 255, 255, 1), inset 0 -2px 5px -2px rgba(158, 200, 255, .85),
                inset 0 0 0 1px rgba(255, 255, 255, .42),
+               inset 0 0 12px -4px rgba(38, 74, 140, .30),
                inset 0 -24px 36px -30px rgba(52, 104, 200, .50),
                0 48px 90px -32px rgba(24, 56, 120, .50);
   --glass-blur: blur(40px) saturate(200%);
-  /* 玻璃体积：左上角光源的镜面高光斑 + 168° 厚度渐变（顶部厚→中部薄→下缘回亮） */
+  /* 玻璃体积：168° 厚度渐变（顶部厚→中部薄→下缘回亮）+ 右下冷色环境反光。
+     左上那团「会动」的镜面高光斑不放在这里 —— CSS 自定义属性的 var()
+     是在定义处（:root）解析的，写进 :root 变量里就吃不到元素级的 --lx/--ly。
+     所以动态高光层在文件末尾的选择器块里直接叠加（元素作用域解析），
+     颜色由 --glass-hl 提供。右下这团环境反光是静态的，背光面不是死黑，
+     是法线翻过去的另一侧接住了环境的蓝。 */
   --glass-fill:
-    radial-gradient(128% 92% at 16% -14%, rgba(255, 255, 255, .74), rgba(255, 255, 255, 0) 54%),
+    radial-gradient(80% 52% at calc(88% + var(--lx, 0) * 8%) 112%,
+      rgba(182, 212, 255, .50), rgba(255, 255, 255, 0) 58%),
     linear-gradient(168deg,
       rgba(255, 255, 255, .80) 0%,
       rgba(255, 255, 255, .48) 40%,
       rgba(255, 255, 255, .32) 66%,
       rgba(255, 255, 255, .60) 100%);
+  --glass-hl: rgba(255, 255, 255, .78);   /* 动态镜面高光斑的颜色（左上，随 --lx/--ly 移动）*/
   --glass-fill-sm: linear-gradient(168deg, rgba(255, 255, 255, .88) 0%, rgba(255, 255, 255, .54) 100%);
-  --glass-rim: rgba(255, 255, 255, .96);        /* 上缘：迎光面最亮 */
-  --glass-rim-soft: rgba(255, 255, 255, .46);   /* 其余三边：掠射光 */
+  --glass-rim: rgba(255, 252, 246, .98);        /* 上缘：迎光面最亮（微暖白）*/
+  --glass-rim-soft: rgba(255, 255, 255, .46);   /* 右侧：掠射光 */
+  --glass-rim-b: rgba(168, 205, 255, .85);      /* 下缘：折射亮线（色散·蓝）*/
+  --glass-rim-w: rgba(255, 232, 246, .55);      /* 左缘：掠射微暖（色散·红）*/
   --font-title: "Inter", "SF Pro Display", "Segoe UI Semibold", var(--font-ui);
   --grad: linear-gradient(135deg, #4a7fe8, #8d72f5);
   --grad-logo: linear-gradient(135deg, #5a8bf0, #9b83f7);
@@ -256,10 +274,15 @@
   --print-line: rgba(255, 255, 255, .16);
   --radius: 22px;
   --radius-sm: 16px;
-  /* 深玻璃：内发光代替白高光，边缘是冷紫折射；影子带紫调压，不是纯黑 */
+  /* 深玻璃：同一套 Liquid Glass 光路，只是每一层都换成深色空间的写法 ——
+     上缘切口是暗处的白边；下缘折射亮线走冷蓝；左右壁一暖一冷做色散；
+     边缘折射暗环用近黑压出"厚玻璃边缘更密"的感觉；影子带紫调，不是纯黑 */
   --shadow: inset 0 1.5px 0 rgba(255, 255, 255, .36),  /* 上缘切口 */
-            inset 0 -1.5px 0 rgba(190, 170, 255, .18), /* 下缘反射 */
+            inset 0 -2px 5px -2px rgba(140, 190, 255, .38), /* 下缘折射亮线（色散·蓝）*/
+            inset 2px 0 4px -3px rgba(255, 205, 235, .22),  /* 左壁掠射（色散·红）*/
+            inset -2px 0 4px -3px rgba(150, 190, 255, .22), /* 右壁掠射（色散·蓝）*/
             inset 0 0 0 1px rgba(255, 255, 255, .12),  /* 四周玻璃壁 */
+            inset 0 0 12px -4px rgba(0, 0, 22, .55),   /* 边缘折射暗环 */
             inset 0 -24px 36px -28px rgba(120, 90, 255, .48), /* 底部内侧厚度暗部 */
             inset 0 26px 40px -34px rgba(255, 255, 255, .20), /* 顶部内发光 */
             0 1px 2px rgba(0, 0, 0, .50),              /* 接触影 */
@@ -268,23 +291,30 @@
   --shadow-sm: inset 0 1px 0 rgba(255, 255, 255, .28), inset 0 -1px 0 rgba(190, 170, 255, .14),
                inset 0 0 0 1px rgba(255, 255, 255, .09),
                0 2px 8px -3px rgba(0, 0, 0, .50);
-  --shadow-lg: inset 0 1.5px 0 rgba(255, 255, 255, .42), inset 0 -1.5px 0 rgba(190, 170, 255, .22),
+  --shadow-lg: inset 0 1.5px 0 rgba(255, 255, 255, .42), inset 0 -2px 5px -2px rgba(140, 190, 255, .42),
                inset 0 0 0 1px rgba(255, 255, 255, .14),
+               inset 0 0 14px -4px rgba(0, 0, 22, .55),
                inset 0 -24px 36px -28px rgba(120, 90, 255, .45),
                inset 0 26px 40px -34px rgba(255, 255, 255, .22),
                0 52px 96px -32px rgba(2, 0, 18, .92);
   --glass-blur: blur(40px) saturate(215%) brightness(1.06);
-  /* 深色玻璃的体积更克制：白色只做边缘反射，主体靠紫调明暗拉开厚度 */
+  /* 深色玻璃的体积更克制：白色只做边缘反射，主体靠紫调明暗拉开厚度。
+     动态高光斑同样拆到文件末尾的选择器块（元素作用域），这里只留
+     静态的右下蓝紫环境反光 —— 深空间里的"环境"是背景那几团弥散光。 */
   --glass-fill:
-    radial-gradient(128% 92% at 16% -14%, rgba(214, 200, 255, .30), rgba(255, 255, 255, 0) 54%),
+    radial-gradient(80% 52% at calc(88% + var(--lx, 0) * 8%) 112%,
+      rgba(90, 120, 255, .28), rgba(255, 255, 255, 0) 58%),
     linear-gradient(168deg,
       rgba(255, 255, 255, .20) 0%,
       rgba(255, 255, 255, .07) 40%,
       rgba(255, 255, 255, .03) 66%,
       rgba(186, 166, 255, .15) 100%);
+  --glass-hl: rgba(214, 200, 255, .30);   /* 动态镜面高光斑的颜色（左上，随 --lx/--ly 移动）*/
   --glass-fill-sm: linear-gradient(168deg, rgba(255, 255, 255, .22) 0%, rgba(190, 170, 255, .10) 100%);
   --glass-rim: rgba(255, 255, 255, .38);
   --glass-rim-soft: rgba(255, 255, 255, .16);
+  --glass-rim-b: rgba(150, 190, 255, .34);      /* 下缘：折射亮线（色散·蓝）*/
+  --glass-rim-w: rgba(255, 205, 235, .22);      /* 左缘：掠射微暖（色散·红）*/
   --font-title: "Inter", "SF Pro Display", "Segoe UI Semibold", var(--font-ui);
   --grad: linear-gradient(135deg, #8b6cf0, #5ce1f2);
   --grad-logo: linear-gradient(135deg, #a78bfa, #67e8f9);
@@ -793,14 +823,20 @@ table.tb input { padding: 5px 8px; }
 /* ============================================================
  * 玻璃立体感：把「一层半透色」变成「一块有厚度的玻璃」
  * ------------------------------------------------------------
- * 光从左上打来（与空间底 radial 光源同向），玻璃因此有四个可辨特征：
+ * 对照 Apple Liquid Glass 的实现原理（高光按光源+法线实时计算、
+ * 边缘折射扭曲背景、rim 因色散带红蓝分离、中心平边缘翘），落地为五件事：
  *   1. 体积渐变 --glass-fill：168° 厚度渐变（顶厚→中薄→下缘回亮）
- *      + 左上角镜面高光斑，模拟光源在玻璃表面的反射；
- *   2. 折射边：--glass-rim 上缘迎光最亮，其余三边是掠射光（--glass-rim-soft），
- *      再叠一圈 inset 1px 玻璃壁，边缘就有了"切出来的厚度"；
- *   3. 内阴影厚度：底部内侧压一层暗部 +（深玻璃）顶部内发光，
+ *      + 右下冷色环境反光；
+ *   2. 动态高光：镜面高光斑作为独立一层直接叠在选择器块里，斑心挂在
+ *      --lx / --ly 上（theme.js 按元素相对视口的位置实时写入）—— 光源固定
+ *      左上，卡片越靠右高光越压向左缘、越滚到视口下部高光越贴向顶缘，
+ *      对应「高光随控件位置连续变化」这条最难得模仿的特征；
+ *   3. 色散 rim：上缘迎光最亮（--glass-rim，微暖白）、下缘折射亮线
+ *      （--glass-rim-b，偏蓝）、左缘微暖（--glass-rim-w，偏红）、
+ *      右侧掠射（--glass-rim-soft）—— 一圈边上红蓝各占一侧；
+ *   4. 内阴影厚度：玻璃壁 + 边缘折射暗环 + 底部内侧暗部（深玻璃再加顶部内发光），
  *      玻璃因此是"体"而不是"面"；
- *   4. 三层外阴影：接触影 / 中层带色环境影 / 远距悬浮影，撑出离底面的距离。
+ *   5. 三层外阴影：接触影 / 中层带色环境影 / 远距悬浮影，撑出离底面的距离。
  * 只有玻璃主题定义了这些变量，卡通主题 var() 全落到 fallback，零副作用。
  * 规则放在文件末尾，确保覆盖前面各面板的 background 简写。
  * ============================================================ */
@@ -810,9 +846,17 @@ table.tb input { padding: 5px 8px; }
                                 .kpi, .stat, .doclist li:not(.active), .dropzone),
 :root[data-theme="tech"] :is(.topbar, .card, .modal, .chat-panel, .chat-input textarea,
                              .kpi, .stat, .doclist li:not(.active), .dropzone) {
-  background-image: var(--glass-fill);
-  border-color: var(--glass-rim-soft);
-  border-top-color: var(--glass-rim);
+  /* 第一层是动态镜面高光斑：var(--lx)/var(--ly) 由 theme.js 写在每个元素上，
+     在这里（元素作用域）解析 —— 不能挪进 :root 的 --glass-fill，
+     自定义属性的 var() 在定义处解析，挪进去就永远拿到 fallback 0。 */
+  background-image:
+    radial-gradient(130% 96% at calc(30% + var(--lx, 0) * -16%) calc(-14% + var(--ly, 0) * -6%),
+      var(--glass-hl, transparent), rgba(255, 255, 255, 0) 52%),
+    var(--glass-fill);
+  border-color: var(--glass-rim-soft);      /* 右侧：掠射光 */
+  border-top-color: var(--glass-rim);       /* 上缘：迎光面最亮 */
+  border-bottom-color: var(--glass-rim-b);  /* 下缘：折射亮线（色散·蓝）*/
+  border-left-color: var(--glass-rim-w);    /* 左缘：掠射微暖（色散·红）*/
   box-shadow: var(--shadow);
 }
 

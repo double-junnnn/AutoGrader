@@ -1,5 +1,6 @@
 /* AutoGrader · 主题引擎（Theme Engine）
- * 负责：主题应用 / 持久化 / 切换器渲染 / 吉祥物 / 给 PDF 导出提供配色。
+ * 负责：主题应用 / 持久化 / 切换器渲染 / 吉祥物 / 给 PDF 导出提供配色 /
+ *       玻璃主题的动态高光（liquidLight：高光斑随元素位置实时偏移）。
  *
  * 设计说明：
  *   1. 视觉全部走 CSS 变量，切换只改 <html data-theme>，无需重排 DOM。
@@ -108,6 +109,7 @@
   function apply(id) {
     const t = normalize(id);
     document.documentElement.setAttribute('data-theme', t);
+    liquidLight(t === 'classic' || t === 'tech');
     if (t !== id) U.store.set('theme', t);
     return t;
   }
@@ -117,6 +119,62 @@
     U.store.set('theme', t);
     U.bus.emit('theme:change', t);
     return t;
+  }
+
+  /* ---------------- Liquid Glass 动态高光 ----------------
+   * 苹果的高光不是画死的高光贴图，而是按「光源方向 + 玻璃表面法线」
+   * 实时算出来的：控件挪个位置，光在它表面的落点也跟着挪。
+   * 纯 CSS 模拟不了这一步，这里用一个极小的循环近似：
+   *   1. 算每个玻璃元素中心相对视口中心的偏移：lx（-1 最左 → +1 最右）、
+   *      ly（-1 最顶 → +1 最底）；
+   *   2. 写进元素级变量，供 --glass-fill 的高光斑用 calc() 消费 ——
+   *      光源固定在左上：元素越靠右，入射角越斜，高光斑越压向左缘；
+   *      元素滚到视口下部，光越接近平射，高光斑越贴向顶缘。
+   * 水平维靠左右布局生效，垂直维靠滚动生效 —— 滚动是页面里的主要运动。
+   * 只在玻璃主题激活；rAF 节流（滚动一帧至多算一遍）；prefers-reduced-motion
+   * 用户的系统本来就要求少动，直接不启用。卡通主题零监听零写入。
+   */
+  const LIQUID_SEL = '.topbar, .card, .modal, .chat-panel, .chat-input textarea, ' +
+    '.kpi, .stat, .doclist li, .dropzone';
+  let liquidOn = false;
+  let liquidPending = false;
+
+  function liquidFrame() {
+    liquidPending = false;
+    const w = global.innerWidth || 1;
+    const h = global.innerHeight || 1;
+    U.$$(LIQUID_SEL).forEach((el) => {
+      const r = el.getBoundingClientRect();
+      if (!r.width && !r.height) return;
+      el.style.setProperty('--lx', (((r.left + r.width / 2) / w) * 2 - 1).toFixed(3));
+      el.style.setProperty('--ly', (((r.top + r.height / 2) / h) * 2 - 1).toFixed(3));
+    });
+  }
+
+  function liquidQueue() {
+    if (!liquidPending) {
+      liquidPending = true;
+      global.requestAnimationFrame(liquidFrame);
+    }
+  }
+
+  /** 开/关动态高光。off 时撤掉监听并清掉元素上的变量，避免残留半套状态。 */
+  function liquidLight(on) {
+    const want = !!on && !global.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (want && !liquidOn) {
+      liquidOn = true;
+      global.addEventListener('scroll', liquidQueue, { passive: true });
+      global.addEventListener('resize', liquidQueue, { passive: true });
+      liquidQueue();
+    } else if (!want && liquidOn) {
+      liquidOn = false;
+      global.removeEventListener('scroll', liquidQueue);
+      global.removeEventListener('resize', liquidQueue);
+      U.$$(LIQUID_SEL).forEach((el) => {
+        el.style.removeProperty('--lx');
+        el.style.removeProperty('--ly');
+      });
+    }
   }
 
   /** 从 CSS 变量实时读取当前主题配色，供 Canvas（PDF/图表）使用。
@@ -181,6 +239,6 @@
     MASCOT_HEAD, MASCOT_FULL,
     /* 位图吉祥物是否可用（主题判断用，见 app.js 的 setupAppearance） */
     HAS_MASCOT: !!M.HEAD_SRC,
-    get, set, apply, palette, mountSkinBar,
+    get, set, apply, palette, mountSkinBar, liquidLight,
   };
 })(window);
