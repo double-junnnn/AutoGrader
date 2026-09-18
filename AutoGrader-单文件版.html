@@ -181,12 +181,33 @@
   --radius-sm: 16px;
   /* 双层阴影：0 2px 贴地，0 26px 撑出悬浮距离 */
   --shadow: inset 0 1px 0 rgba(255, 255, 255, .90), inset 0 -1px 0 rgba(255, 255, 255, .55),
-            0 2px 6px -2px rgba(16, 32, 64, .14), 0 26px 50px -26px rgba(16, 32, 64, .34);
-  --shadow-sm: inset 0 1px 0 rgba(255, 255, 255, .85),
+  /* 三层阴影：贴地接触影 + 中层带蓝调环境影 + 远距悬浮影，撑出「浮在空间里」的距离 */
+  --shadow: inset 0 1.5px 0 rgba(255, 255, 255, .96),   /* 上缘厚高光 —— 玻璃切口厚度 */
+            inset 0 -1.5px 0 rgba(255, 255, 255, .66),  /* 下缘：地面反射回玻璃的光 */
+            inset 0 0 0 1px rgba(255, 255, 255, .38),   /* 四周玻璃壁（折射亮边） */
+            inset 0 -24px 36px -30px rgba(52, 104, 200, .55), /* 底部内侧厚度暗部 */
+            0 1px 2px rgba(16, 32, 64, .10),            /* 接触影 */
+            0 6px 14px -6px rgba(28, 62, 130, .20),     /* 中层环境遮蔽 */
+            0 34px 62px -30px rgba(24, 56, 120, .46);   /* 远距悬浮 */
+  --shadow-sm: inset 0 1px 0 rgba(255, 255, 255, .92), inset 0 -1px 0 rgba(255, 255, 255, .50),
+               inset 0 0 0 1px rgba(255, 255, 255, .28),
                0 2px 8px -3px rgba(16, 32, 64, .16);
-  --shadow-lg: inset 0 1px 0 rgba(255, 255, 255, .95),
-               0 40px 80px -28px rgba(16, 32, 64, .42);
-  --glass-blur: blur(30px) saturate(180%);
+  --shadow-lg: inset 0 1.5px 0 rgba(255, 255, 255, 1), inset 0 -1.5px 0 rgba(255, 255, 255, .70),
+               inset 0 0 0 1px rgba(255, 255, 255, .42),
+               inset 0 -24px 36px -30px rgba(52, 104, 200, .50),
+               0 48px 90px -32px rgba(24, 56, 120, .50);
+  --glass-blur: blur(40px) saturate(200%);
+  /* 玻璃体积：左上角光源的镜面高光斑 + 168° 厚度渐变（顶部厚→中部薄→下缘回亮） */
+  --glass-fill:
+    radial-gradient(128% 92% at 16% -14%, rgba(255, 255, 255, .74), rgba(255, 255, 255, 0) 54%),
+    linear-gradient(168deg,
+      rgba(255, 255, 255, .80) 0%,
+      rgba(255, 255, 255, .48) 40%,
+      rgba(255, 255, 255, .32) 66%,
+      rgba(255, 255, 255, .60) 100%);
+  --glass-fill-sm: linear-gradient(168deg, rgba(255, 255, 255, .88) 0%, rgba(255, 255, 255, .54) 100%);
+  --glass-rim: rgba(255, 255, 255, .96);        /* 上缘：迎光面最亮 */
+  --glass-rim-soft: rgba(255, 255, 255, .46);   /* 其余三边：掠射光 */
   --font-title: "Inter", "SF Pro Display", "Segoe UI Semibold", var(--font-ui);
   --grad: linear-gradient(135deg, #4a7fe8, #8d72f5);
   --grad-logo: linear-gradient(135deg, #5a8bf0, #9b83f7);
@@ -243,13 +264,35 @@
   --print-line: rgba(255, 255, 255, .16);
   --radius: 22px;
   --radius-sm: 16px;
-  --shadow: inset 0 1px 0 rgba(255, 255, 255, .20), inset 0 -1px 0 rgba(255, 255, 255, .07),
-            0 2px 6px -2px rgba(0, 0, 0, .45), 0 30px 56px -26px rgba(0, 0, 0, .72);
-  --shadow-sm: inset 0 1px 0 rgba(255, 255, 255, .16),
-               0 2px 8px -3px rgba(0, 0, 0, .45);
-  --shadow-lg: inset 0 1px 0 rgba(255, 255, 255, .22),
-               0 44px 84px -28px rgba(0, 0, 0, .8);
-  --glass-blur: blur(30px) saturate(180%);
+  /* 深玻璃：内发光代替白高光，边缘是冷紫折射；影子带紫调压，不是纯黑 */
+  --shadow: inset 0 1.5px 0 rgba(255, 255, 255, .36),  /* 上缘切口 */
+            inset 0 -1.5px 0 rgba(190, 170, 255, .18), /* 下缘反射 */
+            inset 0 0 0 1px rgba(255, 255, 255, .12),  /* 四周玻璃壁 */
+            inset 0 -24px 36px -28px rgba(120, 90, 255, .48), /* 底部内侧厚度暗部 */
+            inset 0 26px 40px -34px rgba(255, 255, 255, .20), /* 顶部内发光 */
+            0 1px 2px rgba(0, 0, 0, .50),              /* 接触影 */
+            0 8px 18px -8px rgba(4, 0, 24, .62),       /* 中层 */
+            0 38px 72px -30px rgba(2, 0, 18, .88);     /* 远距悬浮 */
+  --shadow-sm: inset 0 1px 0 rgba(255, 255, 255, .28), inset 0 -1px 0 rgba(190, 170, 255, .14),
+               inset 0 0 0 1px rgba(255, 255, 255, .09),
+               0 2px 8px -3px rgba(0, 0, 0, .50);
+  --shadow-lg: inset 0 1.5px 0 rgba(255, 255, 255, .42), inset 0 -1.5px 0 rgba(190, 170, 255, .22),
+               inset 0 0 0 1px rgba(255, 255, 255, .14),
+               inset 0 -24px 36px -28px rgba(120, 90, 255, .45),
+               inset 0 26px 40px -34px rgba(255, 255, 255, .22),
+               0 52px 96px -32px rgba(2, 0, 18, .92);
+  --glass-blur: blur(40px) saturate(215%) brightness(1.06);
+  /* 深色玻璃的体积更克制：白色只做边缘反射，主体靠紫调明暗拉开厚度 */
+  --glass-fill:
+    radial-gradient(128% 92% at 16% -14%, rgba(214, 200, 255, .30), rgba(255, 255, 255, 0) 54%),
+    linear-gradient(168deg,
+      rgba(255, 255, 255, .20) 0%,
+      rgba(255, 255, 255, .07) 40%,
+      rgba(255, 255, 255, .03) 66%,
+      rgba(186, 166, 255, .15) 100%);
+  --glass-fill-sm: linear-gradient(168deg, rgba(255, 255, 255, .22) 0%, rgba(190, 170, 255, .10) 100%);
+  --glass-rim: rgba(255, 255, 255, .38);
+  --glass-rim-soft: rgba(255, 255, 255, .16);
   --font-title: "Inter", "SF Pro Display", "Segoe UI Semibold", var(--font-ui);
   --grad: linear-gradient(135deg, #8b6cf0, #5ce1f2);
   --grad-logo: linear-gradient(135deg, #a78bfa, #67e8f9);
@@ -753,6 +796,54 @@ table.tb input { padding: 5px 8px; }
 @media (max-width: 640px) {
   .chat-panel { right: 12px; left: 12px; width: auto; bottom: 74px; }
   .chat-fab { right: 14px; bottom: 14px; }
+}
+
+/* ============================================================
+ * 玻璃立体感：把「一层半透色」变成「一块有厚度的玻璃」
+ * ------------------------------------------------------------
+ * 光从左上打来（与空间底 radial 光源同向），玻璃因此有四个可辨特征：
+ *   1. 体积渐变 --glass-fill：168° 厚度渐变（顶厚→中薄→下缘回亮）
+ *      + 左上角镜面高光斑，模拟光源在玻璃表面的反射；
+ *   2. 折射边：--glass-rim 上缘迎光最亮，其余三边是掠射光（--glass-rim-soft），
+ *      再叠一圈 inset 1px 玻璃壁，边缘就有了"切出来的厚度"；
+ *   3. 内阴影厚度：底部内侧压一层暗部 +（深玻璃）顶部内发光，
+ *      玻璃因此是"体"而不是"面"；
+ *   4. 三层外阴影：接触影 / 中层带色环境影 / 远距悬浮影，撑出离底面的距离。
+ * 只有玻璃主题定义了这些变量，卡通主题 var() 全落到 fallback，零副作用。
+ * 规则放在文件末尾，确保覆盖前面各面板的 background 简写。
+ * ============================================================ */
+/* 注：.gate（门禁提示卡）与 .doclist li.active 自带语义底色/描边，
+   玻璃高光会把它们冲淡、也会盖掉警示描边，因此刻意不参与这一层。 */
+:root[data-theme="classic"] :is(.topbar, .card, .modal, .chat-panel, .chat-input textarea,
+                                .kpi, .stat, .doclist li:not(.active), .dropzone),
+:root[data-theme="tech"] :is(.topbar, .card, .modal, .chat-panel, .chat-input textarea,
+                             .kpi, .stat, .doclist li:not(.active), .dropzone) {
+  background-image: var(--glass-fill);
+  border-color: var(--glass-rim-soft);
+  border-top-color: var(--glass-rim);
+  box-shadow: var(--shadow);
+}
+
+/* 小控件（胶囊 / 分段条 / 色点 / 语气档）玻璃更薄，只留一道短渐变 */
+:root[data-theme="classic"] :is(.tabs, .segbar, .skin, .tone),
+:root[data-theme="tech"] :is(.tabs, .segbar, .skin, .tone) {
+  background-image: var(--glass-fill-sm);
+  border-top-color: var(--glass-rim);
+}
+
+/* 悬浮视差：指针掠过时玻璃被"抬"起来一点，阴影随之拉远 —— 立体感一半来自动的那一下 */
+:root[data-theme="classic"] :is(.card, .kpi, .stat, .doclist li),
+:root[data-theme="tech"] :is(.card, .kpi, .stat, .doclist li) {
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+:root[data-theme="classic"] :is(.card, .kpi, .stat):hover,
+:root[data-theme="tech"] :is(.card, .kpi, .stat):hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+@media (prefers-reduced-motion: reduce) {
+  :root[data-theme="classic"] :is(.card, .kpi, .stat):hover,
+  :root[data-theme="tech"] :is(.card, .kpi, .stat):hover { transform: none; }
 }
 
 </style>
