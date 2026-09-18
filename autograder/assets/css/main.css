@@ -44,9 +44,18 @@
   --shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 8px 24px -12px rgba(15, 23, 42, .18);
   --shadow-sm: 0 1px 3px rgba(15, 23, 42, .12);
   --shadow-lg: 0 24px 60px -12px rgba(15, 23, 42, .4);
-  /* 字体 */
-  --font-ui: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", Roboto, sans-serif;
+  /* 字体：正文 / 标题 / 数字 / 等宽 四条栈，全部按「本机有就用、没有就往下退」排 */
+  /* 正文：Inter（装了就很整）→ 系统 UI 字体 → 中文黑体群 */
+  --font-ui: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+             "HarmonyOS Sans SC", "Source Han Sans SC", "Noto Sans SC",
+             "Microsoft YaHei UI", "Microsoft YaHei", "Hiragino Sans GB", sans-serif;
   --font-title: var(--font-ui);
+  /* 数字：等宽数字感更强的无衬线，分数/统计对齐更整齐 */
+  --font-num: "Inter", "SF Pro Display", "DIN Alternate", "Bahnschrift",
+              "Helvetica Neue", var(--font-ui);
+  /* 等宽：代码、原文引用、证据片段 */
+  --font-mono: "JetBrains Mono", "Cascadia Code", "Cascadia Mono", ui-monospace,
+               SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
   --grad: linear-gradient(90deg, var(--brand), var(--violet));
   --grad-logo: linear-gradient(135deg, var(--brand), var(--violet));
   --focus: rgba(37, 99, 235, .12);
@@ -56,22 +65,26 @@
  * 画风参考美式动画：奶油底 + 粗黑描边 + 平涂高饱和 + 硬阴影（无模糊）+ 大圆角 + 圆体标题。
  * 配色取自 Stewie（饺子）服装取色：内搭浅黄 #FFDD66 / 背带裤正红 #E61928 /
  * 纽扣亮黄 #FFEE22 / 鞋子浅蓝 #87C8EE。
- * 说明：鞋蓝 #87C8EE 直接压在奶油底上对比度不足，故装饰位（色点 / 渐变端点）用原色，
- * 文字与图表用加深版 #3D93C8。
+ *
+ * 两条硬规矩：
+ *   1. 不要渐变 —— --grad / --grad-logo 一律是**纯色**，色块平涂到底。
+ *   2. 高饱和 + 高对比 —— 装饰色用原色，文字与描边压到近黑（#100c09），
+ *      鞋蓝 #87C8EE 在奶油底上对比度不够，只作装饰色块，
+ *      承担文字 / 图表时用加深版 #0F7FD6。
  */
 :root[data-theme="toon"] {
   color-scheme: light;
-  --bg: #ffefcf;
-  --panel: #fffdf7;
-  --surface: #fffdf7;
-  --surface-2: #fff6e3;
-  --surface-3: #ffe7b8;
-  --ink: #1f1a17;
-  --ink-2: #4b4038;
-  --muted: #8c7a63;
-  --line: #1f1a17;
-  --line-2: #1f1a17;
-  --ink-line: #1f1a17;
+  --bg: #ffe6ac;
+  --panel: #fffdf6;
+  --surface: #fffdf6;
+  --surface-2: #fff3d6;
+  --surface-3: #ffdf9e;
+  --ink: #100c09;
+  --ink-2: #33291f;
+  --muted: #6b573f;
+  --line: #100c09;
+  --line-2: #100c09;
+  --ink-line: #100c09;
   --bw: 2.5px;
   /* Stewie 四色 */
   --stewie-shirt: #ffdd66;     /* 内搭长袖（浅黄） */
@@ -79,30 +92,33 @@
   --stewie-button: #ffee22;    /* 背带纽扣（亮黄） */
   --stewie-shoe: #87c8ee;      /* 鞋子（浅蓝） */
   --brand: var(--stewie-dungaree);
-  --brand-600: #b3131f;
-  --brand-soft: #ffe7ea;
-  --cyan: #3d93c8;
-  --violet: #8e44ad;
-  --green: #4e8c2a;
-  --amber: #d97706;
-  --red: #c4162a;
-  --yellow: var(--stewie-shirt);
-  --ok-soft: #eafbe3; --ok-line: #1f1a17; --ok-ink: #3d7a17;
-  --warn-soft: #fff0cf; --warn-line: #1f1a17; --warn-ink: #9a5b06;
-  --bad-soft: #ffe0e3; --bad-line: #1f1a17; --bad-ink: #b3182c;
-  --info-soft: #e4f2fb; --info-line: #1f1a17;
-  --tabs-bg: #ffe7b8;
-  --modal-ink: #1f1a17;
-  --print-line: #1f1a17;
+  --brand-600: #a80f1b;
+  --brand-soft: #ffe0e4;
+  --cyan: #0f7fd6;        /* 鞋蓝加深版：文字 / 图表用它 */
+  --violet: #a116d8;
+  --green: #1f9d16;
+  --amber: #ff8f00;
+  --red: #d60d1c;
+  --yellow: #ffd400;
+  --ok-soft: #dbfbd0; --ok-line: #100c09; --ok-ink: #2f7010;
+  --warn-soft: #ffe9b0; --warn-line: #100c09; --warn-ink: #8a4f00;
+  --bad-soft: #ffd6da; --bad-line: #100c09; --bad-ink: #a50f20;
+  --info-soft: #d6ecfb; --info-line: #100c09;
+  --tabs-bg: #ffdf9e;
+  --modal-ink: #100c09;
+  --print-line: #100c09;
   --radius: 18px;
   --radius-sm: 14px;
   --shadow: 4px 4px 0 var(--ink-line);
   --shadow-sm: 2px 2px 0 var(--ink-line);
   --shadow-lg: 8px 8px 0 var(--ink-line);
+  /* 标题走圆体（卡通味），但排在最后仍退回黑体，Win 上不会缺字 */
   --font-title: "Yuanti SC", "HanziPen SC", "幼圆", YouYuan, "Comic Sans MS", "Chalkboard SE", var(--font-ui);
-  --grad: linear-gradient(90deg, var(--stewie-dungaree), var(--stewie-shirt));
-  --grad-logo: linear-gradient(135deg, var(--stewie-button), var(--stewie-dungaree));
-  --focus: rgba(230, 25, 40, .18);
+  --font-num: "DIN Alternate", "Bahnschrift", var(--font-ui);
+  /* 平涂到底：渐变一律换成纯色 */
+  --grad: var(--brand);
+  --grad-logo: var(--brand);
+  --focus: rgba(230, 25, 40, .28);
 }
 
 /* ============ 主题 2：液态玻璃 · 浅 ============
@@ -125,9 +141,9 @@
   --surface-2: rgba(255, 255, 255, .42);
   --surface-2-solid: #eef2fb;
   --surface-3: rgba(255, 255, 255, .30);
-  --ink: #131a2b;
-  --ink-2: #3d4864;
-  --muted: #6a7591;
+  --ink: #0a1020;
+  --ink-2: #2b3550;
+  --muted: #4e597a;
   --line: rgba(255, 255, 255, .85);      /* 面板外沿：白色高光描边 = 玻璃感 */
   --line-2: rgba(19, 26, 43, .16);       /* 控件描边：浅底上白线等于没有，改用暗色发丝线 */
   --ink-line: rgba(19, 26, 43, .5);
@@ -141,9 +157,9 @@
   --amber: #d97706;
   --red: #dc2626;
   --yellow: #f7c948;
-  --ok-soft: rgba(22, 163, 74, .12); --ok-line: rgba(22, 163, 74, .34); --ok-ink: #12833c;
-  --warn-soft: rgba(217, 119, 6, .12); --warn-line: rgba(217, 119, 6, .34); --warn-ink: #a35a05;
-  --bad-soft: rgba(220, 38, 38, .12); --bad-line: rgba(220, 38, 38, .34); --bad-ink: #b91c1c;
+  --ok-soft: rgba(22, 163, 74, .12); --ok-line: rgba(22, 163, 74, .34); --ok-ink: #0f6b30;
+  --warn-soft: rgba(217, 119, 6, .12); --warn-line: rgba(217, 119, 6, .34); --warn-ink: #8a4b00;
+  --bad-soft: rgba(220, 38, 38, .12); --bad-line: rgba(220, 38, 38, .34); --bad-ink: #a31515;
   --info-soft: rgba(76, 110, 247, .12); --info-line: rgba(76, 110, 247, .32);
   --tabs-bg: rgba(255, 255, 255, .34);
   --modal-ink: #131a2b;
@@ -154,6 +170,7 @@
   --shadow-sm: inset 0 1px 0 rgba(255, 255, 255, .7), 0 2px 8px -3px rgba(19, 26, 43, .22);
   --shadow-lg: inset 0 1px 0 rgba(255, 255, 255, .8), 0 30px 70px -20px rgba(19, 26, 43, .45);
   --glass-blur: blur(20px) saturate(180%);
+  --font-title: "Inter", "SF Pro Display", "Segoe UI Semibold", var(--font-ui);
   --grad: linear-gradient(90deg, var(--brand), var(--violet));
   --grad-logo: linear-gradient(135deg, var(--brand), var(--violet));
   --focus: rgba(76, 110, 247, .18);
@@ -182,9 +199,10 @@
   --surface-2: rgba(15, 20, 34, .48);
   --surface-2-solid: #131828;
   --surface-3: rgba(38, 46, 72, .55);
-  --ink: #eaf0ff;
-  --ink-2: #b9c6e4;
-  --muted: #7f8db0;
+  /* 深色底上的「文字更深」= 提亮到接近纯白，把对比度拉满 */
+  --ink: #f4f7ff;
+  --ink-2: #d3dcf2;
+  --muted: #97a4c6;
   --line: rgba(255, 255, 255, .14);
   --line-2: rgba(255, 255, 255, .2);
   --ink-line: rgba(255, 255, 255, .5);
@@ -211,11 +229,14 @@
   --shadow-sm: inset 0 1px 0 rgba(255, 255, 255, .10), 0 2px 10px -4px rgba(0, 0, 0, .5);
   --shadow-lg: inset 0 1px 0 rgba(255, 255, 255, .16), 0 30px 70px -20px rgba(0, 0, 0, .75);
   --glass-blur: blur(20px) saturate(180%);
-  --font-title: var(--font-ui);
+  --font-title: "Inter", "SF Pro Display", "Segoe UI Semibold", var(--font-ui);
   --grad: linear-gradient(90deg, var(--brand), var(--violet));
   --grad-logo: linear-gradient(135deg, var(--brand), var(--violet));
   --focus: rgba(122, 162, 255, .2);
 }
+
+/* 代码、原文引用、证据片段走等宽栈：字形区分度高，逐字核对原文时不容易看串行 */
+code, pre, .ev { font-family: var(--font-mono); }
 
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
@@ -353,7 +374,7 @@ label.fld > span { display: block; font-size: 12.5px; color: var(--muted); margi
 .doclist .nm { flex: 1; min-width: 0; }
 .doclist .nm b { display: block; font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .doclist .nm small { color: var(--muted); font-size: 12px; }
-.doclist .sc { font-weight: 800; font-size: 16px; min-width: 42px; text-align: right; font-family: var(--font-title); }
+.doclist .sc { font-weight: 800; font-size: 16px; min-width: 42px; text-align: right; font-family: var(--font-num); font-variant-numeric: tabular-nums; }
 .doclist .del { opacity: 0; border: 0; background: transparent; cursor: pointer; color: var(--muted); font-size: 16px; line-height: 1; padding: 2px 4px; }
 .doclist li:hover .del { opacity: 1; }
 .doclist .del:hover { color: var(--red); }
@@ -374,7 +395,7 @@ label.fld > span { display: block; font-size: 12.5px; color: var(--muted); margi
 
 .stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 10px; margin-top: 12px; }
 .stat { border: var(--bw) solid var(--line); border-radius: var(--radius-sm); padding: 9px 10px; text-align: center; background: var(--surface-2); }
-.stat b { display: block; font-size: 17px; font-weight: 800; font-family: var(--font-title); }
+.stat b { display: block; font-size: 17px; font-weight: 800; font-family: var(--font-num); font-variant-numeric: tabular-nums; }
 .stat small { color: var(--muted); font-size: 11.5px; }
 
 .dim { border: var(--bw) solid var(--line); border-radius: var(--radius-sm); margin-bottom: 8px; overflow: hidden; }
@@ -385,7 +406,7 @@ label.fld > span { display: block; font-size: 12.5px; color: var(--muted); margi
 .dim .nm { font-weight: 650; font-size: 13.5px; }
 .dim .bar { flex: 1; height: 7px; background: var(--surface-3); border-radius: 999px; overflow: hidden; min-width: 60px; }
 .dim .bar i { display: block; height: 100%; border-radius: 999px; background: var(--grad); }
-.dim .val { font-weight: 800; font-size: 13.5px; min-width: 62px; text-align: right; font-family: var(--font-title); }
+.dim .val { font-weight: 800; font-size: 13.5px; min-width: 62px; text-align: right; font-family: var(--font-num); font-variant-numeric: tabular-nums; }
 .dim .caret { color: var(--muted); font-size: 11px; transition: .18s; }
 .dim.open .caret { transform: rotate(90deg); }
 .dim .bd { display: none; padding: 12px; border-top: 1px dashed var(--line); background: var(--surface-2); }
@@ -477,7 +498,7 @@ table.tb input { padding: 5px 8px; }
   background: var(--brand-soft); border: var(--bw) solid var(--line);
   border-radius: var(--radius-sm); padding: 11px 13px;
 }
-.kpi b { display: block; font-size: 25px; font-weight: 800; line-height: 1.2; letter-spacing: -.4px; font-family: var(--font-title); }
+.kpi b { display: block; font-size: 25px; font-weight: 800; line-height: 1.2; letter-spacing: -.4px; font-family: var(--font-num); font-variant-numeric: tabular-nums; }
 .kpi small { display: block; font-size: 11.5px; color: var(--muted); margin-top: 1px; }
 .kpi span { display: block; font-size: 11.5px; color: var(--muted); margin-top: 6px; line-height: 1.55; }
 
@@ -518,7 +539,8 @@ table.tb input { padding: 5px 8px; }
 .skin-bar--top .skin { padding: 5px; }
 .skin .swatch { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid rgba(0, 0, 0, .18); flex: none; }
 .skin .swatch i { display: block; width: 100%; height: 100%; border-radius: 50%; }
-.skin i.sw-toon { background: linear-gradient(135deg, #ffdd66 0 34%, #e61928 34% 67%, #87c8ee 67% 100%); }
+/* 卡通色点：三块平涂硬色，跟主题一样拒绝渐变 */
+.skin i.sw-toon { background: #e61928; box-shadow: inset 8px 0 0 #ffdd66, inset -8px 0 0 #87c8ee; }
 .skin i.sw-classic { background: linear-gradient(135deg, #eaf0ff 0 40%, #aab8f0 40% 70%, #6d7fe8 70% 100%); }
 .skin i.sw-tech { background: linear-gradient(135deg, #141a2c 0 40%, #4c6ef7 40% 70%, #a78bfa 70% 100%); }
 
@@ -529,7 +551,7 @@ table.tb input { padding: 5px 8px; }
 }
 .tone:hover { border-color: var(--brand); background: var(--brand-soft); }
 .tone.on { border-color: var(--brand); background: var(--brand-soft); box-shadow: var(--shadow-sm); }
-.tone b { display: block; font-size: 13.5px; color: var(--ink); font-family: var(--font-title); }
+.tone b { display: block; font-size: 13.5px; color: var(--ink); font-family: var(--font-num); font-variant-numeric: tabular-nums; }
 .tone small { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; line-height: 1.5; }
 .tone .quote {
   display: block; margin-top: 7px; font-size: 12px; color: var(--ink-2);
@@ -594,10 +616,10 @@ table.tb input { padding: 5px 8px; }
   border: none; border-radius: 23px;
   background: var(--grad); color: #fff;
   font: 600 14px var(--font-ui);
-  box-shadow: 0 8px 24px -8px rgba(37, 99, 235, .55);
+  box-shadow: 0 8px 24px -8px rgba(0, 0, 0, .38);
   cursor: pointer; transition: transform .16s, box-shadow .16s;
 }
-.chat-fab:hover { transform: translateY(-2px); box-shadow: 0 12px 28px -8px rgba(37, 99, 235, .65); }
+.chat-fab:hover { transform: translateY(-2px); box-shadow: 0 12px 28px -8px rgba(0, 0, 0, .5); }
 .chat-fab:active { transform: translateY(0); }
 .chat-fab svg { width: 20px; height: 20px; }
 .chat-fab.on { background: var(--line-2); color: var(--ink); box-shadow: var(--shadow-sm); }

@@ -24,12 +24,13 @@
   const CW = PW - M * 2;
   const FOOT = 30;     // 页脚预留高度
 
-  const FONT = '"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC","Source Han Sans SC",system-ui,sans-serif';
-  const MONO = '"SFMono-Regular",Consolas,"Liberation Mono",monospace';
+  /* 与界面同一套字体栈：Inter 优先（装了就好看），中文退回苹方 / 鸿蒙 / 思源 / 雅黑 */
+  const FONT = '"Inter","PingFang SC","HarmonyOS Sans SC","Source Han Sans SC","Noto Sans CJK SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif';
+  const MONO = '"JetBrains Mono","Cascadia Code","Cascadia Mono","SFMono-Regular",Consolas,"Liberation Mono",monospace';
 
   /* 打印友好基线：浅底深字、省墨、纸质归档安全 */
   const C_PRINT = {
-    page: '#ffffff', ink: '#0f172a', body: '#334155', sub: '#64748b', faint: '#94a3b8',
+    page: '#ffffff', ink: '#0a1020', body: '#2b3550', sub: '#4e597a', faint: '#94a3b8',
     line: '#e2e8f0', line2: '#cbd5e1', wash: '#f6f8fb', brand: '#2563eb', brandSoft: '#eff6ff',
     amber: '#b45309', red: '#b91c1c', dark: false, toon: false,
   };
