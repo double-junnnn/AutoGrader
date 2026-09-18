@@ -319,7 +319,7 @@
     b.gap(4);
 
     const meta = [
-      `评阅引擎：${r.engineLabel || '本地启发式引擎'}`,
+      `评阅引擎：${r.engineLabel || '模型引擎'}`,
       `评阅时间：${U.fmtTime(r.gradedAt)}`,
       `篇幅：${r.features.words} 字 · 代码块 ${r.features.codeBlockCount} 个 · 图表引用 ${r.features.figureCount + r.features.tableCount} 处 · 数据点 ${r.features.numberCount} 个`,
     ].join('\n');

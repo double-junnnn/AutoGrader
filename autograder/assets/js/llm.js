@@ -1,19 +1,39 @@
 /* AutoGrader · 大模型评分引擎（LLM Engine）
- * 兼容 OpenAI 风格的 /chat/completions 接口（OpenAI、DeepSeek、通义、Moonshot、本地 Ollama 等）。
- * 通过 response_format: json_object 强制结构化输出；解析失败自动重试一次，仍失败则回退本地引擎。
+ * 兼容 OpenAI 风格的 /chat/completions 接口。
+ *
+ * 【2026-09 变更】本地启发式评分引擎已移除，本模块成为**唯一的评分入口**。
+ * 相应地，失败时不再"静默回退本地引擎"——那种兜底会让教师以为拿到了分，
+ * 实际上拿到的是一个完全不同口径的分数，比直接报错更危险。现在失败就是失败，
+ * 错误信息必须说明下一步该做什么（见 humanizeHttpError）。
+ *
+ * 【开源优先】默认配置改为 AG.providers.recommend() 给出的免费开源模型，
+ * 而不是某家闭源商业 API。教师零成本即可跑通，也能一键换成本地 Ollama 离线运行。
  */
 (function (global) {
   'use strict';
   const AG = (global.AG = global.AG || {});
   const U = AG.utils;
 
+  /** 默认取「免费 + 开源 + 支持 JSON 输出」里排最前的服务商预设 */
+  function defaultProvider() {
+    return (AG.providers && AG.providers.recommend()) || {
+      baseUrl: 'https://api.siliconflow.cn/v1', model: 'Qwen/Qwen2.5-7B-Instruct',
+    };
+  }
+
   const DEFAULT_CONFIG = {
     enabled: false,
-    baseUrl: 'https://api.openai.com/v1',
+    baseUrl: defaultProvider().baseUrl,
     apiKey: '',
-    model: 'gpt-4o-mini',
+    model: defaultProvider().model,
+    providerId: (AG.providers && AG.providers.recommend() && AG.providers.recommend().id) || 'siliconflow',
     temperature: 0.2,
     maxChars: 12000,
+    // 交叉验证用的第二个模型（需求①「每次调用模型评分结果差异化」）
+    reviewModel: '',
+    reviewBaseUrl: '',
+    reviewApiKey: '',
+    reviewProviderId: '',
   };
 
   function getConfig() {
@@ -25,12 +45,16 @@
   }
 
   function buildPrompt(doc, rubric) {
+    /* 量表下发给模型时，把 signals / penalties 一并转成文字要点。
+     * 这两个字段原本还要驱动本地正则打分，现在专供 Prompt 使用，
+     * 于是可以放心地把 penalties（扣分项）也带上——旧版为了兼容正则引擎没敢动。 */
     const dims = rubric.map((d) => ({
       id: d.id,
       name: d.name,
       max: Number(d.max),
       desc: d.desc,
-      signals: (d.signals || []).map((s) => s.label),
+      points: (d.signals || []).map((s) => s.label),
+      deductions: (d.penalties || []).map((p) => p.label),
     }));
 
     const content = (doc.text || '').slice(0, getConfig().maxChars);
@@ -46,11 +70,14 @@
 要求：
 1. 只依据报告实际内容评分，不得臆测未写出的内容。
 2. 每个维度给出 0 到 max 之间的分数（可保留 1 位小数）。
-3. evidence 必须引用报告中的真实片段（每条不超过 40 字），没有证据时为空数组。
-4. missing 列出该维度明显缺失的要点。
-5. comment 用一句话给出具体、可执行的改进建议，禁止空话。
-6. 整体评语 overall 控制在 120 字以内，先肯定再指出最关键的改进点。
-7. 只输出 JSON，不要输出任何解释或 Markdown 代码块标记。
+3. points 是该维度的得分要点，deductions 是该维度的扣分情形；命中扣分情形时须在 comment 中说明。
+4. 评分须可复现：同一份报告重复评阅应给出接近的分数，不要因表述顺序变化而漂移。
+5. evidence 必须引用报告中的**逐字原文片段**（每条不超过 40 字），
+   不得改写、不得杜撰——系统会逐条回查原文，编造的证据将直接作废。没有证据时为空数组。
+6. missing 列出该维度明显缺失的要点。
+7. comment 用一句话给出具体、可执行的改进建议，禁止空话。
+8. 整体评语 overall 控制在 120 字以内，先肯定再指出最关键的改进点。
+9. 只输出 JSON，不要输出任何解释或 Markdown 代码块标记。
 
 ${toneHint ? '【语气设定】\n' + toneHint + '\n' : ''}
 输出格式：
@@ -180,8 +207,80 @@ ${toneHint ? '【语气设定】\n' + toneHint + '\n' : ''}
     return JSON.parse(cleaned.slice(start, end + 1));
   }
 
+  /** 把模型返回的一个维度对象规整成统一结构 */
+  function normalizeDim(dim, m, text) {
+    const max = Number(dim.max) || 0;
+    const score = U.clamp(Number(m ? m.score : 0) || 0, 0, max);
+    const evidence = ((m && m.evidence) || []).slice(0, 4)
+      .map((t) => ({ label: String(t).slice(0, 60), snippets: [] }));
+    const missing = ((m && m.missing) || []).slice(0, 4)
+      .map((t) => ({ label: String(t).slice(0, 60) }));
+
+    /* 证据核验：本地引擎没了，但本地**查证**还在。
+     * 模型自称引用了原文，那就回查一遍——编造的证据会让教师误信评分依据，
+     * 这是自动评分最不能犯的错。核验结果挂在维度上，报告里如实展示。 */
+    const verify = AG.analyzer && AG.analyzer.verifyEvidence
+      ? AG.analyzer.verifyEvidence(text || '', evidence)
+      : null;
+
+    return {
+      id: dim.id,
+      name: dim.name,
+      desc: dim.desc,
+      advice: dim.advice,
+      max,
+      score: U.round(score, 1),
+      ratio: U.round(score / (max || 1), 3),
+      evidence,
+      missing,
+      penalties: [],
+      comment: (m && m.comment) || '',
+      evidenceCheck: verify,
+    };
+  }
+
+  /** 单次评分的收尾：算总分、评级、组装结果对象 */
+  function assemble(doc, rubric, parsed, cfg, raw) {
+    const byId = {};
+    (parsed.dims || []).forEach((d) => { byId[d.id] = d; });
+
+    const dims = rubric.map((dim) => normalizeDim(dim, byId[dim.id], doc.text));
+
+    const total = U.clamp(U.round(dims.reduce((s, d) => s + d.score, 0), 1), 0, 100);
+    const g = AG.rubric.gradeOf(total);
+
+    const hallucinated = dims.reduce((s, d) => s + ((d.evidenceCheck && d.evidenceCheck.hallucinated) || []).length, 0);
+    const checkedTotal = dims.reduce((s, d) => s + ((d.evidenceCheck && d.evidenceCheck.total) || 0), 0);
+
+    let overall = parsed.overall || '';
+    if (!overall) {
+      // 本地引擎已删，兜底文案不能再"算一个分出来"，只能如实说模型没给
+      overall = `综合得分 ${total} 分（${g.grade} 级 · ${g.label}）。模型未返回整体评语，可参考下方各维度评语。`;
+    }
+    if (hallucinated > 0) {
+      overall += `　【注意】该报告有 ${hallucinated} 条证据未在原文中查到，评分依据请人工复核。`;
+    }
+
+    return {
+      docName: doc.name,
+      engine: 'llm',
+      engineLabel: '大模型引擎 · ' + cfg.model,
+      model: cfg.model,
+      total,
+      grade: g.grade,
+      gradeLabel: g.label,
+      gradeColor: g.color,
+      dims,
+      features: doc.features || AG.parser.extractFeatures(doc.text),
+      overall,
+      evidenceAudit: { total: checkedTotal, hallucinated },
+      gradedAt: Date.now(),
+      raw,
+    };
+  }
+
   /**
-   * 用大模型评分；失败时抛出错误，由调用方决定是否回退。
+   * 用大模型评分。失败时直接抛出——不再回退本地引擎（本地引擎已移除）。
    */
   async function grade(doc, rubric, cfgOverride) {
     const cfg = Object.assign(getConfig(), cfgOverride || {});
@@ -207,49 +306,97 @@ ${toneHint ? '【语气设定】\n' + toneHint + '\n' : ''}
       parsed = parseJson(raw);
     }
 
-    const byId = {};
-    (parsed.dims || []).forEach((d) => { byId[d.id] = d; });
+    return assemble(doc, rubric, parsed, cfg, raw);
+  }
 
-    const dims = rubric.map((dim) => {
-      const m = byId[dim.id];
-      const max = Number(dim.max) || 0;
-      const score = U.clamp(Number(m?.score) || 0, 0, max);
-      return {
-        id: dim.id,
-        name: dim.name,
-        desc: dim.desc,
-        advice: dim.advice,
-        max,
-        score: U.round(score, 1),
-        ratio: U.round(score / (max || 1), 3),
-        raw: null,
-        boost: 0,
-        penalty: 0,
-        evidence: (m?.evidence || []).slice(0, 4).map((t) => ({ label: String(t).slice(0, 60), snippets: [] })),
-        missing: (m?.missing || []).slice(0, 4).map((t) => ({ label: String(t).slice(0, 60) })),
-        penalties: [],
-        comment: m?.comment || '',
-      };
-    });
+  /**
+   * 对同一份文档采样 N 次，返回每次的总分序列与维度得分矩阵。
+   *
+   * 存在理由：需求①点名要解决「每次调用模型评分结果差异化」。
+   * 本地引擎删掉后，Bootstrap 重采样（靠反复跑本地打分）随之失效，
+   * 稳定性的度量必须换成**对模型本身采样**——同一份输入、同一套量表，
+   * 让它评 N 遍，看分数散到什么程度。这才是教师真正关心的"这分稳不稳"。
+   *
+   * 采样时把 temperature 抬到 samplingTemp（默认 0.7）：
+   * 用 0.2 采样只会测出"解码器很确定"，测不出模型判断的鲁棒性。
+   *
+   * @returns {Promise<{ok:boolean, totals:number[], runs:Array, dims:Object, note?:string}>}
+   */
+  async function sampleGrade(doc, rubric, opts) {
+    opts = opts || {};
+    const N = Math.max(2, Math.min(20, opts.iterations || 5));
+    const cfg = Object.assign(getConfig(), { temperature: opts.temperature == null ? 0.7 : opts.temperature });
+    if (!cfg.apiKey) return { ok: false, note: '未配置 API Key' };
 
-    const total = U.clamp(U.round(dims.reduce((s, d) => s + d.score, 0), 1), 0, 100);
-    const g = AG.rubric.gradeOf(total);
+    const { system, user } = buildPrompt(doc, rubric);
+    const totals = [];
+    const runs = [];
+    const dimScores = {};
 
-    return {
-      docName: doc.name,
-      engine: 'llm',
-      engineLabel: '大模型引擎 · ' + cfg.model,
-      total,
-      qualityFactor: 1,
-      grade: g.grade,
-      gradeLabel: g.label,
-      gradeColor: g.color,
-      dims,
-      features: doc.features || AG.parser.extractFeatures(doc.text),
-      overall: parsed.overall || AG.analyzer.grade(doc, rubric).overall,
-      gradedAt: Date.now(),
-      raw,
+    for (let i = 0; i < N; i++) {
+      let parsed;
+      try {
+        const raw = await chatJson([
+          { role: 'system', content: system },
+          { role: 'user', content: user },
+        ], { temperature: cfg.temperature });
+        parsed = parseJson(raw);
+      } catch (e) {
+        // 采样中途失败不整体判死：已有样本够 2 条就出结论，否则如实报错
+        if (totals.length < 2) return { ok: false, note: '采样失败：' + e.message };
+        break;
+      }
+      const res = assemble(doc, rubric, parsed, cfg, '');
+      totals.push(res.total);
+      runs.push({ index: i, total: res.total, dims: res.dims.map((d) => ({ id: d.id, score: d.score })) });
+      res.dims.forEach((d) => { (dimScores[d.id] = dimScores[d.id] || []).push(d.ratio); });
+    }
+
+    return { ok: true, totals, runs, dimScores, iterations: totals.length, model: cfg.model };
+  }
+
+  /**
+   * 用「校验模型」再评一遍（双模型交叉验证的第二意见）。
+   * 校验模型未配置时，退化为「同一模型不同温度采样」——
+   * 虽不如跨模型族严谨，但至少能暴露分数是否脆弱。
+   */
+  async function gradeWithReviewer(doc, rubric, opts) {
+    opts = opts || {};
+    const cfg = getConfig();
+    const rc = {
+      baseUrl: cfg.reviewBaseUrl || cfg.baseUrl,
+      apiKey: cfg.reviewApiKey || cfg.apiKey,
+      model: cfg.reviewModel || cfg.model,
     };
+    if (!rc.model || rc.model === cfg.model) {
+      // 没配校验模型：用主模型 + 高温度再评一次，作为弱化的第二意见
+      const s = await sampleGrade(doc, rubric, { iterations: 2, temperature: 0.9 });
+      if (!s.ok) throw new Error(s.note || '无法生成第二意见');
+      const last = s.runs[s.runs.length - 1];
+      const dimsById = {};
+      last.dims.forEach((d) => { dimsById[d.id] = d; });
+      const dims = rubric.map((d) => ({
+        id: d.id, name: d.name, max: Number(d.max) || 0,
+        score: (dimsById[d.id] || {}).score || 0,
+        ratio: ((dimsById[d.id] || {}).score || 0) / (Number(d.max) || 1),
+        evidence: [], missing: [], penalties: [],
+        comment: '',
+      }));
+      return {
+        docName: doc.name,
+        engine: 'llm-sampled',
+        engineLabel: `主模型高温复评 · ${cfg.model}`,
+        model: cfg.model,
+        total: last.total,
+        grade: AG.rubric.gradeOf(last.total).grade,
+        gradeLabel: AG.rubric.gradeOf(last.total).label,
+        gradeColor: AG.rubric.gradeOf(last.total).color,
+        dims, features: doc.features, overall: '',
+        gradedAt: Date.now(),
+        sameModelNote: '未配置校验模型，第二意见由主模型高温重采样给出，仅作粗略参照',
+      };
+    }
+    return grade(doc, rubric, rc);
   }
 
   /**
@@ -279,8 +426,15 @@ ${toneHint ? '【语气设定】\n' + toneHint + '\n' : ''}
     return { ok: true, reply: String(text || '').trim().slice(0, 80) };
   }
 
+  /** 校验模型是否可用（用于 UI 决定要不要显示"双模型交叉验证"） */
+  function hasReviewer() {
+    const c = getConfig();
+    return !!(c.reviewModel && c.reviewApiKey);
+  }
+
   AG.llm = {
     getConfig, saveConfig, chat, chatJson, grade, testConnection,
-    buildPrompt, DEFAULT_CONFIG,
+    buildPrompt, sampleGrade, gradeWithReviewer, hasReviewer,
+    DEFAULT_CONFIG,
   };
 })(window);

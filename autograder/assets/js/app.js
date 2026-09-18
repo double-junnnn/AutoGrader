@@ -14,24 +14,18 @@
     check: SVG('<polyline points="20 6 9 17 4 12"/>'),
   };
 
-  /* 常见 OpenAI 兼容服务商：一键填好地址与模型，降低配置门槛。
-   * 只填 Base URL 与 Model，API Key 需用户自备（涉及计费，不宜代填）。 */
-  const PROVIDER_PRESETS = {
-    zhipu: { label: '智谱 GLM（免费）', baseUrl: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-4.7-flash' },
-    siliconflow: { label: '硅基流动', baseUrl: 'https://api.siliconflow.cn/v1', model: 'Qwen/Qwen2.5-7B-Instruct' },
-    deepseek: { label: 'DeepSeek', baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-v4-flash' },
-    qwen: { label: '通义千问', baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-plus' },
-    moonshot: { label: 'Moonshot', baseUrl: 'https://api.moonshot.cn/v1', model: 'moonshot-v1-8k' },
-    openai: { label: 'OpenAI', baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
-    ollama: { label: '本地 Ollama', baseUrl: 'http://localhost:11434/v1', model: 'qwen2.5', apiKey: 'ollama', offline: true },
-  };
+  /* 服务商预设改由 AG.providers 统一维护（见 providers.js）。
+   * 这里只保留引用，避免两处各维护一份地址与模型清单。 */
+  const PROVIDER_PRESETS = (AG.providers && AG.providers.PRESETS) || {};
 
   const state = {
     docs: U.store.get('docs', []),
     currentId: null,
     rubric: AG.rubric.deserializeRubric(U.store.get('rubric', null)),
-    engine: U.store.get('engine', 'local'),
+    // 本地启发式引擎已移除，评分只有模型这一条路，保留字段仅为兼容旧存档
+    engine: 'llm',
     sim: null,
+    simScope: U.store.get('simScope', 'batch'),   // 查重范围，需求③「范围待定」故做成可切换
     induceGroups: {},   // docId -> 'high' | 'low'
     induced: null,      // 最近一次诱导结果
     lastFused: null,    // 最近一次融合结果
@@ -159,17 +153,27 @@
     if (tip && U.downloadRisky()) tip.hidden = false;
   }
 
+  /**
+   * 引擎徽标。本地引擎移除后，它不再是"二选一"的开关，而是**就绪状态指示**：
+   * 配好 Key → 蓝底显示当前模型；没配 → 灰底提示未配置，点一下直达设置页。
+   */
   function refreshEngineBadge() {
-    const on = state.engine === 'llm' && !!AG.llm.getConfig().apiKey;
-    const actual = state.engine === 'llm' && !AG.llm.getConfig().apiKey ? 'local' : state.engine;
+    const cfg = AG.llm.getConfig();
+    const on = !!cfg.apiKey;
     const badge = $('#engineBadge');
-    const label = actual === 'llm'
-      ? '大模型引擎 · ' + AG.llm.getConfig().model
-      : '本地启发式引擎';
-    badge.className = 'badge ' + (actual === 'llm' ? 'blue' : 'gray');
+    const label = on ? '模型引擎 · ' + cfg.model : '未配置模型引擎';
+    badge.className = 'badge ' + (on ? 'blue' : 'gray');
     badge.innerHTML = '<i class="dot"></i>' + U.esc(label);
-    $('#btnEngineLocal').className = 'btn sm' + (actual === 'local' ? ' primary' : '');
-    $('#btnEngineLLM').className = 'btn sm' + (actual === 'llm' ? ' primary' : '');
+    badge.title = on ? '当前使用 ' + cfg.model : '点击前往「量表与模型」配置开源模型 API Key';
+
+    const tip = $('#engineTip');
+    if (tip) {
+      tip.innerHTML = on
+        ? `当前由 <b>${U.esc(cfg.model)}</b> 评阅。可在「量表与模型」中切换开源模型，或配置第二个「校验模型」做双模型交叉验证。`
+        : '<b>尚未配置模型引擎。</b>本地启发式引擎已按需求下线，评分需接入开源大模型 —— 点「配置模型」选一个免费开源服务商，填入 API Key 即可。';
+    }
+    const go = $('#btnEngineLLM');
+    if (go) go.textContent = on ? '管理模型' : '配置模型';
     return on;
   }
 
@@ -210,26 +214,66 @@
   }
 
   /* ---------------- 评分 ---------------- */
+
+  /**
+   * 未通过文体门禁的结果对象。
+   * 注意：这里**不给分**，也不调用模型。旧版本地引擎会给个 0 分并附一整套
+   * 逐维度评语，看起来像评过了，其实只是把所有维度按零证据算了一遍——
+   * 那是"假装评阅"。现在如实标注为「未评阅」。
+   */
+  function rejectedResult(doc, rub, gate) {
+    return {
+      docName: doc.name,
+      engine: 'gate',
+      engineLabel: '未通过文体校验',
+      total: 0,
+      grade: '—',
+      gradeLabel: '未评阅',
+      gradeColor: '#94a3b8',
+      dims: rub.map((d) => ({
+        id: d.id, name: d.name, desc: d.desc, advice: d.advice,
+        max: Number(d.max) || 0, score: 0, ratio: 0,
+        evidence: [], missing: [], penalties: [],
+        comment: '未计入评分——文档未通过文体校验。',
+      })),
+      features: doc.features,
+      gate,
+      overall: '本文档未通过文体校验，判定为「非实验报告类文档」，未进行评分。' +
+        (gate.reasons || []).join('；') + '。若确为误判，可点「按正常评分重算」忽略这道校验。',
+      gradedAt: Date.now(),
+    };
+  }
+
   async function gradeDoc(id, opts) {
     opts = opts || {};
     const doc = state.docs.find((d) => d.id === id);
     if (!doc) return;
     const rub = activeRubric();
     const rt = rubricTotal(rub);
-    const useLLM = state.engine === 'llm' && !!AG.llm.getConfig().apiKey;
+    const cfg = AG.llm.getConfig();
 
+    /* 本地启发式引擎已移除，没有 Key 就是评不了。
+     * 这里**不**再静默改用别的口径打分——那样教师会以为拿到了分，
+     * 实际拿到的是另一套标准的结果，比直接告诉他"评不了"更糟。 */
+    if (!cfg.apiKey) {
+      toast('尚未配置模型引擎：请到「量表与模型」选择一个开源服务商并填入 API Key', 'err');
+      return null;
+    }
+
+    /* 文体门禁前置：不是报告文体的东西，不该浪费一次模型调用，
+     * 更不该被认真打分——那会让学生以为自己交的是对的。 */
+    const gate = doc.genreOverride ? null : AG.analyzer.genreCheck(doc.text, doc.features);
     let res;
-    if (useLLM) {
+    if (gate && (gate.verdict === 'offtopic' || gate.verdict === 'empty')) {
+      res = rejectedResult(doc, rub, gate);
+    } else {
       try {
-        if (!opts.silent) toast('正在调用大模型评阅…');
+        if (!opts.silent) toast('正在调用模型评阅…');
         res = await AG.llm.grade(doc, rub);
       } catch (e) {
-        toast('大模型调用失败：' + e.message + '，已回退本地引擎', 'err');
-        res = AG.analyzer.grade(doc, rub, { skipGenre: !!doc.genreOverride });
+        toast('模型调用失败：' + e.message, 'err');
+        return null;
       }
-    } else {
-      // genreOverride：教师点过「我判错了」，这份作业此后都跳过文体门禁
-      res = AG.analyzer.grade(doc, rub, { skipGenre: !!doc.genreOverride });
     }
 
     // 量表总分非 100 时折算到百分制
@@ -248,15 +292,27 @@
 
   async function gradeAll() {
     if (!state.docs.length) return toast('请先录入报告', 'err');
+    // 没配 Key 时逐份弹同一句报错没有意义，在这里一次性拦掉
+    if (!AG.llm.getConfig().apiKey) {
+      toast('尚未配置模型引擎：请到「量表与模型」选择开源服务商并填入 API Key', 'err');
+      switchView('settings');
+      return;
+    }
     const btn = $('#btnGradeAll');
     btn.disabled = true;
     btn.innerHTML = '<span class="spin"></span> 评阅中…';
-    for (const d of state.docs) await gradeDoc(d.id, { silent: true });
+    let done = 0;
+    for (const d of state.docs) {
+      const r = await gradeDoc(d.id, { silent: true });
+      if (r) done++;
+    }
     btn.disabled = false;
     btn.textContent = '全部重新评分';
     renderDocList();
     computeSim();
-    toast(`已完成 ${state.docs.length} 份报告的评阅`, 'ok');
+    toast(done === state.docs.length
+      ? `已完成 ${done} 份报告的评阅`
+      : `评阅中断：${done}/${state.docs.length} 份完成，其余未成功`, done ? 'ok' : 'err');
     if (state.currentId) renderResult();
   }
 
@@ -297,8 +353,8 @@
   }
 
   /* ---------------- 渲染：评阅结果 ---------------- */
-  /** 文体门禁提示卡：离题 / 空文档判 0 分时，把判定依据摊开给教师看，并留一条申诉通道。
-   *  本地引擎读不懂语义，只能凭结构特征判断，误判的可能性必须让用户看得见、也改得动。 */
+  /** 文体门禁提示卡：离题 / 空文档直接不予评阅时，把判定依据摊开给教师看，并留一条申诉通道。
+   *  门禁靠结构统计判断，读不懂语义，误判的可能性必须让用户看得见、也改得动。 */
   function renderGate(r, doc) {
     const g = r.gate;
     if (!g) {
@@ -310,7 +366,10 @@
     }
     if (g.verdict !== 'offtopic' && g.verdict !== 'empty' && g.verdict !== 'suspicious') return '';
     const hard = g.verdict === 'offtopic' || g.verdict === 'empty';
-    const title = hard ? '未通过文体校验 · 总分记为 0 分' : '报告文体特征较弱 · 总分已按 60% 折算';
+    // 注意：不再有「按 60% 折算」。那个折扣是本地引擎时代的补偿手段，
+    // 现在可疑文档照常送模型评阅，只是把疑虑写在结果里交给教师判断——
+    // 悄悄打个六折，比明说"这份我不太确定"更糟。
+    const title = hard ? '未通过文体校验 · 未进行评分' : '报告文体特征较弱 · 已正常评阅，请留意';
     return `<div class="gate${hard ? '' : ' warn'}">
       <div class="gt"><b>${title}</b>
         <span class="badge ${hard ? 'red' : 'amber'}">判定置信度 ${g.confidence === 'high' ? '高' : '中'}</span></div>
@@ -356,18 +415,20 @@
 
     const r = doc.result;
     const g = AG.rubric.gradeOf(r.total);
-    // 溯源自检：把每个维度的分拆成「证据挣的」与「结构送的」
+    // 溯源自检：模型引用的原文片段，逐条回查在不在报告里
     const trace = AG.reliability.evidenceAudit(r);
 
     const dimsHtml = r.dims.map((d, i) => {
       const pct = Math.round(d.ratio * 100);
       const evChips = (d.evidence || []).map((e) => `<span class="chip ok">✓ ${U.esc(e.label)}</span>`).join('');
       const missChips = (d.missing || []).map((m) => `<span class="chip miss">✗ ${U.esc(m.label)}</span>`).join('');
-      const penChips = (d.penalties || []).map((p) => `<span class="chip pen">- ${U.esc(p.label)} (${p.weight})</span>`).join('');
-      // 只有「主要靠结构得分」才提示 —— 其余情况不刷屏
+      const penChips = (d.penalties || []).map((p) => `<span class="chip pen">- ${U.esc(p.label)}${p.weight ? ' (' + p.weight + ')' : ''}</span>`).join('');
+      // 只有「证据查无此句」或「证据过少」才提示 —— 其余情况不刷屏
       const tr = trace.ok ? trace.dims[i] : null;
-      const traceChip = tr && tr.layer === 'weak'
-        ? `<span class="chip pen">⚠ 分主要来自结构特征，直接证据仅覆盖 ${Math.round(tr.raw * 100)}%</span>` : '';
+      const traceChip = tr && tr.layer === 'hallucinated'
+        ? `<span class="chip pen">⚠ ${tr.hallucinated} 条证据在原文中未查到，评分依据存疑</span>`
+        : tr && tr.layer === 'thin'
+          ? '<span class="chip miss">本维度未给出原文证据，建议人工确认</span>' : '';
       const snip = (d.evidence || []).filter((e) => e.snippets && e.snippets.length)
         .slice(0, 3).map((e) => `<div class="ev"><em>${U.esc(e.label)}</em>：${U.esc(e.snippets[0].snippet)}</div>`).join('');
 
@@ -470,9 +531,15 @@
   }
 
   /* ---------------- 渲染：批量与查重 ---------------- */
+  /**
+   * 查重。范围由 state.simScope 决定 —— 需求③「查重范围界定」结论是暂不界定，
+   * 所以两种范围都实现好，默认跑「当前批次」，等范围定稿切一下即可。
+   */
   function computeSim() {
     const graded = state.docs.filter((d) => d.result);
-    state.sim = graded.length >= 2 ? AG.analyzer.similarity(graded) : null;
+    state.sim = graded.length >= 2
+      ? AG.analyzer.similarity(graded, { scope: state.simScope })
+      : null;
   }
 
   function renderBatch() {
@@ -526,6 +593,11 @@
     computeSim();
     const names = graded.map((d) => d.name);
     let html = '';
+    // 范围提示前置：查重范围尚未定稿，结果按哪种口径算出来的必须写在结果上方，
+    // 否则教师会把「本批次内相似」误读成「确认抄袭」
+    if (state.sim && state.sim.scopeNote) {
+      html += `<div class="susp warn" style="margin-bottom:10px"><span class="badge amber">${U.esc(state.sim.scopeLabel)}</span><span>${U.esc(state.sim.scopeNote)}</span></div>`;
+    }
     if (state.sim.suspicious.length) {
       html += state.sim.suspicious.map((p) => {
         const lvl = p.value >= 0.7 ? 'red' : 'amber';
@@ -542,7 +614,7 @@
   }
 
   /* ============================================================
-   * 智能分析：量表自动诱导 / 评分信度自检 / 双引擎交叉验证
+   * 智能分析：量表自动诱导 / 评分信度自检 / 双模型交叉验证
    * ============================================================ */
 
   /* ---------- 1. 量表自动诱导 ---------- */
@@ -729,20 +801,24 @@
   /**
    * 保证评分结果与当前量表同源。
    * 场景：教师改了量表（或应用了诱导量表）却没重新评分，此时 doc.result 仍是旧量表的维度结构。
-   * 若不校验就直接拿去算 α 或做双引擎对比，会出现"维度对不上、缺失维度按 0 分计"的荒谬结果
+   * 若不校验就直接拿去算 α 或做双模型对比，会出现"维度对不上、缺失维度按 0 分计"的荒谬结果
    * （表现为总分差接近 0，但平均绝对误差高达 9 分）。
    * @returns {number} 被刷新的报告数
    */
-  function ensureFreshResults() {
+  async function ensureFreshResults() {
     const rub = activeRubric();
     let n = 0;
-    state.docs.forEach((d) => {
-      if (!d.result) return;
+    // 重评分要调模型，必须串行等待，不能 forEach 里丢一堆 Promise
+    for (const d of state.docs) {
+      if (!d.result) continue;
       const same = d.result.dims.length === rub.length
         && d.result.dims.every((x, i) => x.id === rub[i].id && x.max === rub[i].max);
-      if (!same) { d.result = AG.analyzer.grade(d, rub); n++; }
-    });
-    if (n) { persist(); renderDocList(); }
+      if (!same) {
+        const r = await gradeDoc(d.id, { silent: true });
+        if (r) n++;
+      }
+    }
+    if (n) renderDocList();
     return n;
   }
 
@@ -761,43 +837,42 @@
     if (cur) sel.value = cur;
   }
 
-  function runAudit() {
+  async function runAudit() {
     const box = $('#auditResult');
     const gs = gradedDocs();
     if (!gs.length) {
       box.innerHTML = '<div class="susp warn"><span class="badge amber">无数据</span><span>请先完成至少 1 份报告的评分。</span></div>';
       return;
     }
-    const refreshed = ensureFreshResults();
+    const refreshed = await ensureFreshResults();
     if (refreshed) toast(`量表已变更，已按新量表重新评分 ${refreshed} 份报告`, 'ok');
 
     const targetId = $('#auditDoc').value || gs[0].id;
     const target = gs.find((d) => d.id === targetId) || gs[0];
-    const iterations = U.clamp(Number($('#auditIter').value) || 100, 20, 400);
+
+    /* 稳定性检验现在是**调用模型连评 N 次**，不是本地重采样。
+     * 次数必须从"几百次"压下来：每多一次就是一次真实的网络请求与计费。
+     * 8 次足以看出极差，再多只是烧钱。 */
+    const iterations = U.clamp(Number($('#auditIter').value) || 8, 3, 15);
 
     const btn = $('#btnAudit');
     btn.disabled = true; btn.innerHTML = '<span class="spin"></span> 自检中…';
 
-    // 让按钮的 loading 态有机会渲染出来再跑重采样（100 次评分是同步密集计算）
-    setTimeout(() => {
-      let alpha, bs, jk, lb, ct;
-      try {
-        alpha = AG.reliability.cronbachAlpha(gs.map((d) => d.result));
-        bs = AG.reliability.bootstrap(target, activeRubric(), { iterations });
-        jk = AG.reliability.jackknife(target, activeRubric());
-        // 篇幅偏差与共识术语都是全批次统计量，与单份报告的 Bootstrap 不同
-        lb = AG.reliability.lengthBias(gs);
-        ct = AG.induce.consensusTerms(gs);
-      } catch (e) {
-        btn.disabled = false; btn.textContent = '运行自检';
-        box.innerHTML = `<div class="susp"><span class="badge red">失败</span><span>${U.esc(e.message)}</span></div>`;
-        return;
-      }
+    try {
+      const alpha = AG.reliability.cronbachAlpha(gs.map((d) => d.result));
+      const bs = await AG.reliability.stability(target, activeRubric(), { iterations });
+      const jk = AG.reliability.jackknife(target, activeRubric());
+      // 篇幅偏差与共识术语都是全批次统计量，与单份报告的稳定性检验不同
+      const lb = AG.reliability.lengthBias(gs);
+      const ct = AG.induce.consensusTerms(gs);
       btn.disabled = false; btn.textContent = '运行自检';
       box.innerHTML = renderAuditHtml(target, alpha, bs, jk, lb, ct);
       const band = $('#bsBandBox');
       if (band && bs.ok) band.appendChild(AG.charts.bootstrapBand(bs));
-    }, 30);
+    } catch (e) {
+      btn.disabled = false; btn.textContent = '运行自检';
+      box.innerHTML = `<div class="susp"><span class="badge red">失败</span><span>${U.esc(e.message)}</span></div>`;
+    }
   }
 
   function renderAuditHtml(target, alpha, bs, jk, lb, ct) {
@@ -846,7 +921,7 @@
           <div class="kpi"><b style="color:${s.color};font-size:17px">${s.label}</b><small>稳定性判定</small><span>${s.desc}</span></div>
         </div>
         <div id="bsBandBox" style="margin:12px 0"></div>
-        <p class="hint">做法：随机删减 15% 的段落（共 ${bs.paragraphs} 段）后重新评分，重复 ${bs.iterations} 次。
+        <p class="hint">做法：同一份报告、同一套量表，让 <b>${U.esc(bs.model || '当前模型')}</b> 连续评阅 ${bs.iterations} 次，看总分散到什么程度。
         结构化特征（篇幅、代码量等）在重采样中保持不变，因此该区间只反映<b>内容覆盖度的波动</b>，
         不受篇幅阈值跳变的干扰。</p>
         <div style="overflow-x:auto;margin-top:10px">
@@ -977,7 +1052,7 @@
     return out;
   }
 
-  /* ---------- 3. 双引擎交叉验证 ---------- */
+  /* ---------- 3. 双模型交叉验证 ---------- */
 
   function renderCvOptions() {
     const sel = $('#cvDoc');
@@ -999,33 +1074,24 @@
       box.innerHTML = '<div class="susp warn"><span class="badge amber">无数据</span><span>请先完成至少 1 份报告的评分。</span></div>';
       return;
     }
-    const refreshed = ensureFreshResults();
+    const refreshed = await ensureFreshResults();
     if (refreshed) toast(`量表已变更，已按新量表重新评分 ${refreshed} 份报告`, 'ok');
 
     const doc = gs.find((d) => d.id === ($('#cvDoc').value || gs[0].id)) || gs[0];
     const btn = $('#btnCV');
     btn.disabled = true; btn.innerHTML = '<span class="spin"></span> 对比中…';
 
+    /* 第二意见现在来自「校验模型」（另一个开源模型，最好跨模型族）。
+     * 没配校验模型时，gradeWithReviewer 会退化成主模型高温重采样，
+     * 并在结果里标注 sameModelNote —— 结论强度要打折，界面会如实提示。 */
     let second, srcLabel;
-    const hasKey = !!AG.llm.getConfig().apiKey;
     try {
-      if (hasKey) {
-        second = await AG.llm.grade(doc, activeRubric());
-        srcLabel = '大模型引擎';
-      } else {
-        second = AG.consensus.resampleBaseline(doc, activeRubric(), 60);
-        srcLabel = '重采样基线';
-      }
+      second = await AG.llm.gradeWithReviewer(doc, activeRubric());
+      srcLabel = second.sameModelNote ? '主模型高温复评' : '校验模型';
     } catch (e) {
-      toast('第二意见生成失败：' + e.message + '，改用重采样基线', 'err');
-      try {
-        second = AG.consensus.resampleBaseline(doc, activeRubric(), 60);
-        srcLabel = '重采样基线（大模型不可用）';
-      } catch (e2) {
-        btn.disabled = false; btn.textContent = '开始对比';
-        box.innerHTML = `<div class="susp"><span class="badge red">失败</span><span>${U.esc(e2.message)}</span></div>`;
-        return;
-      }
+      btn.disabled = false; btn.textContent = '开始对比';
+      box.innerHTML = `<div class="susp"><span class="badge red">失败</span><span>${U.esc(e.message)}</span></div>`;
+      return;
     }
 
     const cmp = AG.consensus.compare(doc.result, second, activeRubric());
@@ -1059,7 +1125,7 @@
       <div id="dvBox"></div>
       <div style="overflow-x:auto;margin-top:10px">
         <table class="tb"><thead><tr>
-          <th>维度</th><th class="c">满分</th><th class="c">A 本地</th><th class="c">B ${U.esc(srcLabel)}</th>
+          <th>维度</th><th class="c">满分</th><th class="c">A ${U.esc((cmp.a && cmp.a.model) || '主模型')}</th><th class="c">B ${U.esc(srcLabel)}</th>
           <th class="c">差值</th><th class="c">判定</th>
         </tr></thead><tbody>${rows}</tbody></table>
       </div>
@@ -1443,13 +1509,21 @@
   }
 
   /* ---------------- 模型配置 ---------------- */
+  /** 只写已存在的表单元素：HTML 里还没加的字段不应让回填崩掉 */
+  function setVal(id, v) { const el = $(id); if (el) el.value = v == null ? '' : v; }
+
   function loadCfgForm() {
     const c = AG.llm.getConfig();
-    $('#cfgBaseUrl').value = c.baseUrl;
-    $('#cfgModel').value = c.model;
-    $('#cfgApiKey').value = c.apiKey;
-    $('#cfgTemp').value = c.temperature;
-    $('#cfgMaxChars').value = c.maxChars;
+    setVal('#cfgProviderId', c.providerId);
+    setVal('#cfgBaseUrl', c.baseUrl);
+    setVal('#cfgModel', c.model);
+    setVal('#cfgApiKey', c.apiKey);
+    setVal('#cfgTemp', c.temperature);
+    setVal('#cfgMaxChars', c.maxChars);
+    setVal('#cfgReviewProviderId', c.reviewProviderId);
+    setVal('#cfgReviewBaseUrl', c.reviewBaseUrl);
+    setVal('#cfgReviewModel', c.reviewModel);
+    setVal('#cfgReviewApiKey', c.reviewApiKey);
   }
 
   /* ---------------- 导出 ---------------- */
@@ -1767,19 +1841,17 @@
       maybeAutoFit();
     });
 
-    // 引擎切换
-    $('#btnEngineLocal').addEventListener('click', () => {
-      state.engine = 'local'; U.store.set('engine', 'local');
-      refreshEngineBadge(); toast('已切换到本地启发式引擎（离线可用）', 'ok');
-    });
-    $('#btnEngineLLM').addEventListener('click', () => {
-      state.engine = 'llm'; U.store.set('engine', 'llm');
-      refreshEngineBadge();
-      if (!AG.llm.getConfig().apiKey) {
-        toast('尚未配置 API Key —— 已为你打开配置页，选一个服务商再填 Key 即可', 'err');
+    // 引擎：本地启发式引擎已下线，这里只剩「配置 / 管理模型」一条路
+    const goEngine = $('#btnEngineLLM');
+    if (goEngine) {
+      goEngine.addEventListener('click', () => {
         switchView('settings');
-      } else toast('已切换到大模型引擎', 'ok');
-    });
+        if (!AG.llm.getConfig().apiKey) {
+          toast('请选择一个开源服务商，填入 API Key 后保存', 'err');
+          const el = $('#cfgApiKey'); if (el) el.focus();
+        }
+      });
+    }
 
     // 批量页导出
     $('#btnExportCsv').addEventListener('click', exportCsv);
@@ -1822,13 +1894,22 @@
 
     // 模型配置
     $('#btnSaveCfg').addEventListener('click', () => {
+      const val = (id) => { const el = $(id); return el ? String(el.value || '').trim() : ''; };
+      const providerId = val('#cfgProviderId');
+      const reviewProviderId = val('#cfgReviewProviderId');
       AG.llm.saveConfig({
         enabled: true,
-        baseUrl: $('#cfgBaseUrl').value.trim(),
-        model: $('#cfgModel').value.trim(),
-        apiKey: $('#cfgApiKey').value.trim(),
-        temperature: Number($('#cfgTemp').value),
-        maxChars: Number($('#cfgMaxChars').value),
+        providerId,
+        baseUrl: val('#cfgBaseUrl'),
+        model: val('#cfgModel'),
+        apiKey: val('#cfgApiKey'),
+        temperature: Number(val('#cfgTemp')),
+        maxChars: Number(val('#cfgMaxChars')),
+        // 校验模型（第二意见）：留空则由 gradeWithReviewer 退化为主模型高温复评
+        reviewProviderId,
+        reviewBaseUrl: val('#cfgReviewBaseUrl'),
+        reviewModel: val('#cfgReviewModel'),
+        reviewApiKey: val('#cfgReviewApiKey'),
       });
       refreshEngineBadge();
       toast('配置已保存到本机', 'ok');
@@ -1855,19 +1936,45 @@
     });
 
     // 服务商预设：填好地址与模型，用户只需再补 Key
+    const applyPreset = (p, prefix) => {
+      if (!p) return;
+      setVal(prefix + 'ProviderId', p.id);
+      setVal(prefix + 'BaseUrl', p.baseUrl);
+      setVal(prefix + 'Model', p.model);
+      if (p.local) {
+        setVal(prefix + 'ApiKey', 'ollama');
+        toast(`${p.label}：本机 / 内网运行，不校验 Key（已填占位符），请先启动推理服务再保存`, 'ok');
+      } else {
+        const el = $(prefix + 'ApiKey'); if (el) el.focus();
+        toast(`已填入 ${p.label} 的地址与模型` + (p.free ? '（有免费额度）' : '') + '，请粘贴你的 API Key 后保存', 'ok');
+      }
+    };
     $$('[data-preset]').forEach((btn) => {
+      btn.addEventListener('click', () => applyPreset(PROVIDER_PRESETS[btn.dataset.preset], '#cfg'));
+    });
+    $$('[data-preset-review]').forEach((btn) => {
+      btn.addEventListener('click', () => applyPreset(PROVIDER_PRESETS[btn.dataset.presetReview], '#cfgReview'));
+    });
+
+    // 一键推荐校验模型：按「跨模型族」原则挑，避免同族模型把系统性偏差当成共识
+    const pickBtn = $('#btnPickReviewer');
+    if (pickBtn) {
+      pickBtn.addEventListener('click', () => {
+        const cur = $('#cfgProviderId') ? String($('#cfgProviderId').value || '') : '';
+        const p = AG.providers.pickReviewer(cur);
+        applyPreset(p, '#cfgReview');
+        toast(`已选「${p.label}」作为校验模型（与主模型不同族，互检更有意义），还需填它的 API Key`, 'ok');
+      });
+    }
+
+    // 查重范围切换（需求③范围待定，故两种都提供）
+    $$('[data-simscope]').forEach((btn) => {
       btn.addEventListener('click', () => {
-        const p = PROVIDER_PRESETS[btn.dataset.preset];
-        if (!p) return;
-        $('#cfgBaseUrl').value = p.baseUrl;
-        $('#cfgModel').value = p.model;
-        if (p.offline) {
-          $('#cfgApiKey').value = p.apiKey;
-          toast(`${p.label}：本地运行，不校验 Key（已自动填占位符），先在本机跑 ollama serve 再保存`, 'ok');
-        } else {
-          $('#cfgApiKey').focus();
-          toast(`已填入 ${p.label} 的地址与模型，请粘贴你的 API Key 后保存`, 'ok');
-        }
+        state.simScope = btn.dataset.simscope;
+        U.store.set('simScope', state.simScope);
+        $$('[data-simscope]').forEach((b) => b.classList.toggle('primary', b === btn));
+        computeSim(); renderBatch();
+        toast('查重范围已切换为：' + (AG.analyzer.SCOPES[state.simScope] || {}).label, 'ok');
       });
     });
   }

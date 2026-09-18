@@ -1,112 +1,31 @@
-/* AutoGrader · 本地启发式评分引擎（Local Engine）
- * 设计目标：在没有大模型 API Key 的情况下，依然能跑通「上传 → 逐项核查 → 得分 → 评语」的完整闭环，
- * 保证演示与断网场景可用；同时它也是 LLM 模式失败时的降级兜底。
+/* AutoGrader · 文档体检与证据核验（Document Triage & Evidence Verification）
  *
- * 评分思路（可解释优先）：
- *   1. 对每个维度，用信号词典做证据匹配，得到覆盖率 raw（命中权重 / 总权重）
- *   2. 叠加结构化特征加成（代码块、图表、数据密度、标题层级等）
- *   3. 减去扣分项，映射到 [0, 维度满分]
- *   4. 用整体质量系数（篇幅 / 结构 / 数据密度）微调总分
- * 所有中间量（命中证据、缺失项、扣分项）都会输出到报告，做到「每一分都有出处」。
+ * 【重大变更 · 2026-09】需求计划待确认问题①「本地评分是否保留」→ 结论：不保留。
+ * 本模块原先的本地启发式评分引擎（grade / scoreDimension / qualityFactor /
+ * STRUCT_BOOST / depthCap）已整体移除，理由写在文末「为什么删」。
+ *
+ * 现在它只做三件**不产生分数**的事：
+ *   1. 文体门禁 genreCheck —— 回答「这东西能不能评」（闸门，不是分）
+ *   2. 查重 similarity —— 回答「这些文档之间像不像」（比对，不是分）
+ *   3. 证据核验 verifyEvidence —— 回答「模型引用的原文是不是编的」（查证，不是分）
+ *
+ * 三件事的共同点：都是**可判定的事实核查**，而不是对质量的估值。
+ * 关键词匹配做事实核查尚可（"这段话里有没有'误差分析'四个字"是有标准答案的），
+ * 用它给质量估值则不可靠（"提到了就算写到"会漏掉写得对不对）。
  */
 (function (global) {
   'use strict';
   const AG = (global.AG = global.AG || {});
   const U = AG.utils;
 
-  /* 各维度可叠加的结构化特征加成（上限 0.25） */
-  const STRUCT_BOOST = {
-    code(f) {
-      let b = 0;
-      if (f.codeBlockCount > 0) b += 0.15;
-      if (f.codeLines >= 20) b += 0.05;
-      if (f.codeLines >= 60) b += 0.03;
-      return b;
-    },
-    result(f) {
-      let b = 0;
-      if (f.numberCount >= 5) b += 0.10;
-      if (f.figureCount > 0) b += 0.08;
-      if (f.tableCount > 0) b += 0.07;
-      return b;
-    },
-    analysis(f) {
-      let b = 0;
-      if (f.numberDensity >= 1.5) b += 0.06;
-      if (f.words >= 800) b += 0.04;
-      return b;
-    },
-    format(f) {
-      let b = 0;
-      if (f.headingCount >= 4) b += 0.15;
-      if (f.referenceCount > 0) b += 0.10;
-      return b;
-    },
-    env(f) { return f.numberCount >= 3 ? 0.05 : 0; },
-  };
-
-  /** 在文本中查找信号，返回证据片段与总命中次数 */
-  function findEvidence(text, re, limit) {
-    const out = [];
-    let count = 0;
-    let m;
-    const rx = new RegExp(re.source, 'g');
-    let guard = 0;
-    while ((m = rx.exec(text)) !== null && guard++ < 200) {
-      count++;
-      if (out.length < (limit || 3)) {
-        const start = Math.max(0, m.index - 12);
-        const end = Math.min(text.length, m.index + m[0].length + 28);
-        let snippet = text.slice(start, end).replace(/\s+/g, ' ').trim();
-        if (start > 0) snippet = '…' + snippet;
-        if (end < text.length) snippet = snippet + '…';
-        out.push({ hit: m[0].slice(0, 24), snippet });
-      }
-    }
-    out.count = count;
-    return out;
-  }
-
-  /**
-   * 动态满分上限：报告越厚实（篇幅、数据量、代码量、引用），可达到的比例上限越高。
-   * 避免出现「关键词都点到就满分」的天花板效应——满分需要深度，不只是覆盖面。
-   */
-  function depthCap(f) {
-    let d = 0;
-    if (f.words >= 800) d += 0.30;
-    if (f.words >= 1500) d += 0.20;
-    if (f.numberCount >= 10) d += 0.20;
-    if (f.codeLines >= 30) d += 0.15;
-    if (f.referenceCount > 0) d += 0.15;
-    return 0.88 + 0.12 * Math.min(1, d);
-  }
-
-  /** 计算整体质量系数：只有「过短 / 结构缺失 / 无数据」才拉低，且幅度收敛。
-   *  字数阈值刻意压得很低——一份 300 字的物理实验报告完全可能是完整的，
-   *  用字数去惩罚精炼的理科写作是不公平的。 */
-  function qualityFactor(f) {
-    let q = 1.0;
-    if (f.words < 80) q -= 0.25;
-    else if (f.words < 150) q -= 0.12;
-    else if (f.words < 300) q -= 0.05;
-    if (f.words >= 300) {
-      if (f.headingCount === 0) q -= 0.05;
-      if (f.numberCount === 0) q -= 0.05;
-    }
-    if (f.words > 3000) q += 0.02;
-    return U.clamp(q, 0.85, 1.05);
-  }
-
   /* ============================================================
-   * 文体门禁（Genre Gate）
+   * 一、文体门禁（Genre Gate）
    * ------------------------------------------------------------
-   * 本地引擎靠关键词匹配，读不懂语义，因此天然分不清
-   * 「一份写得很差的实验报告」和「一篇被误传上来的小说」。
-   * 但文体特征是结构性的，用统计抓得住：
-   *   报告 → 章节标题、数据、实验语域词、参考文献；
-   *   小说 → 对话引号、叙事动词、「第 N 章」、比喻密集。
-   * 没有这道闸门，零证据维度会靠 ratio 地板白拿 30% 的分，
-   * 于是「交一篇小说也能拿三十几分」——这是最伤可信度的一种错。
+   * 为什么本地引擎删了这道闸门还得留：
+   * 「有没有资格被评」和「评得多少分」是两类问题。前者是结构性事实，
+   * 用统计抓得住；后者需要语义理解，只能交给模型。
+   * 没有这道闸门，交一篇小说上来也会被模型认真打一遍分并给出改进建议，
+   * 那是比打零分更糟的结果——它会让学生以为自己交的是对的。
    * ============================================================ */
 
   /** 报告语域词：命中即视为报告文体证据（去重后按数量分档）。
@@ -228,212 +147,45 @@
     } else if (R <= 3) {
       verdict = 'suspicious';
       reasons.push('报告文体特征较弱（章节标题 ' + headings + ' 个、实验语域词 ' +
-        lexHit.length + ' 个、数据 ' + (f.numberCount || 0) + ' 处），已按可疑文档降权处理');
+        lexHit.length + ' 个、数据 ' + (f.numberCount || 0) + ' 处），建议人工确认后再评阅');
     }
 
     const confidence = (verdict === 'report' && R >= 5) || (verdict === 'offtopic' && N >= 3.5) ? 'high' : 'mid';
     return { verdict, reportEvidence: detail.reportEvidence, narrativeEvidence: detail.narrativeEvidence, confidence, reasons, signals: detail };
   }
 
-  /** 对单个维度评分 */
-  function scoreDimension(dim, text, features) {
-    let matched = 0, total = 0;
-    const evidence = [];
-    const missing = [];
+  /* ============================================================
+   * 二、查重（Similarity）
+   * ------------------------------------------------------------
+   * 需求计划待确认问题③「查重范围界定」→ 结论：暂不界定，先做成可切换的开关。
+   * 原需求原文：「同一文档来自不同用户提交时才触发查重；当前版本仅面向单一用户，
+   *              功能范围待定。」
+   *
+   * 所以这里不预设答案，而是把两种范围都实现好，默认跑「当前批次」，
+   * 等范围定下来切一下 scope 即可——比现在拍脑袋定死一个范围更稳。
+   *   batch     当前批次内两两比较（默认，单人场景够用）
+   *   crossUser 仅当高度相似的文档来自**不同提交者**时才计入可疑
+   * ============================================================ */
 
-    (dim.signals || []).forEach((sig) => {
-      total += sig.w;
-      const hits = findEvidence(text, sig.re, 2);
-      if (hits.count > 0) {
-        // 证据强度：命中 1 次算 85%（写到了就该拿大部分分），2 次 92.5%，3 次及以上满分。
-        // 旧值是 0.60/0.80/1.00，把「只提了一次但确实写了」的内容压得过狠，
-        // 是本地引擎整体分数偏低的主要来源之一。
-        const strength = U.clamp(0.85 + 0.075 * (hits.count - 1), 0.85, 1);
-        matched += sig.w * strength;
-        evidence.push({ label: sig.label, weight: sig.w, strength: U.round(strength, 2), hits: hits.count, snippets: hits });
-      } else {
-        missing.push({ label: sig.label, weight: sig.w });
-      }
-    });
+  const SCOPES = {
+    batch: { id: 'batch', label: '当前批次内', desc: '比较本批次录入的全部文档，不区分提交者' },
+    crossUser: { id: 'crossUser', label: '跨提交者', desc: '仅当相似文档来自不同提交者时判定为可疑' },
+  };
 
-    const raw = total > 0 ? matched / total : 0;
-    const boost = STRUCT_BOOST[dim.id] ? STRUCT_BOOST[dim.id](features) : 0;
-    const cap = depthCap(features);
-    // 覆盖率 → 达成率：凹映射。
-    // 教育评分里「覆盖了 60% 的要点」通常对应 75% 左右的达成度，而不是 60%——
-    // 核心要点写到了就该拿到大部分分，剩下的分留给深度与完整性。
-    // 关键改动：不再有 0.30 的无条件地板。零证据就是零分，
-    // 否则一篇小说也能靠「每个维度白送三成分」拿到三十几分。
-    const ratio = U.clamp(cap * Math.sqrt(U.clamp(raw + boost, 0, 1)), 0, cap);
+  /** 可疑阈值：5-gram Jaccard ≥ 0.45。定得比"逐字复制"松，因为改写也算抄。 */
+  const SUSPICION_THRESHOLD = 0.45;
 
-    let penalty = 0;
-    const penalties = [];
-    (dim.penalties || []).forEach((p) => {
-      if (new RegExp(p.re.source, p.re.flags.replace('g', '')).test(text)) {
-        penalty += p.w;
-        penalties.push({ label: p.label, weight: p.w });
-      }
-    });
-
-    const max = Number(dim.max) || 0;
-    const score = U.clamp(max * ratio - penalty, 0, max);
-
-    return {
-      id: dim.id,
-      name: dim.name,
-      desc: dim.desc,
-      advice: dim.advice,
-      max,
-      score: U.round(score, 1),
-      ratio: U.round(score / (max || 1), 3),
-      raw: U.round(raw, 3),
-      boost: U.round(boost, 3),
-      cap: U.round(cap, 3),
-      penalty,
-      evidence,
-      missing,
-      penalties,
-    };
-  }
-
-  /**
-   * 生成该维度的评语。
-   * 文案本身交给 AG.voice（语气人格引擎），这里只负责算数——
-   * 这样「换语气」不需要动评分逻辑，评分逻辑也不需要关心文案。
-   */
-  function commentFor(d, idx) {
-    if (AG.voice) return AG.voice.dimComment(d, null, idx);
-    const r = d.ratio;
-    if (r >= 0.85) return `${d.name}：完成度高，${d.evidence.slice(0, 2).map((e) => e.label).join('、')}均有体现。`;
-    if (r >= 0.70) return `${d.name}：整体达标，若能补充「${(d.missing[0] || {}).label || '关键要素'}」会更完整。`;
-    if (r >= 0.50) return `${d.name}：覆盖一般，缺少 ${d.missing.slice(0, 2).map((m) => '「' + m.label + '」').join('、') || '关键内容'}。${d.advice || ''}`;
-    return `${d.name}：明显不足，${d.missing.slice(0, 3).map((m) => '「' + m.label + '」').join('、') || '核心要素缺失'}。${d.advice || ''}`;
-  }
-
-  /**
-   * 生成总评。文案由 AG.voice 按当前人格输出。
-   * 关键点（人格内部已保证）：强/弱项措辞必须看「绝对达成率」而非相对排名——
-   * 一份 60 分的报告里最强的维度也可能只有 0.6，此时夸它"表现较好"是失真的。
-   */
-  function overallComment(total, dims) {
-    const g = AG.rubric.gradeOf(total);
-    if (AG.voice) return AG.voice.overall(total, dims, g);
-
-    const weak = dims.slice().sort((a, b) => a.ratio - b.ratio).slice(0, 2)
-      .map((d) => `${d.name}（${d.score}/${d.max}）`);
-    const strong = strongPart(dims);
-
-    // 整体定性与收尾建议：跟随总分档位
-    let verdict, tail;
-    if (total >= 85) {
-      verdict = '整体表现优秀';
-      tail = '，可在上述失分项上进一步精修以达到满分水准';
-    } else if (total >= 75) {
-      verdict = '整体达到良好水平';
-      tail = '，建议针对上述失分区补充后再次提交';
-    } else if (total >= 60) {
-      verdict = '仅达及格线，整体质量偏弱';
-      tail = '，上述失分区需实质补充，否则难以满足课程要求';
-    } else {
-      verdict = '未达及格要求，需要较大幅度修改';
-      tail = '，建议根据上述失分区重点重写后再提交';
-    }
-
-    return `本报告综合得分 ${total} 分（${g.grade} 级 · ${g.label}），${verdict}。` +
-      `${strong}；${weak.join('、')}是主要失分区${tail}。`;
-  }
-
-  /** 强项措辞：按最高达成率分档（voice 未加载时的兜底） */
-  function strongPart(dims) {
-    const byRatio = dims.slice().sort((a, b) => b.ratio - a.ratio);
-    const top = byRatio[0], top2 = byRatio[1];
-    if (top && top.ratio >= 0.85) {
-      const list = [top.name].concat(top2 && top2.ratio >= 0.85 ? [top2.name] : []);
-      return `${list.join('、')}完成度高`;
-    }
-    if (top && top.ratio >= 0.70) {
-      const list = [top.name].concat(top2 && top2.ratio >= 0.70 ? [top2.name] : []);
-      return `${list.join('、')}基本达标`;
-    }
-    if (top) return `相对而言 ${top.name} 写得较为完整，但各项均未达理想水平`;
-    return '各维度均存在明显欠缺';
-  }
-
-  /**
-   * 评分主入口
-   * @param {{name,text,features}} doc
-   * @param {Array} rubric
-   * @returns 评分结果对象
-   */
-  function grade(doc, rubric, opts) {
-    opts = opts || {};
-    const text = doc.text || '';
-    const features = doc.features || AG.parser.extractFeatures(text);
-    const dims = (rubric || AG.rubric.DEFAULT_RUBRIC).map((dim) => scoreDimension(dim, text, features));
-    dims.forEach((d, i) => { d.comment = commentFor(d, i); });
-
-    const q = qualityFactor(features);
-    const rawTotal = dims.reduce((s, d) => s + d.score, 0);
-    let total = U.clamp(U.round(rawTotal * q, 1), 0, 100);
-
-    /* —— 文体门禁：不是报告文体的东西，不该拿到「辛苦分」——
-     * skipGenre 用于用户手动申诉「我判错了，按正常评分重算」。 */
-    const gate = opts.skipGenre ? null : genreCheck(text, features);
-    let overall;
-    if (gate && (gate.verdict === 'offtopic' || gate.verdict === 'empty')) {
-      total = 0;
-      dims.forEach((d) => {
-        d.score = 0;
-        d.ratio = 0;
-        d.comment = '未计入评分——文档未通过文体校验。';
-      });
-      overall = '本文档未通过文体校验，判定为「非实验报告类文档」，总分记为 0 分。' +
-        gate.reasons.join('；') + '。若确为误判，可点「按正常评分重算」忽略这道校验。';
-    } else if (gate && gate.verdict === 'suspicious') {
-      total = U.clamp(U.round(total * 0.6, 1), 0, 100);
-      overall = '⚠ 本文档的报告文体特征较弱，总分已按 60% 折算：' +
-        gate.reasons.join('；') + '。' + overallComment(total, dims);
-    } else {
-      overall = overallComment(total, dims);
-    }
-
-    const g = AG.rubric.gradeOf(total);
-
-    /* 语言提示：本地信号词典是中文写的，英文报告一条都匹配不上，
-     * 分数会低得离谱。与其给个看似客观的低分，不如明说自己不擅长。 */
-    let langNote = '';
-    const cjkN = (text.match(/[\u4e00-\u9fa5]/g) || []).length;
-    const latN = (text.match(/[A-Za-z]+/g) || []).length;
-    if (latN > 60 && cjkN / Math.max(1, latN + cjkN) < 0.25) {
-      langNote = '检测到本文档以英文为主（中文 ' + cjkN + ' 字 / 英文 ' + latN +
-        ' 词）。本地启发式引擎的信号词典以中文撰写，英文报告会大面积漏匹配，' +
-        '分数会明显失真——建议在「量表与模型」中配置大模型 API Key 后重新评阅。';
-    }
-
-    return {
-      docName: doc.name,
-      engine: 'local',
-      engineLabel: '本地启发式引擎',
-      total,
-      langNote,
-      qualityFactor: U.round(q, 3),
-      grade: g.grade,
-      gradeLabel: g.label,
-      gradeColor: g.color,
-      dims,
-      features,
-      gate: gate || null,
-      overall,
-      gradedAt: Date.now(),
-    };
-  }
-
-  /* ---------- 批量：相似度查重 ---------- */
   /**
    * 计算文档两两相似度（5-gram Jaccard）
-   * @returns {{matrix:number[][], pairs:Array}}
+   * @param {Array} docs  [{ text, submitter? }]
+   * @param {Object} opts { scope: 'batch'|'crossUser', threshold: number }
+   * @returns {{matrix:number[][], pairs:Array, suspicious:Array, scope:string, scopeLabel:string}}
    */
-  function similarity(docs) {
+  function similarity(docs, opts) {
+    opts = opts || {};
+    const scope = SCOPES[opts.scope] ? opts.scope : 'batch';
+    const threshold = opts.threshold == null ? SUSPICION_THRESHOLD : Number(opts.threshold);
+
     const sets = docs.map((d) => U.shingles(d.text, 5));
     const n = docs.length;
     const matrix = [];
@@ -443,12 +195,128 @@
       for (let j = 0; j < n; j++) {
         const v = i === j ? 1 : U.jaccard(sets[i], sets[j]);
         matrix[i][j] = U.round(v, 3);
-        if (j > i) pairs.push({ a: i, b: j, value: U.round(v, 3) });
+        if (j > i) {
+          pairs.push({
+            a: i, b: j, value: U.round(v, 3),
+            aName: docs[i].name, bName: docs[j].name,
+            aSubmitter: docs[i].submitter || null,
+            bSubmitter: docs[j].submitter || null,
+          });
+        }
       }
     }
     pairs.sort((x, y) => y.value - x.value);
-    return { matrix, pairs, suspicious: pairs.filter((p) => p.value >= 0.45) };
+
+    /* 跨提交者模式：同一人自己交的两版相似文档不算抄袭，过滤掉 */
+    const crossUserApplied = scope === 'crossUser';
+    const suspicious = pairs.filter((p) => {
+      if (p.value < threshold) return false;
+      if (!crossUserApplied) return true;
+      const sa = p.aSubmitter, sb = p.bSubmitter;
+      // 提交者信息缺失时无法判定「跨人」，保守起见仍计入可疑并标注待确认
+      if (!sa || !sb) return true;
+      return sa !== sb;
+    });
+
+    return {
+      matrix, pairs, suspicious,
+      scope,
+      scopeLabel: SCOPES[scope].label,
+      threshold,
+      // 范围待定：原需求里跨用户维度尚未定稿，UI 需要如实告知而不是假装结论已定
+      scopeNote: crossUserApplied
+        ? '跨提交者模式：仅当相似文档来自不同提交者时判定为可疑；未标注提交者的文档一律计入，需人工确认。'
+        : '当前批次模式：不区分提交者，两两比较。查重范围尚未定稿，可在设置中切换。',
+      pendingScope: true,
+    };
   }
 
-  AG.analyzer = { grade, similarity, scoreDimension, qualityFactor, findEvidence, genreCheck };
+  /* ============================================================
+   * 三、证据核验（Evidence Verification）
+   * ------------------------------------------------------------
+   * 本地评分砍掉之后，本地计算唯一还值得保留的升级方向就是**给模型挑错**。
+   * 模型给的 evidence 是它自己复述的原文，存在两种失真：
+   *   1. 幻觉 —— 报告里根本没这句话，它编了一条来支撑自己给的分
+   *   2. 改写 —— 用了近义表述，大意对但字面对不上
+   * 前者必须标出来（会导致教师误信），后者可以放行（允许模型转述）。
+   * 这是字符串比对能做的事：它不判断"这个证据好不好"，只判断"这句话在不在"。
+   * ============================================================ */
+
+  /** 归一化：去掉空白与常见标点，避免"误差分析，"和"误差分析"被判成两条 */
+  function normalize(s) {
+    return String(s || '')
+      .replace(/\s+/g, '')
+      .replace(/[，。；：、！？,.;:!?""''（）()【】\[\]]/g, '');
+  }
+
+  /**
+   * 核验一批证据片段是否真实出现在原文。
+   * @param {string} text     报告原文
+   * @param {Array}  evidence [{ label }] 或字符串数组
+   * @returns {{items:Array, verified:number, total:number, rate:number, hallucinated:Array}}
+   */
+  function verifyEvidence(text, evidence) {
+    const src = normalize(text);
+    const list = (evidence || []).map((e) => (typeof e === 'string' ? e : (e && e.label) || '')).filter(Boolean);
+    const items = list.map((raw) => {
+      const q = normalize(raw);
+      // 太短的片段（<4 字）不具备判定价值：任何报告里都能找到
+      if (q.length < 4) return { text: raw, status: 'unverifiable', note: '片段过短，无法核验' };
+      if (src.indexOf(q) >= 0) return { text: raw, status: 'exact' };
+
+      // 退一步：按 2-gram 覆盖率判断是否「改写复述」
+      const cov = bigramCoverage(q, src);
+      if (cov >= 0.6) return { text: raw, status: 'paraphrased', coverage: U.round(cov, 3) };
+      if (cov >= 0.3) return { text: raw, status: 'weak', coverage: U.round(cov, 3) };
+      return { text: raw, status: 'hallucinated', coverage: U.round(cov, 3) };
+    });
+
+    const count = (s) => items.filter((x) => x.status === s).length;
+    const verifiable = items.filter((x) => x.status !== 'unverifiable');
+    return {
+      items,
+      total: items.length,
+      verified: count('exact') + count('paraphrased'),
+      exact: count('exact'),
+      paraphrased: count('paraphrased'),
+      weak: count('weak'),
+      hallucinated: items.filter((x) => x.status === 'hallucinated'),
+      rate: verifiable.length ? U.round((count('exact') + count('paraphrased')) / verifiable.length, 3) : 1,
+    };
+  }
+
+  /** 查询串的二元组有多大比例出现在目标文本中 */
+  function bigramCoverage(query, target) {
+    if (query.length < 2) return 0;
+    const grams = [];
+    for (let i = 0; i < query.length - 1; i++) grams.push(query.slice(i, i + 2));
+    if (!grams.length) return 0;
+    const hit = grams.filter((g) => target.indexOf(g) >= 0).length;
+    return hit / grams.length;
+  }
+
+  /* ============================================================
+   * 为什么删掉本地评分（存档说明）
+   * ------------------------------------------------------------
+   * 1. 口径对不齐：需求②「评分准则」要求"指导 AI 给出比直接丢给 AI 更可靠的结果"。
+   *    本地引擎靠正则命中给分，与模型的语义判断天然两套口径，
+   *    consensus 里拿它当"第二意见"实际上是拿一个更差的裁判去监督更好的裁判。
+   * 2. 篇幅即分数：本地引擎把字数写进了动态满分上限与质量系数，
+   *    写得长就分高。这是教育评分里最该避免的偏差，而且它无法自证清白——
+   *    reliability.lengthBias 只能"报告"这个偏差，改不掉。
+   * 3. 双语代价：信号词典是中文写的，英文报告大面积漏匹配，
+   *    原实现只能靠弹一句"我不擅长英文"免责，等于把缺陷转嫁给用户。
+   * 4. 维护成本：每加一个专业方向就要补一套词典，而模型的零样本泛化是免费的。
+   *
+   * 保留下来的三类能力（门禁 / 查重 / 证据核验）都是**事实核查**而非**质量估值**，
+   * 关键词匹配干这个活是称职的。
+   * ============================================================ */
+
+  AG.analyzer = {
+    genreCheck,
+    similarity,
+    verifyEvidence,
+    SCOPES,
+    SUSPICION_THRESHOLD,
+  };
 })(window);

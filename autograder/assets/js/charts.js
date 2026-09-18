@@ -315,11 +315,11 @@
     }
 
     const cap = svgEl('text', { x: padL - 20, y: 15, 'font-size': 11, fill: PAL.muted() });
-    cap.textContent = `重采样 ${bs.iterations || samples.length} 次的得分分布 · 蓝带 = 95% 置信区间 · 红线 = 实得分`
+    cap.textContent = `${bs.methodLabel || '采样'} ${bs.iterations || samples.length} 次的得分分布 · 蓝带 = 95% 置信区间 · 红线 = 实得分`
       + (outside ? ` · 另有 ${outside} 次落在区间外` : '');
     svg.appendChild(cap);
     const sub = svgEl('text', { x: padL - 20, y: 30, 'font-size': 10.5, fill: PAL.muted() });
-    sub.textContent = `横轴聚焦置信区间；分布若出现双峰，说明报告各部分质量不均（删掉某类章节会显著掉分）`;
+    sub.textContent = `横轴聚焦置信区间；分布越集中说明重复评阅越一致，出现双峰则意味着模型给分不稳定`;
     svg.appendChild(sub);
 
     return svg;

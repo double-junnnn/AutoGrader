@@ -1,22 +1,28 @@
 /* AutoGrader · 评分信度自检（Reliability Self-Check）
  *
  * 核心立场：自动评分必须回答「这个分数有多可信」，否则教师不敢采用。
- * 本模块全部本地计算，不含任何网络请求。
+ *
+ * 【2026-09 变更】本地启发式评分引擎已移除，本模块相应调整：
+ *   · 稳定性度量从「Bootstrap 段落重采样」换成「对模型连续采样 N 次」。
+ *     旧做法反复调用本地打分，测的是"删掉 15% 段落分变不变"；
+ *     教师真正想问的是「同一份作业明天再评一遍会不会换个分」，采样直接回答这个。
+ *   · 评分溯源从「证据 vs 结构加成」换成「证据核验通过率」。
+ *     本地公式没了，但新增了更硬的指标：模型引用的原文到底在不在报告里。
+ *   · 篇幅偏差保留。它是描述性统计，测的是结果不是成因；
+ *     改成模型评分后同样值得测——模型也偏爱写得长的报告。
  *
  * 一、分数稳不稳（心理测量学三件套）
  *   1. Cronbach's α —— 量表内部一致性。把各维度视为一道"题项"，衡量它们是否在测同一个构念。
  *      α = k/(k-1) · (1 − ΣVar_i / Var_total)。α ≥ 0.8 良好，< 0.6 说明维度设计互相打架。
- *   2. Bootstrap 置信区间 —— 单份报告的稳定性。按段落有放回重采样 N 次重新评分，
- *      取 2.5%/97.5% 分位数作为 95% CI。区间越宽，说明分数对局部内容越敏感（越不稳定）。
+ *   2. 采样稳定性 —— 同一份报告用同一模型连评 N 次，取 2.5%/97.5% 分位数作为 95% CI。
+ *      极差越大，说明模型给分越"随手"，这份分越不该直接采用。
  *   3. Jackknife 敏感度 —— 逐个剔除维度看总分漂移，识别"支配维度"：
  *      某个维度一去掉总分就剧烈变化，说明它一权独大，量表的风险敞口集中。
  *   另附 Spearman-Brown 折半信度作为 α 的交叉验证。
  *
  * 二、分数是怎么来的（溯源与偏差，回答「凭什么给这个分」）
- *   4. 篇幅偏差 —— 本地引擎把字数直接当评分因子，所以总分与字数天然正相关。
- *      对（字数, 总分）做一元线性回归，量化这个相关性有多大。
- *   5. 评分溯源 —— 达成率是 cap×√(raw+boost)，证据与结构加成**相加**。
- *      于是「排得整齐」本身也能换分。本项把每个维度的分拆成「证据挣的」与「结构送的」。
+ *   4. 篇幅偏差 —— 对（字数, 总分）做一元线性回归，量化"写得长是不是分更高"。
+ *   5. 评分溯源 —— 模型给的每条证据都回查原文，统计逐字命中 / 改写 / 查无此句。
  *
  * 前三条回答「稳不稳」，后两条回答「为什么」—— 教师需要的是后者才能放心用。
  */
@@ -130,7 +136,7 @@
     return { level: 'poor', label: '不足', color: '#dc2626', desc: '维度设置互相冲突，建议重新设计量表' };
   }
 
-  /* ---------------- 2. Bootstrap 单份报告稳定性 ---------------- */
+  /* ---------------- 2. 单份报告稳定性：模型连续采样 ---------------- */
 
   /** 按段落切分（保留代码块完整性） */
   function splitParagraphs(text) {
@@ -138,91 +144,70 @@
   }
 
   /**
-   * 重采样后重新评分。
-   * 关键：features 用原文的（冻结），而不是重采样文本的。
-   * 否则 words/codeLines 的阈值跳变（如 800 字上下）会主导分数波动，
-   * 测出来的是「评分函数对篇幅阈值敏不敏感」，而不是我们真正想知道的
-   * 「这份报告的证据覆盖是否稳定」。冻结后，CI 才纯粹反映内容取舍的影响。
-   */
-  function gradeText(doc, rubric, text, frozenFeatures) {
-    // skipGenre：一致性检验关心的是「证据覆盖是否稳定」，
-    // 门禁是零或一的开关，参与进来只会把波动测成 0，掩盖真实的不稳定性
-    return AG.analyzer.grade({ name: doc.name, text, features: frozenFeatures || doc.features }, rubric, { skipGenre: true });
-  }
-
-  /**
-   * 对单份报告做 Bootstrap 重采样
+   * 对单份报告做采样稳定性检验：同一份输入、同一套量表，让模型连评 N 次。
+   *
+   * 为什么不再是 Bootstrap 段落重采样：本地打分引擎已删，重采样无法再"重新打分"。
+   * 但换个角度想，原来的问题本身也不是教师最关心的——
+   * 教师问的是「这个分靠谱吗」，而最能击穿信任的场景是
+   * 「同一份作业，上午评 78，下午评 85」。采样直接量化这件事。
+   *
+   * 采样温度默认 0.7：用评分温度 0.2 采样只会测出"解码器很确定"，
+   * 测不出模型判断本身的鲁棒性。
+   *
    * @param {Object} doc
-   * @param {Array} rubric
-   * @param {Object} opts { iterations, seed }
+   * @param {Array}  rubric
+   * @param {Object} opts { iterations, temperature }
+   * @returns {Promise<Object>} 与旧 bootstrap 同构，便于图表与渲染层复用
    */
-  function bootstrap(doc, rubric, opts) {
+  async function stability(doc, rubric, opts) {
     opts = opts || {};
-    const N = opts.iterations || 80;
-    const paras = splitParagraphs(doc.text || '');
-    if (paras.length < 4) {
-      return { ok: false, note: '报告段落过少（<4），无法进行重采样' };
+    if (!AG.llm || !AG.llm.sampleGrade) {
+      return { ok: false, note: '模型引擎未就绪，无法做采样稳定性检验' };
+    }
+    if (!(AG.llm.getConfig().apiKey)) {
+      return { ok: false, note: '未配置 API Key，无法做采样稳定性检验（需调用模型多次评阅）' };
     }
 
-    // 固定种子的伪随机：保证同一份报告每次自检结论一致，便于教师复核
-    let seed = opts.seed || hashString(doc.name || '') || 20240926;
-    const rand = () => {
-      seed = (seed * 1664525 + 1013904223) % 4294967296;
-      return seed / 4294967296;
-    };
+    const s = await AG.llm.sampleGrade(doc, rubric, {
+      iterations: opts.iterations || 8,
+      temperature: opts.temperature == null ? 0.7 : opts.temperature,
+    });
+    if (!s.ok) return { ok: false, note: s.note || '采样失败' };
 
-    // 有放回重采样会丢掉约 1/e ≈ 37% 的段落，对"报告略有增删"而言过于激进，
-    // 测出来的波动主要来自"内容少了一大截"而非"评分不稳"。
-    // 这里改用删减式重采样：每次随机删掉 keepRatio 之外的少量段落，保留 85%。
-    const keepRatio = opts.keepRatio == null ? 0.85 : opts.keepRatio;
-    const dropCount = U.clamp(Math.round(paras.length * (1 - keepRatio)), 1, Math.max(1, paras.length - 2));
-
-    const frozenFeatures = doc.features || AG.parser.extractFeatures(doc.text || '');
-    const totals = [];
-    const dimScores = {};
-    const idxAll = paras.map((_, i) => i);
-    for (let it = 0; it < N; it++) {
-      const idx = idxAll.slice();
-      // 部分 Fisher-Yates：随机挑 dropCount 个位置剔除
-      for (let k = 0; k < dropCount; k++) {
-        const pos = Math.floor(rand() * (idx.length - k)) + k;
-        const tmp = idx[k]; idx[k] = idx[pos]; idx[pos] = tmp;
-      }
-      const kept = idx.slice(dropCount).sort((a, b) => a - b).map((i) => paras[i]);
-      const res = gradeText(doc, rubric, kept.join('\n\n'), frozenFeatures);
-      totals.push(res.total);
-      res.dims.forEach((d) => { (dimScores[d.id] = dimScores[d.id] || []).push(d.ratio); });
-    }
-
-    const sorted = totals.slice().sort((a, b) => a - b);
-    const point = doc.result ? doc.result.total : mean(totals);
+    const sorted = s.totals.slice().sort((a, b) => a - b);
+    const point = doc.result ? doc.result.total : U.round(mean(sorted), 1);
     const lo = quantile(sorted, 0.025);
     const hi = quantile(sorted, 0.975);
-    const sd = stdev(totals);
+    const sd = stdev(sorted);
+    const cv = point > 0 ? sd / point : 0;
 
     const dims = (rubric || []).map((d) => {
-      const arr = dimScores[d.id] || [];
-      const s = arr.slice().sort((a, b) => a - b);
+      const arr = (s.dimScores[d.id] || []).slice().sort((a, b) => a - b);
       return {
         id: d.id, name: d.name,
         mean: U.round(mean(arr), 3),
         sd: U.round(stdev(arr), 3),
-        ci: [U.round(quantile(s, 0.025), 3), U.round(quantile(s, 0.975), 3)],
-        width: U.round(quantile(s, 0.975) - quantile(s, 0.025), 3),
+        ci: [U.round(quantile(arr, 0.025), 3), U.round(quantile(arr, 0.975), 3)],
+        width: U.round(quantile(arr, 0.975) - quantile(arr, 0.025), 3),
       };
     }).sort((a, b) => b.width - a.width);
 
-    const cv = point > 0 ? sd / point : 0; // 变异系数
     return {
       ok: true,
+      method: 'sampling',
+      methodLabel: '模型连续采样',
       point: U.round(point, 1),
-      mean: U.round(mean(totals), 1),
+      mean: U.round(mean(sorted), 1),
       sd: U.round(sd, 2),
       cv: U.round(cv, 4),
       ci: [U.round(lo, 1), U.round(hi, 1)],
       ciWidth: U.round(hi - lo, 1),
-      iterations: N,
-      paragraphs: paras.length,
+      range: [U.round(sorted[0], 1), U.round(sorted[sorted.length - 1], 1)],
+      spread: U.round(sorted[sorted.length - 1] - sorted[0], 1),
+      iterations: s.iterations,
+      model: s.model,
+      // 保留字段名以兼容既有的渲染与图表，但段落采样已不适用，如实置空
+      paragraphs: null,
       dims,
       stability: stabilityGrade(hi - lo, cv),
       samples: sorted,
@@ -230,15 +215,15 @@
   }
 
   /**
-   * 稳定性分级。阈值按"删减 15% 段落"这一扰动强度标定：
-   * 删掉一两个章节后总分仍在 ±3 分内，说明报告各部分质量均匀，分数可信；
-   * 若波动超过 ±10 分，说明分数高度依赖某几个段落，这类报告最该人工复核。
+   * 稳定性分级。阈值按「同一份作业重复评阅应当有多一致」标定：
+   * 连评 8 次总分都在 ±3 分内，说明模型判断稳定，分数可直接采用；
+   * 若极差超过 ±10 分，说明模型在"随手给分"，这类分数必须人工复核。
    */
   function stabilityGrade(width, cv) {
-    if (width <= 6 && cv <= 0.035) return { level: 'high', label: '高稳定', color: '#16a34a', desc: '各部分质量均匀，删改局部内容几乎不影响总分，结果可直接采用' };
-    if (width <= 12 && cv <= 0.07) return { level: 'medium', label: '较稳定', color: '#2563eb', desc: '总体可信，个别段落对分数影响略大，抽查即可' };
-    if (width <= 20) return { level: 'low', label: '一般', color: '#d97706', desc: '分数对内容局部变动较敏感，建议人工复核后再定分' };
-    return { level: 'unstable', label: '不稳定', color: '#dc2626', desc: '分数高度依赖少数段落，内容质量分布不均，强烈建议人工评阅' };
+    if (width <= 6 && cv <= 0.035) return { level: 'high', label: '高稳定', color: '#16a34a', desc: '重复评阅结果高度一致，分数可直接采用' };
+    if (width <= 12 && cv <= 0.07) return { level: 'medium', label: '较稳定', color: '#2563eb', desc: '总体可信，个别维度略有波动，抽查即可' };
+    if (width <= 20) return { level: 'low', label: '一般', color: '#d97706', desc: '重复评阅波动较明显，建议人工复核后再定分' };
+    return { level: 'unstable', label: '不稳定', color: '#dc2626', desc: '重复评阅极差过大，模型判断不稳定，强烈建议人工评阅' };
   }
 
   /* ---------------- 3. Jackknife 维度敏感度 ---------------- */
@@ -300,19 +285,19 @@
    * @param {Array} docs   已评分文档
    * @param {Array} rubric
    */
-  function audit(docs, rubric, opts) {
+  async function audit(docs, rubric, opts) {
     const graded = (docs || []).filter((d) => d.result);
     const results = graded.map((d) => d.result);
     const alpha = cronbachAlpha(results);
 
-    // 只对当前选中报告做重量级的 Bootstrap（其余留待按需触发）
+    // 只对当前选中报告做重量级的采样检验（要连评多次，其余留待按需触发）
     const target = opts && opts.docId
       ? graded.find((d) => d.id === opts.docId)
       : graded[0];
-    const bs = target ? bootstrap(target, rubric, opts) : { ok: false, note: '无可评分报告' };
+    const bs = target ? await stability(target, rubric, opts) : { ok: false, note: '无可评分报告' };
     const jk = target ? jackknife(target, rubric) : { ok: false };
 
-    // 需要人工复核的名单：稳定性差 或 处于等级边界（±1.5 分内跨档）
+    // 需要人工复核的名单：稳定性差 / 处于等级边界 / 模型证据查无此句
     const review = graded.map((d) => {
       const reasons = [];
       const t = d.result.total;
@@ -320,7 +305,10 @@
       const cur = bands.find((b) => t >= b.min);
       const next = bands.filter((b) => b.min > (cur ? cur.min : 0)).sort((a, b) => a.min - b.min)[0];
       if (next && next.min - t <= 1.5) reasons.push(`距上一等级仅 ${U.round(next.min - t, 1)} 分，边界分数建议复核`);
-      if (d.result.qualityFactor < 0.9) reasons.push('篇幅或结构偏弱，质量系数已折减');
+      // 本地的"质量系数折减"随本地引擎一并移除，换成更硬的指标：
+      // 模型引用的证据里有多少条在原文中查不到——那是它可能没读懂的直接证据
+      const hall = (d.result.evidenceAudit && d.result.evidenceAudit.hallucinated) || 0;
+      if (hall > 0) reasons.push(`${hall} 条评分证据未在原文中查到，评分依据存疑`);
       return { id: d.id, name: d.name, total: t, reasons, need: reasons.length > 0 };
     }).filter((x) => x.need);
 
@@ -331,10 +319,11 @@
   /**
    * 篇幅偏差自检：分数里有多少是「写得长」带来的。
    *
-   * 为什么要做：本地启发式引擎把字数**直接当作评分因子** —— analyzer.js 里有
-   * 「动态满分上限」（篇幅越厚实，可达到的分数上限越高）和篇幅质量系数。
-   * 这是刻意的取舍（一份 300 字的物理报告完全可能写得完整，所以阈值压得很低），
-   * 但代价是总分与字数天然正相关。老师有权知道这个相关性有多大 ——
+   * 为什么要做：早期版本是本地启发式引擎在打分，它把字数**直接当作评分因子**
+   * （动态满分上限 + 篇幅质量系数），总分与字数天然正相关。
+   * 现在评分交给模型了，这件事就没那么理所当然了 —— 但也不能假设它消失了：
+   * 大模型同样偏爱写得长、写得满的报告，这是训练数据里的普遍偏好。
+   * 所以它从"自证清白"变成了"常规体检"：老师有权知道这个相关性有多大，
    * 否则「你这分是不是就看字数给的」这个问题无法回答。
    *
    * 做法：对（字数, 总分）做一元线性回归，返回
@@ -392,69 +381,77 @@
 
   /* ---------------- 评分溯源 ---------------- */
   /**
-   * 评分溯源自检：每个维度的分，有多少是「实证据」挣来的。
+   * 评分溯源自检：模型给的每一条证据，在原文里到底找不找得到。
    *
-   * 起因是本地引擎的达成率公式：
-   *     ratio = cap × √(raw + boost)
-   * 其中 raw 是证据覆盖率、boost 是结构加成（有没有代码块、图表、数据点、标题层级）。
-   * 两者**相加**意味着：一个信号都没命中，只靠排得整齐也能拿到 √boost 的比例 ——
-   * boost 取满时是**七成分**。这是刻意的设计（结构完整本身就是实验报告的质量维度），
-   * 但它必须可见：哪些分是内容证据挣的，哪些是排版结构送的。
+   * 起因是本地引擎的达成率公式被删了（ratio = cap × √(raw + boost)，
+   * 证据覆盖率与结构加成相加，导致"排得整齐也能换分"）。
+   * 本地不再打分后，溯源的含义随之改变——从「这个分由哪些因子构成」
+   * 变成「这个分有没有站得住的依据」。后者才是教师复核时真正会看的。
    *
-   * 所以这不是「挑错」，是把「这个分凭什么」摊开 ——
-   * 支撑最弱的那个维度，就是最该人工复核的地方。
+   * 核验由 AG.analyzer.verifyEvidence 完成（逐字命中 / 改写复述 / 查无此句），
+   * 这里只做汇总与分层。
    *
    * 分层规则：
-   *   penalized  扣分项吃掉了 25% 以上的分值 → 该维度被具体缺陷压住
-   *   weak       证据覆盖率 < 15% 却拿到 > 20% 的结构加成 → 分主要来自排版
-   *   solid      证据占得分依据 70% 以上 → 账目清楚
-   *   mixed      其余
+   *   hallucinated  存在查无此句的证据 → 模型可能没读懂，最该复核
+   *   thin          证据总数少于 2 条 → 分数缺少支撑
+   *   solid         全部证据逐字命中或属改写 → 账目清楚
+   *   mixed         其余
    */
   function evidenceAudit(result) {
     const dims = (result && result.dims) || [];
     if (!dims.length) return { ok: false, note: '该报告没有维度得分可供溯源' };
 
     const rows = dims.map((d) => {
-      const raw = d.raw || 0;
-      const boost = d.boost || 0;
-      const base = raw + boost;
-      const support = base > 0 ? raw / base : 1;   // 得分依据里「证据」所占比例
-      const max = d.max || 1;
-      const penRatio = (d.penalty || 0) / max;
-      const weak = raw < 0.15 && boost > 0.2;
-      const layer = penRatio > 0.25 ? 'penalized' : weak ? 'weak' : support >= 0.7 ? 'solid' : 'mixed';
+      const chk = d.evidenceCheck || null;
+      const total = chk ? chk.total : 0;
+      const exact = chk ? chk.exact : 0;
+      const para = chk ? chk.paraphrased : 0;
+      const hal = chk ? chk.hallucinated.length : 0;
+      const rate = chk ? chk.rate : 1;
+      const layer = hal > 0 ? 'hallucinated'
+        : total < 2 ? 'thin'
+          : rate >= 0.999 ? 'solid'
+            : 'mixed';
       return {
         id: d.id, name: d.name, score: d.score, max: d.max,
-        raw: U.round(raw, 3), boost: U.round(boost, 3), support: U.round(support, 3),
-        penalty: d.penalty || 0,
         evidenceCount: (d.evidence || []).length,
         missingCount: (d.missing || []).length,
+        exact, paraphrased: para, hallucinated: hal,
+        rate: U.round(rate, 3),
         layer,
       };
     });
 
-    // 全卷证据支撑度：按各维度实际得分为权重，避免 0 分维度拉低整体观感
     const scored = rows.filter((r) => r.score > 0);
     const weightSum = scored.reduce((s, r) => s + r.score, 0);
     const supportRate = weightSum > 0
-      ? scored.reduce((s, r) => s + r.score * r.support, 0) / weightSum
+      ? scored.reduce((s, r) => s + r.score * r.rate, 0) / weightSum
       : 0;
+
+    const totalHall = rows.reduce((s, r) => s + r.hallucinated, 0);
 
     return {
       ok: true,
       dims: rows,
       solid: rows.filter((r) => r.layer === 'solid'),
       mixed: rows.filter((r) => r.layer === 'mixed'),
-      weak: rows.filter((r) => r.layer === 'weak'),
-      penalized: rows.filter((r) => r.layer === 'penalized'),
+      thin: rows.filter((r) => r.layer === 'thin'),
+      hallucinated: rows.filter((r) => r.layer === 'hallucinated'),
       supportRate: U.round(supportRate, 3),
       evidenceTotal: rows.reduce((s, r) => s + r.evidenceCount, 0),
       missingTotal: rows.reduce((s, r) => s + r.missingCount, 0),
+      hallucinatedTotal: totalHall,
+      // 有一条例证编造，整份评分的可信度就该打折，而不是"大体可信"
+      verdict: totalHall > 0
+        ? { level: 'warn', label: '存在无法核实的证据', color: '#dc2626', desc: `共 ${totalHall} 条证据未在原文中查到，该报告的评分依据建议逐条人工复核` }
+        : supportRate >= 0.8
+          ? { level: 'ok', label: '证据扎实', color: '#16a34a', desc: '各维度引用的原文均可查证' }
+          : { level: 'mid', label: '证据偏薄', color: '#d97706', desc: '部分维度缺少原文引据，建议补充后再定分' },
     };
   }
 
   AG.reliability = {
-    cronbachAlpha, bootstrap, jackknife, audit, lengthBias, evidenceAudit,
+    cronbachAlpha, stability, jackknife, audit, lengthBias, evidenceAudit,
     mean, variance, stdev, pearson, quantile, alphaGrade, stabilityGrade,
   };
 })(window);
