@@ -120,8 +120,9 @@
         <button class="btn sm" data-simscope="crossUser">跨提交者</button>
       </div>
       <p class="hint" style="margin-bottom:10px" id="simScopeNote">
-        查重范围<b>尚未定稿</b>（需求待确认）。当前默认「当前批次内」：不区分提交者，两两比较。
-        切到「跨提交者」后，仅当相似文档来自不同提交者时才判定为可疑。
+        查重范围<b>做成开关，需求层面尚未定稿</b>，所以这里如实标注，不替需求拍板。
+        默认「当前批次内」：不区分提交者，两两比较。切到「跨提交者」后，仅当相似文档来自不同提交者时才判定为可疑；
+        提交者信息缺失时无法判定跨人，保守起见仍计入可疑并标注待确认。
       </p>
       <div id="simBox">
         <div class="empty" style="padding:34px 20px">
