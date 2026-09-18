@@ -137,6 +137,9 @@
       ? AG.theme.MASCOT_HEAD
       : '<span class="txt">AG</span>';
     $('#logoBox').classList.toggle('is-art', !!toon && AG.theme.HAS_MASCOT);
+    // 顶栏头像是 innerHTML 重建的，重建后重新挂一次互动
+    // （44px 太小，眼睛层不参与，只做倾斜 + 点击）
+    if (AG.pet) AG.pet.attachAll();
   }
 
   function setupAppearance() {
@@ -453,6 +456,8 @@
           <button class="btn primary" id="btnGradeEmpty" disabled>开始评分</button>
         </div></div>`;
       bindResultButtons();
+      // 空状态的吉祥物插画是 innerHTML 重建的，重建后重新挂一次互动
+      if (AG.pet) AG.pet.attachAll();
       return;
     }
 
@@ -2364,6 +2369,8 @@
     // 提前把吉祥物解码成 Image，供 PDF 导出的 Canvas 同步绘制用
     // （导出流程是同步的，不能在那里等图片 onload）
     if (AG.mascots && AG.mascots.load) AG.mascots.load();
+    // 吉祥物互动：全局指针监听只注册一次，之后由 renderLogo / renderResult 负责挂载
+    if (AG.pet) AG.pet.start();
     setupAppearance();
     updateChatMode();
     refreshEngineBadge();

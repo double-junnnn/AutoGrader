@@ -673,6 +673,77 @@ table.tb input { padding: 5px 8px; }
 .logo .mascot:hover { transform: rotate(-6deg) scale(1.06); }
 .logo .mascot { transition: transform .2s; }
 
+/* ---------- 吉祥物互动（Pet Mode，见 mascot-pet.js） ----------
+ * 倾斜作用在 .pet 容器上，img 自带的 bob 浮动（transform 关键帧）不受影响；
+ * 瞳仁 / 眼皮是按位图比例定位的 DOM 叠层，任何显示尺寸都对齐。 */
+.pet { position: relative; display: inline-block; cursor: pointer; }
+.pet {
+  transform: perspective(560px)
+             rotateY(calc(var(--px, 0) * 5deg))
+             rotateX(calc(var(--py, 0) * -4deg))
+             translateY(var(--lift, 0px))
+             scale(var(--hop, 1));
+  transform-origin: 50% 75%;
+  transition: transform .18s ease-out;
+  will-change: transform;
+}
+.pet:hover { --hop: 1.04; }
+.pet.hop { --hop: 1.07; --lift: -7px; transition-duration: .1s; }
+
+/* 瞳仁：盖在原图眼睛上，颜色取样自原瞳仁（深棕黑），直径约为原瞳仁的 96%。
+   --dx/--dy 由 JS 按指针方向写入（±3.4px 左右），眼珠就跟着指针转了。
+   尺寸与 mascot-pet.js 的 PUPIL_W / PUPIL_H 常量一一对应，改一处要同步另一处。 */
+.pet-pupil {
+  position: absolute; width: 15.6%; height: 8.8%; z-index: 2;
+  transform: translate(-50%, -50%) translate(var(--dx, 0px), var(--dy, 0px));
+  border-radius: 50%; background: #452a22;
+  transition: transform .1s ease-out;
+  pointer-events: none;
+}
+/* 瞳仁左上角的高光点 —— 没有它，眼睛是死的 */
+.pet-pupil::after {
+  content: ''; position: absolute; left: 22%; top: 18%;
+  width: 30%; height: 30%; border-radius: 50%; background: rgba(255, 255, 255, .92);
+}
+
+/* 眼皮：肤色椭圆平时收成一条线（scaleY 0），眨眼瞬间放开盖住整只眼睛。
+   边缘用径向渐变淡出 —— 纯色椭圆的硬边会像在脸上贴了张纸；
+   中间那道弧是闭眼时的睫毛线，没有它，闭眼就只是"眼睛不见了"。 */
+.pet-lid {
+  position: absolute; width: 27%; height: 17%; z-index: 3;
+  transform: translate(-50%, -50%) scaleY(0);
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center,
+    #f7d2ab 68%, rgba(247, 210, 171, .92) 80%, rgba(247, 210, 171, 0) 100%);
+  transition: transform .09s ease-in;
+  pointer-events: none;
+}
+.pet-lid::after {
+  content: ''; position: absolute; left: 17%; right: 17%; top: 44%; height: 10%;
+  border-top: 2.5px solid #4a2c24; border-radius: 50%;
+}
+.pet.wink .pet-lid { transform: translate(-50%, -50%) scaleY(1); }
+
+/* 吐槽气泡：卡通主题的粗描边卡片腔，从小放大冒出 */
+.pet-bubble {
+  position: absolute; left: 50%; bottom: calc(100% + 8px); z-index: 5;
+  transform: translateX(-50%) translateY(6px) scale(.9);
+  background: #fffdf6; border: 2px solid #100c09; border-radius: 12px;
+  padding: 7px 12px; font-size: 12.5px; line-height: 1.45; color: #100c09;
+  white-space: nowrap; opacity: 0; pointer-events: none;
+  box-shadow: 3px 3px 0 rgba(16, 12, 9, .18);
+  transition: opacity .16s ease, transform .16s ease;
+}
+.pet-bubble::after {
+  content: ''; position: absolute; left: 50%; top: 100%;
+  transform: translateX(-50%);
+  border: 6px solid transparent; border-top-color: #100c09;
+}
+.pet-bubble.show { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+@media (prefers-reduced-motion: reduce) {
+  .pet, .pet-pupil, .pet-lid { transition: none; }
+}
+
 /* ---------- 卡通主题：按钮手感（按下会"陷"下去） ---------- */
 :root[data-theme="toon"] .btn { border-width: 2.5px; font-weight: 700; }
 :root[data-theme="toon"] .btn:not(:disabled):hover { transform: translate(-1px, -1px); box-shadow: 3px 3px 0 var(--ink-line); }
