@@ -803,7 +803,6 @@ node tools/scan-banned-words.mjs
 cd .. && git add -A && git commit -m "…" && git push
 ```
 
-> 详细步骤（建仓、Pages 配置、协作成员管理）见仓库根目录的 `推送GitHub.md`。
 
 ### 13.2 其他托管
 
