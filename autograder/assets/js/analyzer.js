@@ -4,12 +4,15 @@
  * 本模块原先的本地启发式评分引擎（grade / scoreDimension / qualityFactor /
  * STRUCT_BOOST / depthCap）已整体移除，理由写在文末「为什么删」。
  *
- * 现在它只做三件**不产生分数**的事：
+ * 现在它只做两件**不产生分数**的事：
  *   1. 文体门禁 genreCheck —— 回答「这东西能不能评」（闸门，不是分）
- *   2. 查重 similarity —— 回答「这些文档之间像不像」（比对，不是分）
- *   3. 证据核验 verifyEvidence —— 回答「模型引用的原文是不是编的」（查证，不是分）
+ *   2. 证据核验 verifyEvidence —— 回答「模型引用的原文是不是编的」（查证，不是分）
  *
- * 三件事的共同点：都是**可判定的事实核查**，而不是对质量的估值。
+ * 【2026-09 二轮变更】查重 similarity 已移除：面向老师评分场景，
+ * 查重不是评分链路的一环，且容易让老师把「本批次内相似」误读为「确认抄袭」。
+ * 相关 UI（批量页相似度矩阵 / 热力图）与知识库条目一并删除。
+ *
+ * 两件事的共同点：都是**可判定的事实核查**，而不是对质量的估值。
  * 关键词匹配做事实核查尚可（"这段话里有没有'误差分析'四个字"是有标准答案的），
  * 用它给质量估值则不可靠（"提到了就算写到"会漏掉写得对不对）。
  */
@@ -155,83 +158,6 @@
   }
 
   /* ============================================================
-   * 二、查重（Similarity）
-   * ------------------------------------------------------------
-   * 需求计划待确认问题③「查重范围界定」→ 结论：暂不界定，先做成可切换的开关。
-   * 原需求原文：「同一文档来自不同用户提交时才触发查重；当前版本仅面向单一用户，
-   *              功能范围待定。」
-   *
-   * 所以这里不预设答案，而是把两种范围都实现好，默认跑「当前批次」，
-   * 等范围定下来切一下 scope 即可——比现在拍脑袋定死一个范围更稳。
-   *   batch     当前批次内两两比较（默认，单人场景够用）
-   *   crossUser 仅当高度相似的文档来自**不同提交者**时才计入可疑
-   * ============================================================ */
-
-  const SCOPES = {
-    batch: { id: 'batch', label: '当前批次内', desc: '比较本批次录入的全部文档，不区分提交者' },
-    crossUser: { id: 'crossUser', label: '跨提交者', desc: '仅当相似文档来自不同提交者时判定为可疑' },
-  };
-
-  /** 可疑阈值：5-gram Jaccard ≥ 0.45。定得比"逐字复制"松，因为改写也算抄。 */
-  const SUSPICION_THRESHOLD = 0.45;
-
-  /**
-   * 计算文档两两相似度（5-gram Jaccard）
-   * @param {Array} docs  [{ text, submitter? }]
-   * @param {Object} opts { scope: 'batch'|'crossUser', threshold: number }
-   * @returns {{matrix:number[][], pairs:Array, suspicious:Array, scope:string, scopeLabel:string}}
-   */
-  function similarity(docs, opts) {
-    opts = opts || {};
-    const scope = SCOPES[opts.scope] ? opts.scope : 'batch';
-    const threshold = opts.threshold == null ? SUSPICION_THRESHOLD : Number(opts.threshold);
-
-    const sets = docs.map((d) => U.shingles(d.text, 5));
-    const n = docs.length;
-    const matrix = [];
-    const pairs = [];
-    for (let i = 0; i < n; i++) {
-      matrix[i] = [];
-      for (let j = 0; j < n; j++) {
-        const v = i === j ? 1 : U.jaccard(sets[i], sets[j]);
-        matrix[i][j] = U.round(v, 3);
-        if (j > i) {
-          pairs.push({
-            a: i, b: j, value: U.round(v, 3),
-            aName: docs[i].name, bName: docs[j].name,
-            aSubmitter: docs[i].submitter || null,
-            bSubmitter: docs[j].submitter || null,
-          });
-        }
-      }
-    }
-    pairs.sort((x, y) => y.value - x.value);
-
-    /* 跨提交者模式：同一人自己交的两版相似文档不算抄袭，过滤掉 */
-    const crossUserApplied = scope === 'crossUser';
-    const suspicious = pairs.filter((p) => {
-      if (p.value < threshold) return false;
-      if (!crossUserApplied) return true;
-      const sa = p.aSubmitter, sb = p.bSubmitter;
-      // 提交者信息缺失时无法判定「跨人」，保守起见仍计入可疑并标注待确认
-      if (!sa || !sb) return true;
-      return sa !== sb;
-    });
-
-    return {
-      matrix, pairs, suspicious,
-      scope,
-      scopeLabel: SCOPES[scope].label,
-      threshold,
-      // 范围待定：原需求里跨用户维度尚未定稿，UI 需要如实告知而不是假装结论已定
-      scopeNote: crossUserApplied
-        ? '跨提交者模式：仅当相似文档来自不同提交者时判定为可疑；未标注提交者的文档一律计入，需人工确认。'
-        : '当前批次模式：不区分提交者，两两比较。查重范围尚未定稿，可在设置中切换。',
-      pendingScope: true,
-    };
-  }
-
-  /* ============================================================
    * 三、证据核验（Evidence Verification）
    * ------------------------------------------------------------
    * 本地评分砍掉之后，本地计算唯一还值得保留的升级方向就是**给模型挑错**。
@@ -308,15 +234,143 @@
    *    原实现只能靠弹一句"我不擅长英文"免责，等于把缺陷转嫁给用户。
    * 4. 维护成本：每加一个专业方向就要补一套词典，而模型的零样本泛化是免费的。
    *
-   * 保留下来的三类能力（门禁 / 查重 / 证据核验）都是**事实核查**而非**质量估值**，
+   * 保留下来的两类能力（门禁 / 证据核验）都是**事实核查**而非**质量估值**，
    * 关键词匹配干这个活是称职的。
    * ============================================================ */
 
+  /* ============================================================
+   * 客观事实层（objectiveFacts）—— 只报事实，不给分
+   * ------------------------------------------------------------
+   * 这一层回答的是「报告里有没有 / 有几处 / 连不连续」这类**可机器裁决**的问题：
+   *   · 代码块有几个、多少行、含不含函数/类定义
+   *   · 图、表分别编号到几号，编号有没有断号或重号
+   *   · 正文提到「图 3」但根本没有图 3 —— 这类引用悬空
+   *   · 数据点密度
+   * 这些结论和模型的语义判断**互不重叠**：模型说"结果部分充实"，
+   * 这一层说"正文引用了图 5、表 4，实际只有 3 张图 2 张表"。
+   * 因此它可以作为独立的第二信源摆给老师看，而不是去和模型抢打分权。
+   *
+   * 关键约束：**绝不输出分数**。一旦给分就成了劣质裁判，
+   * 只会用一个更差的口径去干扰模型判断（详见下方存档说明）。
+   * ============================================================ */
+  function objectiveFacts(text, features) {
+    const raw = String(text || '');
+    const f = features || {};
+    const facts = [];
+    const push = (kind, level, label, detail) => facts.push({ kind, level, label, detail });
+
+    /* ── 1. 代码块 ── */
+    const fences = raw.match(/```[\s\S]*?```/g) || [];
+    const codeBody = fences.map((b) => b.replace(/^```[^\n]*\n?/, '').replace(/```$/, ''));
+    const codeLines = codeBody.reduce((a, b) => a + b.split('\n').filter((l) => l.trim()).length, 0);
+    const hasDef = /```[\s\S]*?(function\s+\w+|def\s+\w+|class\s+\w+|public\s+\w+\s+\w+\s*\()/.test(raw);
+    if (fences.length) {
+      push('code', 'ok', `代码块 ${fences.length} 个、有效代码 ${codeLines} 行`,
+        hasDef ? '含函数/类定义，属可运行实现' : '未见函数或类定义，可能是伪代码或片段');
+    } else {
+      push('code', 'warn', '未检出代码块', '若本实验要求编程实现，此报告缺少可核对的代码');
+    }
+
+    /* ── 2. 图表编号连续性 ── */
+    const figNums = collectNums(raw, /图\s*(\d{1,2})/g);
+    const tabNums = collectNums(raw, /表\s*(\d{1,2})/g);
+    checkNumbering(figNums, '图', push);
+    checkNumbering(tabNums, '表', push);
+    if (!figNums.length && !tabNums.length) {
+      push('figure', (f.figureCount || 0) + (f.tableCount || 0) ? 'warn' : 'info',
+        '正文未出现「图 N / 表 N」编号', '实验数据若以表格/截图呈现，规范写法应带编号并在正文引用');
+    }
+
+    /* ── 3. 悬空引用：正文引用了不存在的编号 ──
+     * 注意判定口径：只有**成系列**的编号才判悬空。
+     * 「图 1、图 5」可能只是作者跳号引用自己关注的两张图，未必是漏贴；
+     * 但如果出现「图 3」却没有图 2，前面的编号序列就断了 —— 那才值得提醒。
+     * 判据统一为：最大编号之前的缺号，且缺号数量占比达到 1/3 以上。 */
+    const dangling = [];
+    [[figNums, '图'], [tabNums, '表']].forEach(([nums, kind]) => {
+      if (nums.length < 2) return;   // 只出现一个编号时无从判断序列，不臆测
+      const max = Math.max.apply(null, nums);
+      const gaps = [];
+      for (let i = 1; i <= max; i++) if (nums.indexOf(i) < 0) gaps.push(i);
+      // 缺号太多（超过 1/3）= 本来就不是连续编号体系，不是"漏了"；缺一点点才是真断号
+      if (gaps.length && gaps.length <= Math.max(1, Math.floor(max / 3))) {
+        dangling.push(...gaps.map((g) => kind + g));
+      }
+    });
+    if (dangling.length) {
+      push('dangling', 'warn', `编号疑似断号：${dangling.join('、')}`,
+        '正文出现了这些编号之前的序号，但中间缺号，常见于删改图表后未重排编号');
+    }
+
+    /* ── 4. 数据点密度：只报事实，不做"多即好"的推断 ── */
+    const words = f.words || 0;
+    const nums = f.numberCount || 0;
+    const per100 = words ? Math.round((nums / words) * 10000) / 100 : 0;
+    if (words) {
+      push('data', nums >= 8 ? 'ok' : nums >= 3 ? 'info' : 'warn',
+        `量化数据 ${nums} 处（每千字 ${per100} 处）`,
+        nums >= 8 ? '数据密度足以支撑结果分析' : '数据偏少，结论可能缺少实测支撑');
+    }
+
+    /* ── 5. 结构：必备章节是否出现 ── */
+    const sect = [
+      ['实验目的|实验目标|实验背景', '实验目的'],
+      ['实验环境|开发环境|运行环境|软件环境', '实验环境'],
+      ['实验原理|算法原理|理论基础|基本原理', '原理说明'],
+      ['实验结果|运行结果|测试结果|实验数据', '结果数据'],
+      ['结果分析|分析讨论|分析与讨论|讨论', '分析讨论'],
+      ['实验总结|总结|心得|反思', '总结'],
+    ];
+    const missingSect = sect.filter(([re]) => !new RegExp(re).test(raw)).map(([, n]) => n);
+    if (missingSect.length) {
+      push('section', missingSect.length >= 3 ? 'warn' : 'info',
+        `未检出章节：${missingSect.join('、')}`,
+        '依据标题文字判断，若使用了非常规标题命名则可能误判');
+    } else {
+      push('section', 'ok', '六类必备章节齐全', '');
+    }
+
+    return {
+      facts,
+      warnCount: facts.filter((x) => x.level === 'warn').length,
+      okCount: facts.filter((x) => x.level === 'ok').length,
+      // 悬空引用是"硬事实"，单独提出来给渲染层做重点提示
+      dangling,
+      codeLines,
+      figureNumbers: figNums,
+      tableNumbers: tabNums,
+    };
+  }
+
+  /** 抓取「图 3 / 表 2」这类编号，去重后升序返回 */
+  function collectNums(text, re) {
+    const out = [];
+    let m;
+    const r = new RegExp(re.source, 'g');
+    while ((m = r.exec(text))) {
+      const n = parseInt(m[1], 10);
+      if (n > 0 && n <= 50 && out.indexOf(n) < 0) out.push(n);
+    }
+    return out.sort((a, b) => a - b);
+  }
+
+  /** 编号连续性检查：缺号 / 重号 */
+  function checkNumbering(nums, kind, push) {
+    if (!nums.length) return;
+    const max = Math.max.apply(null, nums);
+    const gaps = [];
+    for (let i = 1; i <= max; i++) if (nums.indexOf(i) < 0) gaps.push(i);
+    if (gaps.length) {
+      push('numbering', 'warn', `${kind}编号不连续，缺 ${gaps.join('、')}`,
+        `${kind}编号共出现 ${nums.length} 个（最大到 ${kind}${max}），中间缺号常见于删改后未重排`);
+    } else {
+      push('numbering', 'ok', `${kind}编号 1–${max} 连续`, '');
+    }
+  }
+
   AG.analyzer = {
     genreCheck,
-    similarity,
     verifyEvidence,
-    SCOPES,
-    SUSPICION_THRESHOLD,
+    objectiveFacts,
   };
 })(window);

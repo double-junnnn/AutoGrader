@@ -128,90 +128,64 @@
     return svg;
   }
 
-  /** 半环仪表盘：展示总分 */
+  /**
+   * 半环仪表盘：展示总分。
+   * 「评阅副驾驶」定位下，分数不再是单点，而是一个区间 [lo, hi]：
+   * 深色实弧 = 区间下界（保底分），浅色延伸弧 = 区间上界（上限分），
+   * 中间额外描一条刻度指向当前采用的分数。老师看到的是「这份报告大概在 68~74 之间」，
+   * 而不是一个假装精确的 71.3。
+   */
   function gauge(total, opts) {
     opts = opts || {};
     const w = opts.size || 260, h = (opts.size || 260) * 0.62;
     const cx = w / 2, cy = h * 0.92, r = w * 0.38;
+    const range = opts.range;              // [lo, hi]，可能为 null
+    const lo = range && range.length === 2 ? U.clamp(range[0], 0, 100) : total;
+    const hi = range && range.length === 2 ? U.clamp(range[1], 0, 100) : total;
     const g = AG.rubric.gradeOf(total);
 
     const svg = svgEl('svg', {
       viewBox: `0 0 ${w} ${h}`, class: 'chart-gauge',
       style: `width:100%;height:auto;max-width:${w}px;display:block;margin:0 auto`,
     });
-    const arc = (from, to, color, width) => {
+    const arc = (from, to, color, width, opacity) => {
       const a0 = Math.PI * (1 - from), a1 = Math.PI * (1 - to);
       const x0 = cx + r * Math.cos(a0), y0 = cy - r * Math.sin(a0);
       const x1 = cx + r * Math.cos(a1), y1 = cy - r * Math.sin(a1);
       return svgEl('path', {
         d: `M ${x0} ${y0} A ${r} ${r} 0 0 1 ${x1} ${y1}`,
         fill: 'none', stroke: color, 'stroke-width': width || 14, 'stroke-linecap': 'round',
+        opacity: opacity == null ? 1 : opacity,
       });
     };
     svg.appendChild(arc(0, 1, PAL.track(.18), 14));
-    svg.appendChild(arc(0, U.clamp(total / 100, 0.001, 1), g.color, 14));
+    // 区间上限（浅）：先画浅的一层铺满到上界
+    if (hi > lo) svg.appendChild(arc(0, U.clamp(hi / 100, 0.001, 1), g.color, 14, 0.3));
+    // 区间下界（实）：保底分用实弧
+    svg.appendChild(arc(0, U.clamp(lo / 100, 0.001, 1), g.color, 14, 1));
 
-    const num = svgEl('text', { x: cx, y: cy - 22, 'text-anchor': 'middle', 'font-size': 44, 'font-weight': 800, fill: g.color });
-    num.textContent = total;
+    const showRange = hi > lo;
+    // 有区间时字号收一档，给「68–74」留出宽度
+    const num = svgEl('text', {
+      x: cx, y: cy - 22, 'text-anchor': 'middle',
+      'font-size': showRange ? 36 : 44, 'font-weight': 800, fill: g.color,
+    });
+    num.textContent = showRange ? `${U.round(lo, 0)}–${U.round(hi, 0)}` : String(total);
     svg.appendChild(num);
     const lab = svgEl('text', { x: cx, y: cy - 2, 'text-anchor': 'middle', 'font-size': 13, fill: PAL.muted() });
-    lab.textContent = `${g.grade} 级 · ${g.label}`;
+    // 踩在等级边界上时，两个等级名一起给出，避免"到底算 B 还是 C"的争议
+    lab.textContent = opts.gradeStraddle
+      ? `${opts.gradeStraddle} 级之间 · 区间跨等级边界`
+      : `${g.grade} 级 · ${g.label}`;
     svg.appendChild(lab);
-    return svg;
-  }
-
-  /** 相似度热力图 */
-  function heatmap(matrix, names) {
-    const n = names.length;
-    const cell = 46, pad = 100;
-    const w = pad + cell * n, h = pad + cell * n + 8;
-    const svg = svgEl('svg', {
-      viewBox: `0 0 ${w} ${h}`,
-      style: `max-width:${Math.min(w, 560)}px;width:100%;height:auto;display:block`,
-    });
-
-    const color = (v) => {
-      if (v >= 0.75) return PAL.red();
-      if (v >= 0.55) return '#f97316';
-      if (v >= 0.35) return '#f59e0b';
-      if (v >= 0.18) return '#38bdf8';
-      return PAL.track(.22);
-    };
-
-    names.forEach((nm, i) => {
-      const ry = svgEl('text', { x: pad - 8, y: pad + cell * i + cell / 2 + 4, 'text-anchor': 'end', 'font-size': 11, fill: PAL.muted() });
-      ry.textContent = nm.length > 8 ? nm.slice(0, 8) + '…' : nm;
-      svg.appendChild(ry);
-      const cxt = svgEl('text', {
-        x: pad + cell * i + cell / 2, y: pad - 8, 'text-anchor': 'middle', 'font-size': 11, fill: PAL.muted(),
-        transform: `rotate(-38 ${pad + cell * i + cell / 2} ${pad - 8})`,
-      });
-      cxt.textContent = nm.length > 8 ? nm.slice(0, 8) + '…' : nm;
-      svg.appendChild(cxt);
-    });
-
-    for (let i = 0; i < n; i++) {
-      for (let j = 0; j < n; j++) {
-        const v = matrix[i][j];
-        const rect = svgEl('rect', {
-          x: pad + cell * j, y: pad + cell * i, width: cell - 2, height: cell - 2, rx: 5,
-          fill: i === j ? PAL.track(.12) : color(v),
-        });
-        rect.appendChild(svgEl('title', {})).textContent = `${names[i]} × ${names[j]}：${(v * 100).toFixed(1)}%`;
-        svg.appendChild(rect);
-        if (i !== j) {
-          const t = svgEl('text', {
-            x: pad + cell * j + cell / 2, y: pad + cell * i + cell / 2 + 4,
-            'text-anchor': 'middle', 'font-size': 11, 'font-weight': 600,
-            fill: v >= 0.35 ? '#fff' : PAL.ink2(),
-          });
-          t.textContent = Math.round(v * 100);
-          svg.appendChild(t);
-        }
-      }
+    if (showRange) {
+      const sub = svgEl('text', { x: cx, y: cy + 16, 'text-anchor': 'middle', 'font-size': 11, fill: PAL.muted() });
+      sub.textContent = `本档取值 ${total} 分 · 老师可在此区间内终评`;
+      svg.appendChild(sub);
     }
     return svg;
   }
+
 
   /**
    * Bootstrap 分布直方图 + 置信区间带
@@ -417,5 +391,5 @@
     return svg;
   }
 
-  AG.charts = { radar, gauge, heatmap, bootstrapBand, divergence, rubricCompare };
+  AG.charts = { radar, gauge, bootstrapBand, divergence, rubricCompare };
 })(window);

@@ -32,7 +32,8 @@
   const C_PRINT = {
     page: '#ffffff', ink: '#0a1020', body: '#2b3550', sub: '#4e597a', faint: '#94a3b8',
     line: '#e2e8f0', line2: '#cbd5e1', wash: '#f6f8fb', brand: '#2563eb', brandSoft: '#eff6ff',
-    amber: '#b45309', red: '#b91c1c', dark: false, toon: false,
+    amber: '#b45309', red: '#b91c1c', green: '#15803d', amberSoft: '#fffbeb',
+    dark: false, toon: false,
   };
   /* 当前生效配色。默认跟随界面主题（用户可选），打开「打印友好」开关则锁定浅色基线。 */
   let C = Object.assign({}, C_PRINT);
@@ -48,7 +49,7 @@
       ink: p.ink, body: p.ink2, sub: p.muted, faint: p.muted,
       line: p.line, line2: p.line, wash: p.surface2,
       brand: p.brand, brandSoft: p.brandSoft,
-      amber: p.amber, red: p.red,
+      amber: p.amber, red: p.red, green: p.green || C_PRINT.green, amberSoft: p.warnSoft || C_PRINT.amberSoft,
       dark: !!p.dark, toon: p.id === 'toon',
     };
     return C;
@@ -330,24 +331,32 @@
     b.gap(12);
   }
 
+  /**
+   * 成绩面板。
+   * 「评阅副驾驶」定位下，这里给出的是**建议得分区间**而不是一个孤零零的分数：
+   * 左侧大字显示区间（如 68–74），右侧给出本档取值与等级，并说明区间是否跨等级。
+   * 老师拿这份 PDF 直接就能在区间内定分，不必反过来猜模型为什么给 71.3。
+   */
   function drawScore(b, r) {
     const p = r.total / 100;
     const color = r.gradeColor || ratioColor(p);
-    b.panel(92, (ctx, top) => {
-      // 左侧总分
-      ctx.font = `700 44px ${FONT}`;
+    const hasRange = Array.isArray(r.range) && r.range.length === 2 && r.range[1] > r.range[0];
+    b.panel(hasRange ? 108 : 92, (ctx, top) => {
+      // 左侧：区间（有）或总分（无）
+      const bigTxt = hasRange ? `${r.range[0]}–${r.range[1]}` : String(r.total);
+      ctx.font = `700 ${hasRange ? 38 : 44}px ${FONT}`;
       ctx.fillStyle = color;
-      ctx.fillText(String(r.total), M + 24, top + 60);
-      const wScore = ctx.measureText(String(r.total)).width;
+      ctx.fillText(bigTxt, M + 24, top + 60);
+      const wScore = ctx.measureText(bigTxt).width;
       ctx.font = `500 13px ${FONT}`;
       ctx.fillStyle = C.sub;
       ctx.fillText('/ 100', M + 24 + wScore + 7, top + 60);
 
       ctx.font = `600 13px ${FONT}`;
       ctx.fillStyle = C.faint;
-      ctx.fillText('综合得分', M + 24, top + 79);
+      ctx.fillText(hasRange ? '建议得分区间' : '综合得分', M + 24, top + 79);
 
-      // 右侧等级 + 条
+      // 右侧：等级 + 达成分条
       const rx = M + 210;
       const rw = CW - 210 - 24;
       ctx.font = `700 22px ${FONT}`;
@@ -362,6 +371,15 @@
       ctx.font = `500 11px ${FONT}`;
       ctx.fillStyle = C.sub;
       ctx.fillText(`达成率 ${Math.round(p * 100)}%`, rx, top + 78);
+
+      if (hasRange) {
+        ctx.font = `500 11px ${FONT}`;
+        ctx.fillStyle = C.faint;
+        const note = r.straddles
+          ? `本档取值 ${r.total} 分 · 区间横跨 ${r.gradeStraddle || ''} 两个等级，最终等级由教师裁定`
+          : `本档取值 ${r.total} 分 · 教师可在区间内终评`;
+        ctx.fillText(note, M + 24, top + 99);
+      }
     });
   }
 
@@ -380,7 +398,7 @@
     b.text('分项得分', { size: 13.5, weight: 700, color: C.ink, lh: 24 });
     b.gap(6);
 
-    const wName = 210, wScore = 84, wBar = CW - wName - wScore - 16;
+    const wName = 178, wLevel = 96, wScore = 84, wBar = CW - wName - wLevel - wScore - 16;
     const ctx0 = b.ctx();
 
     // 表头
@@ -392,8 +410,9 @@
     ctx.font = `600 11px ${FONT}`;
     ctx.fillStyle = C.sub;
     ctx.fillText('评分维度', M + 12, b.y + 17);
-    ctx.fillText('得分', M + wName + 12, b.y + 17);
-    ctx.fillText('达成率', M + wName + wScore + 12, b.y + 17);
+    ctx.fillText('档位', M + wName + 12, b.y + 17);
+    ctx.fillText('得分', M + wName + wLevel + 12, b.y + 17);
+    ctx.fillText('达成率', M + wName + wLevel + wScore + 12, b.y + 17);
     b.y += headH;
 
     dims.forEach((d, i) => {
@@ -416,19 +435,31 @@
       const nm = wrapText(c, d.name, wName - 16)[0] || '';
       c.fillText(nm, M + 12, top + 20);
 
+      // 档位列：档位号 + 档名（+ 跨档校正标记），让老师不必读评语就知道扣分落在哪一档
+      if (d.level) {
+        c.font = `600 11px ${FONT}`;
+        c.fillStyle = d.crossBand ? C.red : C.body;
+        c.fillText(`${d.level}档 ${d.levelName || ''}`, M + wName + 12, top + 20);
+      } else {
+        c.font = `400 11px ${FONT}`;
+        c.fillStyle = C.faint;
+        c.fillText('—', M + wName + 12, top + 20);
+      }
+
       c.font = `600 12px ${FONT}`;
       c.fillStyle = C.body;
-      c.fillText(`${d.score}`, M + wName + 12, top + 20);
+      c.fillText(`${d.score}`, M + wName + wLevel + 12, top + 20);
       const wS = c.measureText(`${d.score}`).width;
       c.font = `400 11px ${FONT}`;
       c.fillStyle = C.faint;
-      c.fillText(`/ ${d.max}`, M + wName + 12 + wS + 3, top + 20);
+      c.fillText(`/ ${d.max}`, M + wName + wLevel + 12 + wS + 3, top + 20);
 
       const p = U.clamp(d.ratio, 0, 1);
-      drawBar(c, M + wName + wScore + 12, top + 11, wBar * 0.72, 8, p, ratioColor(p));
+      const bx = M + wName + wLevel + wScore + 12;
+      drawBar(c, bx, top + 11, wBar * 0.72, 8, p, ratioColor(p));
       c.font = `500 11px ${FONT}`;
       c.fillStyle = C.sub;
-      c.fillText(`${Math.round(p * 100)}%`, M + wName + wScore + 12 + wBar * 0.72 + 8, top + 20);
+      c.fillText(`${Math.round(p * 100)}%`, bx + wBar * 0.72 + 8, top + 20);
 
       b.y += rowH;
     });
@@ -460,13 +491,63 @@
 
       ctx.font = `600 12.5px ${FONT}`;
       ctx.fillStyle = C.ink;
-      ctx.fillText(wrapText(ctx, d.name, CW - 180)[0] || '', M + 14, top + 20);
+      const nameTxt = wrapText(ctx, d.name, CW - 230)[0] || '';
+      const wName = ctx.measureText(nameTxt).width;
+      ctx.fillText(nameTxt, M + 14, top + 20);
+
+      // 档位徽标：紧挨维度名，把「落在哪一档」写在标题栏上
+      if (d.level) {
+        const lvTxt = `${d.level}档 · ${d.levelName || ''}`;
+        const crossTxt = d.crossBand ? '跨档已校正' : '';
+        ctx.font = `600 10.5px ${FONT}`;
+        const lvW = ctx.measureText(lvTxt).width + 12;
+        const crossW = crossTxt ? ctx.measureText(crossTxt).width + 8 : 0;
+        const lvX = M + 14 + wName + 10;
+        // 徽标底板
+        ctx.fillStyle = hair(0.09);
+        roundRect(ctx, lvX, top + 8, lvW + crossW, 15, 4);
+        ctx.fill();
+        ctx.fillStyle = d.crossBand ? C.red : C.sub;
+        ctx.fillText(lvTxt, lvX + 6, top + 19);
+        if (crossTxt) ctx.fillText(crossTxt, lvX + lvW, top + 19);
+      }
 
       ctx.font = `600 12.5px ${FONT}`;
       ctx.fillStyle = color;
       const scoreTxt = `${d.score} / ${d.max}`;
       ctx.fillText(scoreTxt, M + CW - 14 - ctx.measureText(scoreTxt).width, top + 20);
       b.y = top + headH + 8;
+
+      // 定档理由：一句话说明为什么落在这一档，PDF 上也能看懂扣分逻辑
+      if (d.levelReason) {
+        b.text('定档理由：' + d.levelReason, { size: 11.5, color: C.body, lh: 19 });
+      }
+
+      // 判定依据 · 报告原文：强制引用，老师可逐条回原文核对
+      const cites = (d.citations || []).filter((c) => c && c.quote);
+      if (cites.length) {
+        b.text(`判定依据 · 报告原文（${cites.length} 处）`, { size: 11, weight: 600, color: C.sub, lh: 18 });
+        cites.slice(0, 4).forEach((c) => {
+          const raw = cleanSnippet(c.quote);
+          if (!raw) return;
+          const clipped = raw.length > 170 ? raw.slice(0, 170) + '…' : raw;
+          const q = '“' + clipped + '”' + (c.where ? `（${c.where}）` : '');
+          const qh = b.measure(q, { size: 10.5, lh: 17, indent: 22 });
+          b.ensure(qh + 6);
+          const c2 = b.ctx();
+          c2.fillStyle = hair(0.06);
+          roundRect(c2, M + 16, b.y - 2, CW - 20, qh + 4, 4);
+          c2.fill();
+          c2.fillStyle = C.brand;
+          c2.fillRect(M + 16, b.y - 2, 2.5, qh + 4);
+          b.text(q, { size: 10.5, color: C.sub, lh: 17, indent: 22 });
+        });
+        b.gap(3);
+      } else {
+        // 没给原文引用 = 扣分理由不可核对，明确标注出来，而不是悄悄省略
+        b.text('⚠ 本维度未给出报告原文引用，扣分理由无法当场核对，建议人工复核',
+          { size: 11, color: C.amber, lh: 18 });
+      }
 
       // 命中证据
       const evs = (d.evidence || []).filter((e) => e);
@@ -515,11 +596,61 @@
 
   function estimateDetailHeight(b, d) {
     let h = 30 + 8;
+    if (d.levelReason) h += 19;
+    if (d.citations && d.citations.length) h += 18 + Math.min(d.citations.length, 4) * 34;
+    else h += 18;
     if (d.evidence && d.evidence.length) h += 18 + d.evidence.length * 36;
     if (d.missing && d.missing.length) h += 19;
     if (d.penalties && d.penalties.length) h += 19;
     if (d.comment) h += 19;
     return h;
+  }
+
+  /**
+   * 本地事实核对（PDF 版）。
+   * 与网页端一致：这是不依赖模型的独立信源，因此用虚线框、独立小标题与模型评语区分开，
+   * 并明确写出"不参与打分"，避免老师误以为这也是模型的判断。
+   */
+  function drawFacts(b, doc) {
+    if (!doc || !doc.text || !AG.analyzer.objectiveFacts) return;
+    let r;
+    try { r = AG.analyzer.objectiveFacts(doc.text, doc.features); } catch (e) { return; }
+    if (!r || !r.facts || !r.facts.length) return;
+
+    b.ensure(70);
+    b.gap(18);
+    b.text('本地事实核对', { size: 13.5, weight: 700, color: C.ink, lh: 24 });
+    b.gap(2);
+    b.text('由本机直接读取报告文本判定，不依赖模型、不参与打分 —— 供您与模型评语交叉验证',
+      { size: 10.5, color: C.faint, lh: 17 });
+    b.gap(6);
+
+    if (r.dangling.length) {
+      b.ensure(34);
+      const dh = b.measure(
+        `⚠ 检出悬空引用 ${r.dangling.length} 处（${r.dangling.join('、')}）：正文引用了这些编号，全文却找不到对应图表。`,
+        { size: 11, lh: 18, indent: 10 });
+      b.ensure(dh + 12);
+      const c0 = b.ctx();
+      c0.fillStyle = C.amberSoft;
+      roundRect(c0, M, b.y - 3, CW, dh + 8, 5);
+      c0.fill();
+      c0.fillStyle = C.amber;
+      c0.fillRect(M, b.y - 3, 3, dh + 8);
+      b.text(`⚠ 检出悬空引用 ${r.dangling.length} 处（${r.dangling.join('、')}）：正文引用了这些编号，全文却找不到对应图表。`,
+        { size: 11, color: C.amber, lh: 18, indent: 10 });
+      b.gap(5);
+    }
+
+    r.facts.forEach((f) => {
+      const mark = f.level === 'warn' ? '⚠' : f.level === 'ok' ? '✓' : '·';
+      const color = f.level === 'warn' ? C.red : f.level === 'ok' ? C.green : C.sub;
+      const line = `${mark} ${f.label}`;
+      b.ensure(18);
+      b.text(line, { size: 11.5, color: color, lh: 18 });
+      if (f.detail) b.text(f.detail, { size: 10.5, color: C.faint, lh: 16, indent: 14 });
+    });
+    b.gap(8);
   }
 
   /** 页脚（所有页统一补画，故最后执行） */
@@ -636,6 +767,7 @@
       drawOverall(b, r);
       drawDimTable(b, r.dims || []);
       drawDetails(b, r.dims || []);
+      drawFacts(b, doc);
     });
     stampFooters(b, 'AutoGrader 自动生成 · 粤港澳大湾区 AI Coding 创新大赛参赛作品');
     // 逐页编码。每 4 页让出一次主线程：一个班的量（数十页）若全程占满，
@@ -654,5 +786,171 @@
     return blob;
   }
 
-  AG.pdf = { render, exportDocs, buildPdf };
+  /* ---------------- 成绩表 PDF（一行一份，登分 / 归档用） ----------------
+   * 与「评阅报告 PDF」是两种东西：
+   *   - 评阅报告：一份报告一段，含逐维度得分、证据、评语 —— 给学生看 / 存档。
+   *   - 成绩表：一张表把所有报告列完，含总分/等级/各维度分 —— 给老师登分用。
+   * 老师登分时真正需要的是「能打印、能对着抄、能一眼看出谁不及格」，
+   * 所以这里刻意做窄：不画证据、不写长评语，只保证列对齐、行不错位。
+   */
+  function drawScoreHeader(b, n, stats) {
+    const ctx0 = b.ctx();
+    ctx0.font = `800 19px ${FONT}`;
+    ctx0.fillStyle = C.ink;
+    ctx0.fillText('成绩表', M, b.y + 14);
+    b.y += 26;
+    ctx0.font = `400 10.5px ${FONT}`;
+    ctx0.fillStyle = C.sub;
+    ctx0.fillText('共 ' + n + ' 份 · 平均 ' + stats.avg.toFixed(1) +
+      ' 分 · 最高 ' + stats.max + ' · 最低 ' + stats.min +
+      ' · 及格率 ' + stats.passRate + '%（≥60 分 ' + stats.passN + ' 份）', M, b.y + 6);
+    b.y += 18;
+    b.rule(C.line2);
+    b.y += 6;
+  }
+
+  /** 维度列的最小可用宽度：低于它就干脆不铺开（8 维时约 0.0525，正常场景够用） */
+  const DIM_MIN_W = 0.05;
+
+  /** 表头一行；返回列定义供后续行复用 */
+  function scoreColumns(hasDims, dimNames) {
+    const cols = [
+      { key: 'name', label: '报告名称', w: hasDims ? 0.22 : 0.34, align: 'left' },
+      { key: 'total', label: '得分', w: 0.10, align: 'center' },
+      { key: 'range', label: '建议区间', w: 0.13, align: 'center' },
+      { key: 'grade', label: '等级', w: 0.10, align: 'center' },
+    ];
+    if (hasDims) {
+      // 维度名最长 9 个字，8 列再怎么挤也放不下 → 表头只放 D1..Dn，全称走表下图例
+      const dimW = 0.37 / Math.max(1, dimNames.length);
+      dimNames.forEach((dn, i) => cols.push({ key: 'dim:' + dn, label: 'D' + (i + 1), w: dimW, align: 'center' }));
+    }
+    cols.push({ key: 'words', label: '字数', w: hasDims ? 0.05 : 0.14, align: 'center' });
+    cols.push({ key: 'feat', label: '代码/图表', w: hasDims ? 0.06 : 0.18, align: 'center' });
+    return cols;
+  }
+
+  function drawScoreRow(b, cols, values, opts) {
+    opts = opts || {};
+    const ctx = b.ctx();
+    const fs = cols.length > 8 ? 9 : 10.5;
+    const rowH = 22;
+    b.ensure(rowH);
+    let x = M;
+    if (opts.zebra) {
+      ctx.fillStyle = hair(0.035);
+      ctx.fillRect(M, b.y - 2, CW, rowH);
+    }
+    cols.forEach((c) => {
+      const w = c.w * CW;
+      ctx.font = `${opts.bold ? 700 : 400} ${fs}px ${c.key === 'name' ? FONT : MONO_OR_FONT(c)}`;
+      ctx.fillStyle = opts.colorFor && opts.colorFor(c) ? opts.colorFor(c) : (opts.bold ? C.ink : C.body);
+      let txt = values[c.key] == null ? '' : String(values[c.key]);
+      const maxw = w - 6;
+      while (ctx.measureText(txt).width > maxw && txt.length > 1) txt = txt.slice(0, -1);
+      if (txt !== raw(c.key) && txt.length > 1) txt = txt.slice(0, -1) + '…';
+      let tx = x + 3;
+      if (c.align === 'center') tx = x + Math.max(3, (w - ctx.measureText(txt).width) / 2);
+      else if (c.align === 'right') tx = x + Math.max(3, w - ctx.measureText(txt).width - 3);
+      ctx.fillText(txt, tx, b.y + rowH - 8);
+      x += w;
+    });
+    b.y += rowH;
+    function raw(f) { const v = values[f]; return v == null ? '' : String(v); }
+    // 行分隔线
+    ctx.strokeStyle = hair(0.07);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(M, b.y - 0.5);
+    ctx.lineTo(M + CW, b.y - 0.5);
+    ctx.stroke();
+  }
+
+  /** 数字列用等宽字体对齐，文本列（报告名）用正文字体 */
+  function MONO_OR_FONT(c) {
+    return c.key === 'name' ? FONT : MONO;
+  }
+
+  async function renderScoreTable(docs) {
+    applyPalette();
+    const b = new Builder();
+    const n = docs.length;
+    const totals = docs.map((d) => d.result.total);
+    const sum = totals.reduce((a, b2) => a + b2, 0);
+    const stats = {
+      avg: sum / n,
+      max: Math.max.apply(null, totals),
+      min: Math.min.apply(null, totals),
+      passN: totals.filter((t) => t >= 60).length,
+      passRate: Math.round((totals.filter((t) => t >= 60).length / n) * 100),
+    };
+
+    const dimNames = (docs[0].result.dims || []).map((d) => d.name);
+    // 维度铺开的条件：数量不超过 8，且每列宽度不至于挤到认不出名字
+    const hasDims = dimNames.length > 0 && dimNames.length <= 8 && 0.42 / dimNames.length >= DIM_MIN_W;
+    const cols = scoreColumns(hasDims, dimNames);
+
+    drawScoreHeader(b, n, stats);
+
+    // 表头
+    const headVals = {};
+    cols.forEach((c) => { headVals[c.key] = c.label; });
+    drawScoreRow(b, cols, headVals, { bold: true, colorFor: null });
+    b.ctx().fillStyle = C.sub;
+
+    docs.forEach((d, i) => {
+      const r = d.result;
+      const vals = {
+        name: d.name,
+        total: r.total,
+        range: Array.isArray(r.range) && r.range.length === 2 && r.range[1] > r.range[0]
+          ? `${r.range[0]}–${r.range[1]}` : '—',
+        grade: r.grade + ' · ' + r.gradeLabel,
+        words: r.features.words,
+        feat: r.features.codeBlockCount + ' / ' + (r.features.figureCount + r.features.tableCount),
+      };
+      if (hasDims) (r.dims || []).forEach((dm) => { vals['dim:' + dm.name] = dm.score; });
+      // 不及格的整行标红，老师一眼扫到
+      const fail = r.total < 60;
+      drawScoreRow(b, cols, vals, {
+        zebra: i % 2 === 1,
+        colorFor: (c) => (fail && (c.key === 'total' || c.key === 'grade') ? C.red : null),
+      });
+    });
+
+    // 表尾：维度图例（表头只放了 D1..Dn，全称在这里补全），登分时要能对上号
+    if (hasDims) {
+      b.y += 10;
+      b.ensure(20);
+      const maxScores = (docs[0].result.dims || []).map((d) => d.max);
+      const legend = dimNames
+        .map((dn, i) => 'D' + (i + 1) + ' ' + dn + '（' + maxScores[i] + '分）')
+        .join('   ');
+      b.text(legend, { size: 9.5, color: C.sub, lineH: 14 });
+    }
+
+    // 表尾：等级人数汇总，登分时常要对一下人数
+    b.y += 10;
+    b.ensure(40);
+    const tally = {};
+    docs.forEach((d) => { const g = d.result.grade || 'F'; tally[g] = (tally[g] || 0) + 1; });
+    const order = ['A', 'B', 'C', 'D', 'F'].filter((g) => tally[g]);
+    b.text('等级人数：' + order.map((g) => g + ' ' + tally[g] + ' 人').join(' · '), { size: 10.5, color: C.sub });
+
+    stampFooters(b, 'AutoGrader 自动生成 · 成绩表');
+    const images = [];
+    for (let i = 0; i < b.pages.length; i++) {
+      images.push(await canvasToJpeg(b.pages[i].cv));
+      if (i % 4 === 3) await new Promise((r) => setTimeout(r, 0));
+    }
+    return buildPdf(images);
+  }
+
+  async function exportScoreTable(docs, filename) {
+    const blob = await renderScoreTable(docs);
+    U.download(filename, blob, 'application/pdf');
+    return blob;
+  }
+
+  AG.pdf = { render, exportDocs, renderScoreTable, exportScoreTable, buildPdf };
 })(window);

@@ -23,7 +23,7 @@
     { id: 'tech', name: '深玻璃', desc: 'visionOS · 深蓝紫渐变 · 白字' },
   ];
 
-  const DEFAULT_THEME = 'toon';
+  const DEFAULT_THEME = 'classic';
 
   /* ---------------- 吉祥物（原创） ----------------
    * 主体是 mascots.js 里的位图；下面两个 SVG 只在图片加载失败时兜底，
@@ -98,7 +98,19 @@
     return THEMES.some((x) => x.id === id) ? id : DEFAULT_THEME;
   }
 
+  // 主题迁移：旧版默认是 toon，新版默认改为 classic。
+  // 老用户 localStorage 里可能残留 'toon'（那是当年写入的默认值，未必是主动选择），
+  // 用一次性标记把它切到 classic；标记一旦写入就不再迁移，绝不覆盖用户之后的选择。
+  const THEME_MIGRATE_FLAG = 'themeMigrated';
+  function migrate() {
+    if (U.store.get(THEME_MIGRATE_FLAG)) return;
+    const saved = U.store.get('theme', null);
+    if (saved === 'toon') U.store.set('theme', DEFAULT_THEME);
+    U.store.set(THEME_MIGRATE_FLAG, true);
+  }
+
   function get() {
+    migrate();
     const t = normalize(U.store.get('theme', DEFAULT_THEME));
     // 无条件回写：即便存储里是已下线主题的残留值（或因解析失败读到默认值），也一并纠正，
     // 否则皮肤栏会出现"主题生效了但一个色点都不高亮"的错位。写入幂等，开销可忽略。
@@ -220,14 +232,24 @@
         class: 'skin' + (get() === t.id ? ' on' : ''),
         'data-theme-id': t.id,
         title: t.desc,
+        'aria-label': '主题：' + t.name,
+        'aria-pressed': get() === t.id ? 'true' : 'false',
       }, [
         U.el('span', { class: 'swatch' }, [U.el('i', { class: 'sw-' + t.id })]),
         document.createTextNode(opts.compact ? '' : t.name),
       ]);
       b.addEventListener('click', () => {
         set(t.id);
-        U.$$('.skin', container).forEach((x) => x.classList.toggle('on', x.dataset.themeId === t.id));
-        U.$$('.skin').forEach((x) => x.classList.toggle('on', x.dataset.themeId === t.id));
+        U.$$('.skin', container).forEach((x) => {
+          const on = x.dataset.themeId === t.id;
+          x.classList.toggle('on', on);
+          x.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+        U.$$('.skin').forEach((x) => {
+          const on = x.dataset.themeId === t.id;
+          x.classList.toggle('on', on);
+          x.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
         if (opts.onChange) opts.onChange(t.id);
       });
       container.appendChild(b);

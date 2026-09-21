@@ -179,8 +179,8 @@
    * @param {Array} lowDocs   对照组
    * @param {Object} opts     { minDelta, minSupport, maxTerms, totalScore, anchors }
    *   anchors —— 语义归维用的维度锚点，形如 [{id, name, keys[]}]。
-   *   默认用内置的 8 个「计算机实验报告」锚点；批次自适应时应传入**当前量表**的锚点，
-   *   否则换了学科（如化学实验）时术语会被强行归到那 8 个维度里，分值会歪。
+   *   默认用内置的 8 个「通用编程实验」锚点；批次自适应时应传入**当前量表**的锚点，
+   *   否则换了方向（如计算机网络实验）时术语会被强行归到那 8 个维度里，分值会歪。
    */
   function induce(highDocs, lowDocs, opts) {
     opts = opts || {};
@@ -204,7 +204,7 @@
     const MISC = { id: 'misc', name: '综合表现' };
 
     // 这批作业里连一行代码都没有时，「包含代码块」「代码量充实」对所有文档恒为 0，
-    // 既提供零信息，又会在报告里留下让化学老师莫名其妙的条目 —— 直接不进候选池
+    // 既提供零信息，又会在报告里留下让数据库老师莫名其妙的条目 —— 直接不进候选池
     const CODE_STRUCT = new Set(['s_code', 's_codelines']);
     const anyCode = H.concat(L).some((d) =>
       (d.features && ((d.features.codeBlockCount || 0) > 0 || (d.features.codeLines || 0) > 0)));
@@ -416,7 +416,7 @@
   /**
    * 从任意量表导出锚点。
    * 优先用维度自带的 keys；没有则退化——用维度名切成 2 字词，再从考察要点里抽 2~4 字的关键片段。
-   * 退化锚点不如手工写的准，但足以让非计算机学科的术语也能归到自己维度，而不是全部堆到「格式规范」。
+   * 退化锚点不如手工写的准，但足以让非编程方向的术语也能归到自己维度，而不是全部堆到「格式规范」。
    */
   function anchorsFromRubric(rubric) {
     const seen = new Set();

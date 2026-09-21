@@ -22,15 +22,15 @@
     <div class="spacer"></div>
     <div class="skin-bar skin-bar--top" id="skinBarTop" title="切换界面主题"></div>
     <span id="engineBadge" class="badge gray"><i class="dot"></i>未配置模型引擎</span>
-    <div class="tabs">
-      <button class="tab active" data-view="work">评分工作台</button>
-      <button class="tab" data-view="batch">批量与查重</button>
-      <button class="tab" data-view="settings">设置</button>
+    <div class="tabs" role="tablist" aria-label="主视图切换">
+      <button class="tab active" id="tab-work" role="tab" aria-selected="true" aria-controls="view-work" data-view="work">评分工作台</button>
+      <button class="tab" id="tab-batch" role="tab" aria-selected="false" aria-controls="view-batch" data-view="batch">成绩汇总</button>
+      <button class="tab" id="tab-settings" role="tab" aria-selected="false" aria-controls="view-settings" data-view="settings">设置</button>
     </div>
   </div>
 
   <!-- ============ 视图一：评分工作台 ============ -->
-  <div class="layout" id="view-work">
+  <div class="layout" id="view-work" role="tabpanel" aria-labelledby="tab-work">
     <div>
       <div class="card side">
         <h3>报告录入 <span class="sub">支持 TXT / MD / DOCX / PDF</span></h3>
@@ -67,7 +67,7 @@
         <div class="row" style="margin-bottom:10px">
           <button class="btn sm" id="btnEngineLLM" style="flex:1">配置模型</button>
         </div>
-        <p class="hint" id="engineTip">尚未配置模型引擎。评阅由开源大模型完成，需先在「设置 → 模型设置」中选一个服务商并填入 API Key（多家提供永久免费额度）。</p>
+        <p class="hint" id="engineTip">尚未配置模型引擎。评阅由开源大模型完成，需先在「设置 → 评阅规则（模型引擎）」中选一个服务商并填入 API Key（多家提供永久免费额度）。</p>
       </div>
     </div>
 
@@ -78,32 +78,30 @@
           <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><circle cx="12" cy="12" r="5.5"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/></svg></div>
           <b>还没有可展示的评阅结果</b>
           <p class="hint">上传或粘贴一份实验报告，点击「开始评分」<br>也可以先「加载示例」体验完整流程</p>
-          <div class="btn-row" style="justify-content:center;margin-top:14px">
-            <button class="btn primary" id="btnGradeEmpty" disabled>开始评分</button>
-          </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ============ 视图二：批量与查重 ============ -->
-  <div id="view-batch" style="display:none">
-    <div class="card">
+  <!-- ============ 视图二：成绩汇总 ============ -->
+  <div id="view-batch" role="tabpanel" aria-labelledby="tab-batch" style="display:none">
+    <div class="card" id="card-summary">
       <h3>成绩汇总 <span class="sub" id="batchCount">0 份已评分</span></h3>
+      <div id="batchStats" class="stat-grid"></div>
+      <div id="batchDist" class="dist-box"></div>
       <div style="overflow-x:auto">
         <table class="tb" id="scoreTable">
           <thead><tr>
             <th>报告名称</th><th class="c">总分</th><th class="c">等级</th>
             <th class="c">字数</th><th class="c">代码块</th><th class="c">图表</th>
-            <th class="c">最高相似</th><th class="r">操作</th>
+            <th class="r">操作</th>
           </tr></thead>
           <tbody></tbody>
         </table>
       </div>
       <div class="btn-row" style="margin-top:12px">
         <button class="btn primary" id="btnExportAllPdf">导出评阅报告 (PDF)</button>
-        <button class="btn" id="btnExportCsv">导出成绩表 (CSV)</button>
-        <button class="btn" id="btnExportAll">导出评阅报告 (Markdown)</button>
+        <button class="btn primary" id="btnExportScorePdf">导出成绩表 (PDF)</button>
       </div>
       <div class="dl-tip" id="dlTip" hidden>
         <b>提示：当前浏览器可能拦截文件下载。</b>
@@ -112,43 +110,22 @@
         请改用 <b>Chrome</b> 打开本文件（<code>file://</code> 直接双击即可），下载会正常开始。
       </div>
     </div>
-
-    <div class="card">
-      <h3>相似度查重 <span class="sub">基于 5-gram Jaccard，≥45% 判定为可疑</span></h3>
-      <div class="btn-row" style="margin-bottom:10px">
-        <button class="btn sm primary" data-simscope="batch">当前批次内</button>
-        <button class="btn sm" data-simscope="crossUser">跨提交者</button>
-      </div>
-      <p class="hint" style="margin-bottom:10px" id="simScopeNote">
-        查重范围<b>做成开关，需求层面尚未定稿</b>，所以这里如实标注，不替需求拍板。
-        默认「当前批次内」：不区分提交者，两两比较。切到「跨提交者」后，仅当相似文档来自不同提交者时才判定为可疑；
-        提交者信息缺失时无法判定跨人，保守起见仍计入可疑并标注待确认。
-      </p>
-      <div id="simBox">
-        <div class="empty" style="padding:34px 20px">
-          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.7" y2="16.7"/></svg></div>
-          <b>至少需要 2 份报告才能进行相似度比对</b>
-        </div>
-      </div>
-    </div>
   </div>
 
   <!-- ============ 视图三：设置 ============
-       需求③：原「智能分析」与「量表与模型」合并为统一的设置模块。
-       下设六个分区：个性化 / 类型 / 模型 / 量表 / 分析 / 关于。
-       分区用分段条切换——八张卡片堆在一页里，等于没有入口。 -->
-  <div id="view-settings" style="display:none">
+       P1 信息架构重构：原 6 个分区（个性化 / 类型 / 模型 / 量表 / 分析 / 关于）
+       合并为 3 个顶级分区——通用 / 评阅规则 / 关于。
+       「评阅规则」把模型引擎、文档类型、智能量表、评分量表、研究分析（默认折叠）
+       平铺为带标题的卡片，避免「八张卡片堆一页没有入口」，也取消嵌套二级 tab 造成的层级混乱。 -->
+  <div id="view-settings" role="tabpanel" aria-labelledby="tab-settings" style="display:none">
     <div class="segbar" id="setSeg">
-      <button class="seg active" data-sec="personal">个性化设置</button>
-      <button class="seg" data-sec="type">类型设置</button>
-      <button class="seg" data-sec="model">模型设置</button>
-      <button class="seg" data-sec="rubric">量表与评分准则</button>
-      <button class="seg" data-sec="insight">分析与校验</button>
+      <button class="seg active" data-sec="general">通用</button>
+      <button class="seg" data-sec="rules">评阅规则</button>
       <button class="seg" data-sec="about">关于</button>
     </div>
 
-    <!-- ---------- 分区一：个性化设置 ---------- -->
-    <div class="setsec" id="setsec-personal">
+    <!-- ---------- 分区一：通用（外观与语气 + 打印偏好） ---------- -->
+    <div class="setsec" id="setsec-general">
     <div class="card">
       <h3>外观与语气 <span class="sub">主题 + 评语人格，即时生效</span></h3>
       <p class="hint" style="margin-bottom:12px">
@@ -166,200 +143,195 @@
         <span>导出 PDF 时固定为浅色打印版（省墨、便于纸质归档）</span>
       </label>
       <p class="hint" style="margin-top:10px">
-        <b>关于「傲娇小天才」与「火力全开」：</b>两档人格都内置了硬约束 —— ① 吐槽只针对报告内容（这一段、这组数据、这个结论），
-        绝不评价作者本人；② 每句刻薄之后必须跟一条可执行的修改建议；③ 严禁暴力、死亡、血腥、排泄、脏话、歧视类措辞。
-        用于正式存档时，切回「学院派」即可。
+        趣味语气仅改措辞、不改分数；正式存档建议用「学院派」。
       </p>
     </div>
     </div>
 
-    <!-- ---------- 分区二：类型设置 ---------- -->
-    <div class="setsec" id="setsec-type" style="display:none">
-    <div class="card">
-      <h3>文档类型设置 <span class="sub" id="typeCount">内置 7 类 · 自定义 0 类</span></h3>
-      <p class="hint" style="margin-bottom:12px">
-        类型决定<b>评分方向</b>：用编程实验的量表去评化学实验，「代码实现」那几分永远拿不到——
-        那不是分低，是评错了。这里内置了 7 类常见实验/报告类型（每类自带学科特征词与评分方向），
-        可改名、改特征词、增删评分方向，也可<b>在开评之前预置新类型</b>。
-        评分工作台加入文档后，会先在这张表里检索；<b>在此处新增或修改，工作台立刻可见，反之亦然</b>。
-      </p>
-      <div class="btn-row" style="margin-bottom:10px">
-        <button class="btn sm primary" id="btnAddType">新增类型</button>
-        <button class="btn sm" id="btnTypeFromDoc">从工作台当前文档提取</button>
-        <button class="btn sm danger" id="btnTypeReset">恢复内置默认</button>
-      </div>
-      <div style="overflow-x:auto">
-        <table class="tb" id="typeTable">
-          <thead><tr>
-            <th style="width:52px" class="c">启用</th>
-            <th style="width:170px">类型名称</th>
-            <th>特征词（自动识别用）</th>
-            <th>评分方向</th>
-            <th style="width:76px" class="c">来源</th>
-            <th style="width:170px" class="r">操作</th>
-          </tr></thead>
-          <tbody></tbody>
-        </table>
-      </div>
-      <p class="hint" style="margin-top:10px">
-        停用内置类型只是从检索池里移除，不会丢失，随时可再启用；「恢复内置默认」会清空全部自定义类型与对内置类型的改动。
-        特征词写得越具体，自动识别越准——建议填学科术语而非通用词（「示波器」比「仪器」好）。
-      </p>
-    </div>
-    </div>
+    <!-- ---------- 分区二：评阅规则（模型引擎 / 文档类型 / 量表 / 研究分析） ---------- -->
+    <div class="setsec" id="setsec-rules" style="display:none">
 
-    <!-- ---------- 分区四：量表与评分准则 ---------- -->
-    <div class="setsec" id="setsec-rubric" style="display:none">
-    <div class="card">
-      <h3>智能量表 <span class="sub">一句话生成 · 按作业自动适配</span></h3>
-      <p class="hint" style="margin-bottom:12px">
-        换一次作业就要手动调 8 个分值，没人愿意干第二次。这里提供两条入口：
-        <b>一句话描述</b>你的评分偏好（本地规则引擎离线即可解析，配了 API Key 会自动升级为大模型生成），
-        或者<b>按已上传的这批作业自动适配</b>（无需人工标注范文）。
-        两条入口都只产出<b>建议</b>，点「采纳」才写入下方量表；手动调节始终开放，
-        <b>手动改过或锁定的维度，任何自动调整都不会覆盖</b>。
-      </p>
-      <div class="row">
-        <label class="fld"><span>作业类型（做基底）</span>
-          <select id="tplPicker"></select></label>
-        <label class="fld"><span>一句话评分要求</span>
-          <input type="text" id="promptInput" placeholder="例：大学物理单摆实验，数据处理和误差分析最重要，仪器型号不用扣分"></label>
-      </div>
-      <div class="grp" style="margin-top:8px">
-        <div class="lb">示例（点击填入输入框）</div>
-        <div class="chips" id="exampleChips"></div>
-      </div>
-      <div class="btn-row" style="margin-top:12px">
-        <button class="btn primary" id="btnGenRubric">按提示词生成</button>
-        <button class="btn" id="btnFitBatch">按已上传作业适配</button>
-      </div>
-      <div id="labResult" style="margin-top:14px"></div>
-    </div>
-
-    <div class="card">
-      <h3>评分量表 <span class="sub" id="rubricTotal">总分 100</span></h3>
-      <p class="hint" style="margin-bottom:12px">量表即「评分准则」：每个维度的得分要点与扣分情形会作为约束下发给模型，让它逐项覆盖、不漏维度。可调整维度名称与分值，总分需为 100。<b>手动改动分值会自动锁定该维度</b>（解锁后自动策略才可调它），锁定列也可自行勾选。<br>
-        想整体换成另一类作业的评分方向，去「类型设置」对相应类型点「套用为评分准则」——类型与这里的维度<b>双向同步</b>。</p>
-      <div style="overflow-x:auto">
-        <table class="tb" id="rubricTable">
-          <thead><tr>
-            <th style="width:52px" class="c">启用</th><th style="width:52px" class="c">锁定</th>
-            <th>维度名称</th><th style="width:90px" class="c">分值</th>
-            <th>考察要点</th><th style="width:60px" class="c">信号</th>
-          </tr></thead>
-          <tbody></tbody>
-        </table>
-      </div>
-      <div class="btn-row" style="margin-top:12px">
-        <button class="btn" id="btnAddDim">新增维度</button>
-        <button class="btn" id="btnResetRubric">恢复默认量表</button>
-      </div>
-    </div>
-
-    </div>
-
-    <!-- ---------- 分区三：模型设置 ---------- -->
-    <div class="setsec" id="setsec-model" style="display:none">
-    <div class="card">
-      <h3>模型引擎配置 <span class="sub">开源模型优先 · 兼容 OpenAI 风格接口</span></h3>
-      <p class="hint" style="margin:0 0 12px">
-        评阅由<b>开源大模型</b>完成——本地启发式评分引擎已按需求下线，所以这里是必配项，不是可选增强。
-        统一走 OpenAI 兼容协议，换模型只是换两个字符串；推荐先用有免费额度的开源服务商跑通，
-        也可换成机房内网的 Ollama / vLLM 离线运行。API Key 仅保存在本机浏览器。
-      </p>
-      <label class="fld"><span>快速配置 — 选一个服务商，自动填好地址与模型，你只需再填 API Key</span>
-        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:2px">
-          <button type="button" class="btn sm" data-preset="siliconflow">硅基流动（开源·免费）</button>
-          <button type="button" class="btn sm" data-preset="zhipu">智谱 GLM（免费）</button>
-          <button type="button" class="btn sm" data-preset="ollama">本地 Ollama（离线）</button>
-          <button type="button" class="btn sm" data-preset="vllm">自建 vLLM / Xinference</button>
-          <button type="button" class="btn sm" data-preset="modelscope">魔搭 ModelScope</button>
-          <button type="button" class="btn sm" data-preset="groq">Groq</button>
-          <button type="button" class="btn sm" data-preset="openrouter">OpenRouter</button>
-          <button type="button" class="btn sm" data-preset="deepseek">DeepSeek</button>
-          <button type="button" class="btn sm" data-preset="qwen">通义千问</button>
-          <button type="button" class="btn sm" data-preset="moonshot">Moonshot</button>
-          <button type="button" class="btn sm" data-preset="openai">OpenAI</button>
+      <!-- 模型引擎配置：顶栏徽标、工作台「评阅引擎」卡片、本卡片三处入口共用同一套配置 -->
+      <div class="card" id="card-model">
+        <h3>模型引擎配置 <span class="sub">开源模型优先 · 兼容 OpenAI 风格接口</span></h3>
+        <p class="hint" style="margin:0 0 12px">
+          评阅由<b>开源大模型</b>完成，本地引擎已按需求下线，故为必配项；统一走 OpenAI 兼容协议，API Key 仅保存在本机浏览器。
+        </p>
+        <label class="fld"><span>快速配置 — 选一个服务商，自动填好地址与模型，你只需再填 API Key</span>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:2px">
+            <button type="button" class="btn sm" data-preset="siliconflow">硅基流动（开源·免费）</button>
+            <button type="button" class="btn sm" data-preset="zhipu">智谱 GLM（免费）</button>
+            <button type="button" class="btn sm" data-preset="ollama">本地 Ollama（离线）</button>
+            <button type="button" class="btn sm" data-preset="vllm">自建 vLLM / Xinference</button>
+            <button type="button" class="btn sm" data-preset="modelscope">魔搭 ModelScope</button>
+            <button type="button" class="btn sm" data-preset="groq">Groq</button>
+            <button type="button" class="btn sm" data-preset="openrouter">OpenRouter</button>
+            <button type="button" class="btn sm" data-preset="deepseek">DeepSeek</button>
+            <button type="button" class="btn sm" data-preset="qwen">通义千问</button>
+            <button type="button" class="btn sm" data-preset="moonshot">Moonshot</button>
+            <button type="button" class="btn sm" data-preset="openai">OpenAI</button>
+          </div>
+        </label>
+        <input type="hidden" id="cfgProviderId">
+        <div class="row">
+          <label class="fld"><span>接口地址 Base URL</span>
+            <input type="text" id="cfgBaseUrl" placeholder="https://api.siliconflow.cn/v1"></label>
+          <label class="fld"><span>模型 Model</span>
+            <input type="text" id="cfgModel" placeholder="Qwen/Qwen2.5-7B-Instruct"></label>
         </div>
-      </label>
-      <input type="hidden" id="cfgProviderId">
-      <div class="row">
-        <label class="fld"><span>接口地址 Base URL</span>
-          <input type="text" id="cfgBaseUrl" placeholder="https://api.siliconflow.cn/v1"></label>
-        <label class="fld"><span>模型 Model</span>
-          <input type="text" id="cfgModel" placeholder="Qwen/Qwen2.5-7B-Instruct"></label>
-      </div>
-      <label class="fld"><span>API Key（仅保存在本机浏览器，不会上传任何服务器）</span>
-        <input type="password" id="cfgApiKey" placeholder="sk-..."></label>
-      <div class="row">
-        <label class="fld"><span>温度 Temperature</span>
-          <input type="number" id="cfgTemp" step="0.1" min="0" max="1" value="0.2"></label>
-        <label class="fld"><span>单篇最大输入字数</span>
-          <input type="number" id="cfgMaxChars" step="1000" min="2000" max="60000" value="12000"></label>
+        <label class="fld"><span>API Key（仅保存在本机浏览器，不会上传任何服务器）</span>
+          <input type="password" id="cfgApiKey" placeholder="sk-..."></label>
+        <details class="adv-block">
+          <summary>高级参数<span class="sub">温度 · 输入长度上限</span></summary>
+          <div class="adv-body">
+            <div class="row">
+              <label class="fld"><span>温度 Temperature</span>
+                <input type="number" id="cfgTemp" step="0.1" min="0" max="1" value="0.2"></label>
+              <label class="fld"><span>单篇最大输入字数</span>
+                <input type="number" id="cfgMaxChars" step="1000" min="2000" max="60000" value="12000"></label>
+            </div>
+          </div>
+        </details>
+
+        <div class="btn-row" style="margin-top:12px">
+          <button class="btn primary" id="btnSaveCfg">保存配置</button>
+          <button class="btn" id="btnTestCfg">测试连通性</button>
+          <button class="btn danger" id="btnClearCfg">清除 Key</button>
+        </div>
+        <p class="hint" style="margin-top:10px">
+          <b>API Key 从哪来：</b>去对应服务商开放平台 →「API Keys」→ 新建密钥，复制那串 <code>sk-…</code>（只显示一次）。<br>
+          已验证可用：硅基流动 / 智谱 GLM / 魔搭 / Groq / OpenRouter，以及本地 Ollama（离线）。<br>
+          免费额度用尽会返回 <b>402</b>，换用上述免费服务商即可；若测试连通性报 CORS 错误，需改用服务端代理或本地 Ollama。
+        </p>
       </div>
 
-      <div class="btn-row" style="margin-top:12px">
-        <button class="btn primary" id="btnSaveCfg">保存配置</button>
-        <button class="btn" id="btnTestCfg">测试连通性</button>
-        <button class="btn danger" id="btnClearCfg">清除 Key</button>
+      <!-- 文档类型设置：行可折叠，缓解 7 类大表格一次全展开 -->
+      <div class="card" id="card-type">
+        <h3>文档类型设置 <span class="sub" id="typeCount">内置 9 类 · 自定义 0 类</span></h3>
+        <p class="hint" style="margin-bottom:12px">
+          类型决定<b>评分方向</b>：用数据结构的量表去评计算机网络实验会评错方向（那不是分低，是评错了）。内置 9 类，覆盖计算机专业主要方向（通用编程 / 数据结构与算法 / 操作系统与系统编程 / 计算机网络 / 数据库 / 软件工程与课程设计 / 人工智能与机器学习 / 数字电路与计算机组成 / 通用报告），可改名、改特征词、增删评分方向；工作台与这里双向同步，任一处改动另一边立即可见。点每行右侧的 <b>▸</b> 展开特征词与评分方向。
+        </p>
+        <div class="btn-row" style="margin-bottom:10px">
+          <button class="btn sm primary" id="btnAddType">新增类型</button>
+          <button class="btn sm" id="btnTypeFromDoc">从工作台当前文档提取</button>
+          <button class="btn sm danger" id="btnTypeReset">恢复内置默认</button>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="tb" id="typeTable">
+            <thead><tr>
+              <th style="width:52px" class="c">启用</th>
+              <th>类型名称</th>
+              <th style="width:76px" class="c">来源</th>
+              <th style="width:230px" class="r">操作</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <p class="hint" style="margin-top:10px">
+          停用内置类型只是从检索池移除、不丢失，随时可再启用；特征词越具体识别越准（「示波器」比「仪器」好）。
+        </p>
       </div>
-      <p class="hint" style="margin-top:10px">
-        <b>API Key 从哪来：</b>去对应服务商的开放平台注册 → 找「API Keys」页面 → 点「创建」→ 复制那串 <code>sk-…</code>。它只显示一次，复制后立刻粘贴进来。以硅基流动为例：<code>cloud.siliconflow.cn</code> → 左侧「API 密钥」→ 新建密钥。<br>
-        已验证可用：硅基流动（9B 以下开源模型永久免费）、智谱 GLM（GLM-4.7-Flash 永久免费）、魔搭、Groq、OpenRouter，以及本地 Ollama（选它会自动填占位 Key，本机需先跑 <code>ollama serve</code> 并设置 <code>OLLAMA_ORIGINS=*</code>）。<br>
-        提示：<b>免费额度用尽会返回 402（余额不足）</b>，此时换用上面几家免费服务商即可。<br>
-        若测试连通性报 CORS 错误，说明该端点未允许浏览器跨域直连，需改用服务端代理或本地 Ollama。
-      </p>
-    </div>
+
+      <!-- 智能量表：一句话生成 / 按作业适配 -->
+      <div class="card" id="card-rubric-lab">
+        <h3>智能量表 <span class="sub">一句话生成 · 按作业自动适配</span></h3>
+        <p class="hint" style="margin-bottom:12px">
+          换一次作业就要手动调 8 个分值，没人愿意干第二次。这里提供两条入口：
+          <b>一句话描述</b>你的评分偏好（本地规则引擎离线即可解析，配了 API Key 会自动升级为大模型生成），
+          或者<b>按已上传的这批作业自动适配</b>（无需人工标注范文）。
+          两条入口都只产出<b>建议</b>，点「采纳」才写入下方量表；手动调节始终开放，
+          <b>手动改过或锁定的维度，任何自动调整都不会覆盖</b>。
+        </p>
+        <div class="row">
+          <label class="fld"><span>作业类型（做基底）</span>
+            <select id="tplPicker"></select></label>
+          <label class="fld"><span>一句话评分要求</span>
+            <input type="text" id="promptInput" placeholder="例：数据结构实验，代码正确性和复杂度分析最重要，格式别太较真"></label>
+        </div>
+        <div class="grp" style="margin-top:8px">
+          <div class="lb">示例（点击填入输入框）</div>
+          <div class="chips" id="exampleChips"></div>
+        </div>
+        <div class="btn-row" style="margin-top:12px">
+          <button class="btn primary" id="btnGenRubric">按提示词生成</button>
+          <button class="btn" id="btnFitBatch">按已上传作业适配</button>
+        </div>
+        <div id="labResult" style="margin-top:14px"></div>
+      </div>
+
+      <!-- 评分量表：即评分准则 -->
+      <div class="card" id="card-rubric">
+        <h3>评分量表 <span class="sub" id="rubricTotal">总分 100</span></h3>
+        <p class="hint" style="margin-bottom:12px">量表即「评分准则」：每个维度的得分要点与扣分情形会作为约束下发给模型，让它逐项覆盖、不漏维度。可调整维度名称与分值，总分需为 100。<b>手动改动分值会自动锁定该维度</b>（解锁后自动策略才可调它），锁定列也可自行勾选。<br>
+          想整体换成另一类作业的评分方向，对相应类型点「套用为评分准则」——类型与这里的维度<b>双向同步</b>。</p>
+        <div style="overflow-x:auto">
+          <table class="tb" id="rubricTable">
+            <thead><tr>
+              <th style="width:52px" class="c">启用</th><th style="width:52px" class="c">锁定</th>
+              <th>维度名称</th><th style="width:90px" class="c">分值</th>
+              <th>考察要点</th><th style="width:60px" class="c">信号</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="btn-row" style="margin-top:12px">
+          <button class="btn" id="btnAddDim">新增维度</button>
+          <button class="btn" id="btnResetRubric">恢复默认量表</button>
+        </div>
+      </div>
+
+      <!-- 研究分析（进阶）：默认折叠，评委向功能收起 -->
+      <details class="adv-block" id="card-insight">
+        <summary>研究分析（进阶）<span class="sub">量表诱导 · 信度自检</span></summary>
+        <div class="adv-body">
+          <p class="hint" style="margin-bottom:12px">以下功能用于教学研究或评分信度验证，日常评分无需展开。展开后可对比范文自动生成量表、检验同一模型多次评分的一致性。</p>
+          <div class="card">
+            <h3>量表自动诱导 <span class="sub">让好报告自己告诉你要点什么</span></h3>
+            <p class="hint" style="margin-bottom:12px">
+              给已评分的报告标一下「优秀范文」和「对照范文」，点「开始诱导」即可：
+              系统对比两组，把<b>只有好报告才做到的要点</b>挑出来，并按重要程度分配分值。
+              评分参数已按教学场景配好，不需要你调。
+            </p>
+            <div id="induceGroups" style="margin-bottom:12px"></div>
+            <div class="btn-row">
+              <button class="btn primary" id="btnInduce">开始诱导</button>
+              <button class="btn" id="btnInduceExport">导出量表 JSON</button>
+            </div>
+            <div id="induceResult" style="margin-top:14px"></div>
+          </div>
+
+          <div class="card">
+            <h3>评分信度自检 <span class="sub">Cronbach's α · Bootstrap CI · Jackknife 敏感度</span></h3>
+            <p class="hint" style="margin-bottom:12px">
+              自动评分必须回答「这个分数有多可信」。α 衡量各维度是否在测同一件事；
+              稳定性检验让同一模型对同一份报告<b>连续评阅多次</b>，给出总分的波动区间——
+              这直接回答「同一份作业明天再评一遍会不会换个分」。
+              Jackknife 逐维度剔除，识别「一权独大」的支配维度。
+            </p>
+            <div class="row" style="margin-bottom:10px">
+              <label class="fld"><span>自检对象</span><select id="auditDoc"></select></label>
+              <label class="fld"><span>采样次数（每次都是一次真实调用）</span>
+                <input type="number" id="auditIter" step="1" min="3" max="15" value="8"></label>
+            </div>
+            <div class="btn-row">
+              <button class="btn primary" id="btnAudit">运行自检</button>
+            </div>
+            <div id="auditResult" style="margin-top:14px"></div>
+          </div>
+        </div>
+      </details>
 
     </div>
 
-    <!-- ---------- 分区五：分析与校验（原「智能分析」并入设置） ---------- -->
-    <div class="setsec" id="setsec-insight" style="display:none">
-    <div class="card">
-      <h3>量表自动诱导 <span class="sub">让好报告自己告诉你要点什么</span></h3>
-      <p class="hint" style="margin-bottom:12px">
-        给已评分的报告标一下「优秀范文」和「对照范文」，点「开始诱导」即可：
-        系统对比两组，把<b>只有好报告才做到的要点</b>挑出来，并按重要程度分配分值。
-        评分参数已按教学场景配好，不需要你调。
-      </p>
-      <div id="induceGroups" style="margin-bottom:12px"></div>
-      <div class="btn-row">
-        <button class="btn primary" id="btnInduce">开始诱导</button>
-        <button class="btn" id="btnInduceExport">导出量表 JSON</button>
-      </div>
-      <div id="induceResult" style="margin-top:14px"></div>
-    </div>
-
-    <div class="card">
-      <h3>评分信度自检 <span class="sub">Cronbach's α · Bootstrap CI · Jackknife 敏感度</span></h3>
-      <p class="hint" style="margin-bottom:12px">
-        自动评分必须回答「这个分数有多可信」。α 衡量各维度是否在测同一件事；
-        稳定性检验让同一模型对同一份报告<b>连续评阅多次</b>，给出总分的波动区间——
-        这直接回答「同一份作业明天再评一遍会不会换个分」。
-        Jackknife 逐维度剔除，识别「一权独大」的支配维度。
-      </p>
-      <div class="row" style="margin-bottom:10px">
-        <label class="fld"><span>自检对象</span><select id="auditDoc"></select></label>
-        <label class="fld"><span>采样次数（每次都是一次真实调用）</span>
-          <input type="number" id="auditIter" step="1" min="3" max="15" value="8"></label>
-      </div>
-      <div class="btn-row">
-        <button class="btn primary" id="btnAudit">运行自检</button>
-      </div>
-      <div id="auditResult" style="margin-top:14px"></div>
-    </div>
-    </div>
-
-    <!-- ---------- 分区六：关于 ---------- -->
+    <!-- ---------- 分区三：关于 ---------- -->
     <div class="setsec" id="setsec-about" style="display:none">
     <div class="card">
       <h3>关于</h3>
       <p class="hint">
-        <b>AutoGrader</b> · 粤港澳大湾区 AI Coding 创新大赛参赛作品（方向一：AI + 教学管理助手）。<br>
         技术栈：原生 HTML / CSS / JavaScript，零构建、零依赖，双击 index.html 即可运行；雷达图、热力图与 PDF 导出全部手写。<br>
         评分可解释：每一个得分都附带命中的原文证据片段，教师可逐项复核，避免「黑箱打分」。<br>
         3 套界面主题 + 3 档评语人格（学院派 / 傲娇小天才 / 火力全开）—— 只换表达，不换分数。<br>
-        右下角常驻答疑助手：怎么批量导入、这个分为什么这么低、查重怎么看，本地知识库直接答，不联网也能用；配上 API Key 后，知识库答不上来的会转给大模型，并自动带上当前报告的评分上下文。<br>
+        右下角常驻答疑助手：怎么批量导入、这个分为什么这么低、量表怎么调，本地知识库直接答，不联网也能用；配上 API Key 后，知识库答不上来的会转给大模型，并自动带上当前报告的评分上下文。<br>
         吉祥物「小评审员」为原创形象，画风借鉴美式动画的通用视觉语言，不使用任何影视剧角色。
       </p>
     </div>
@@ -371,9 +343,9 @@
 </div>
 
 <!-- 粘贴文本弹窗 -->
-<div class="mask" id="pasteMask">
+<div class="mask" id="pasteMask" role="dialog" aria-modal="true" aria-labelledby="pasteTitle">
   <div class="modal">
-    <h3>粘贴报告文本</h3>
+    <h3 id="pasteTitle">粘贴报告文本</h3>
     <label class="fld"><span>报告名称</span><input type="text" id="pasteName" placeholder="例如：实验三-张三.md"></label>
     <label class="fld"><span>正文内容</span><textarea id="pasteText" rows="12" placeholder="将实验报告正文粘贴到此处…"></textarea></label>
     <div class="btn-row" style="justify-content:flex-end">
@@ -384,7 +356,7 @@
 </div>
 
 <!-- ===== 类型编辑弹窗（设置模块 / 评分工作台共用，保证两侧数据结构一致） ===== -->
-<div class="mask" id="typeMask">
+<div class="mask" id="typeMask" role="dialog" aria-modal="true" aria-labelledby="typeModalTitle">
   <div class="modal">
     <h3 id="typeModalTitle">新增文档类型</h3>
     <div class="row">
@@ -414,7 +386,7 @@
   <span class="chat-fab-txt">答疑</span>
 </button>
 
-<div class="chat-panel" id="chatPanel" style="display:none" role="dialog" aria-label="答疑助手">
+<div class="chat-panel" id="chatPanel" role="dialog" aria-label="答疑助手">
   <div class="chat-head">
     <div class="chat-head-t">
       <b>答疑助手</b>
@@ -440,14 +412,33 @@
   </p>
 </div>
 
+<!-- ===== 应用内对话框（替代原生 confirm / prompt） =====
+     原生 confirm / prompt 在部分环境（微信/企业微信内置浏览器、被弹窗拦截策略启用、
+     无 allow-modals 的 iframe、自动化预览沙箱）会被静默抑制并**立即返回 false/null**，
+     导致「清空 / 删除类型 / 清除 Key / 新增维度」这类操作点了没反应。
+     这里改用应用内自绘对话框，Promise 化，行为在所有环境下一致。 -->
+<div class="mask" id="dialogMask" role="dialog" aria-modal="true" aria-labelledby="dialogTitle">
+  <div class="modal modal-sm">
+    <h3 id="dialogTitle">确认操作</h3>
+    <p class="dlg-msg" id="dialogMsg"></p>
+    <input type="text" class="dlg-input" id="dialogInput" hidden>
+    <div class="btn-row" style="justify-content:flex-end">
+      <button class="btn" id="dialogCancel">取消</button>
+      <button class="btn primary" id="dialogOk">确定</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast-wrap" id="toastWrap"></div>
 
 <script src="assets/js/utils.js"></script>
+<script src="assets/js/confirm.js"></script>
 <script src="assets/js/providers.js"></script>
 <script src="assets/js/mascots.js"></script>
 <script src="assets/js/mascot-pet.js"></script>
 <script src="assets/js/theme.js"></script>
 <script src="assets/js/voice.js"></script>
+<script src="assets/js/anchors.js"></script>
 <script src="assets/js/rubric.js"></script>
 <script src="assets/js/rubric-templates.js"></script>
 <script src="assets/js/doctypes.js"></script>
@@ -456,6 +447,7 @@
 <script src="assets/js/llm.js"></script>
 <script src="assets/js/charts.js"></script>
 <script src="assets/js/demos.js"></script>
+<script src="assets/js/demos-results.js"></script>
 <script src="assets/js/docx.js"></script>
 <script src="assets/js/induce.js"></script>
 <script src="assets/js/rubriclab.js"></script>

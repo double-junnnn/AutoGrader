@@ -81,7 +81,7 @@ const AG = sandbox.AG || {};
 const need = [
   ['utils', 'clamp'], ['rubric', 'DEFAULT_RUBRIC'], ['rubric', 'gradeOf'],
   ['parser', 'extractFeatures'],
-  ['analyzer', 'genreCheck'], ['analyzer', 'similarity'], ['analyzer', 'verifyEvidence'],
+  ['analyzer', 'genreCheck'], ['analyzer', 'verifyEvidence'],
   ['providers', 'PRESETS'], ['providers', 'recommend'],
   ['llm', 'grade'], ['llm', 'sampleGrade'], ['llm', 'getConfig'],
   ['reliability', 'cronbachAlpha'], ['reliability', 'stability'], ['reliability', 'evidenceAudit'],
@@ -92,7 +92,7 @@ const need = [
   ['doctypes', 'remove'], ['doctypes', 'toggle'], ['doctypes', 'resetAll'], ['doctypes', 'on'],
   ['doctypes', 'pickTerms'], ['doctypes', 'draftFromDoc'], ['doctypes', 'blankType'],
   ['doctypes', 'toRubric'],
-  ['charts', 'heatmap'], ['charts', 'bootstrapBand'], ['demos', null], ['docx', null],
+  ['charts', 'bootstrapBand'], ['demos', null], ['docx', null],
   ['pdf', null], ['chat', null], ['mascots', null],
 ];
 for (const [mod, fn] of need) {
@@ -134,22 +134,76 @@ await ok('verifyEvidence 识别编造证据', () => {
   return r.hallucinated.length === 1 ? true : JSON.stringify(r.items);
 });
 
-await ok('similarity 同文档相似度为 1', () => {
-  const docs = [{ name: 'a', text: TEXT }, { name: 'b', text: TEXT }];
-  return AG.analyzer.similarity(docs).pairs[0].value === 1;
+await ok('similarity 已下线（面向老师评分场景，查重不属评分链路）', () => AG.analyzer.similarity === undefined);
+await ok('charts.heatmap 已下线（随查重一并移除）', () => AG.charts.heatmap === undefined);
+
+/* ---- 评分锚点：档位划分必须无缝隙、不重叠、不错序 ---- */
+await ok('anchors 模块已注册', () => !!(AG.anchors && AG.anchors.anchorsFor));
+
+await ok('anchors 各维度档位自洽（无缝隙/不重叠/高到低）', () => {
+  // 覆盖从 2 分到 25 分的各类满分，逐一自检
+  const maxes = [2, 5, 7, 8, 10, 12, 15, 16, 20, 25, 30];
+  for (const max of maxes) {
+    const bands = AG.anchors.bandsOf(max);
+    if (!bands.length) return '满分 ' + max + ' 未生成档位';
+    if (bands[0].hi !== max) return '满分 ' + max + ' 最高档上界应为 ' + max + '，实为 ' + bands[0].hi;
+    if (bands[bands.length - 1].lo !== 0) return '满分 ' + max + ' 最低档下界应为 0，实为 ' + bands[bands.length - 1].lo;
+    for (let i = 0; i < bands.length; i++) {
+      if (bands[i].lo > bands[i].hi) return '满分 ' + max + ' 第 ' + (i + 1) + ' 档上下界颠倒';
+      if (i > 0 && bands[i - 1].lo !== bands[i].hi + 1) {
+        return '满分 ' + max + ' 第 ' + i + '、' + (i + 1) + ' 档之间有缝隙或重叠';
+      }
+    }
+  }
+  return true;
 });
-await ok('similarity 支持 crossUser 范围', () => {
-  const docs = [
-    { name: 'a', text: TEXT, submitter: '张三' },
-    { name: 'b', text: TEXT, submitter: '张三' },
-  ];
-  const same = AG.analyzer.similarity(docs, { scope: 'crossUser' });
-  const diff = AG.analyzer.similarity(
-    [{ name: 'a', text: TEXT, submitter: '张三' }, { name: 'b', text: TEXT, submitter: '李四' }],
-    { scope: 'crossUser' },
-  );
-  return same.suspicious.length === 0 && diff.suspicious.length === 1
-    ? true : `same=${same.suspicious.length} diff=${diff.suspicious.length}`;
+
+await ok('anchors.levelOf 永不返回 null 且落在合法档位', () => {
+  const bands = AG.anchors.bandsOf(20);
+  const probes = [-5, 0, 1, 7, 10, 15, 20, 99];
+  for (const s of probes) {
+    const lv = AG.anchors.levelOf(s, 20);
+    if (!lv || lv < 1 || lv > bands.length) return '分数 ' + s + ' → 档位 ' + lv + '（共 ' + bands.length + ' 档）';
+  }
+  return true;
+});
+
+await ok('anchors.anchorsFor 给出档位名与区间', () => {
+  const list = AG.anchors.anchorsFor({ id: 'code', name: '核心实现与代码质量', max: 25 });
+  if (!list.length) return '未生成档位';
+  const bad = list.find((b) => !b.name || !b.text || b.lo == null || b.hi == null);
+  return bad ? JSON.stringify(bad) : true;
+});
+
+await ok('anchors.validateRubric 能指出量表满分异常', () => {
+  const bad = AG.anchors.validateRubric([{ id: 'code', name: '代码', max: 25 }, { id: 'env', name: '环境', max: 0 }]);
+  return bad.length > 0 ? true : '满分为 0 的维度未被检出';
+});
+
+/* ---- 本地客观事实层：只报事实、绝不给分 ---- */
+await ok('analyzer.objectiveFacts 已导出', () => typeof AG.analyzer.objectiveFacts === 'function');
+
+await ok('objectiveFacts 检出编号断号', () => {
+  // 图 1、图 2、图 4 → 缺图 3，属真断号；图 5 单独出现不参与序列判断
+  const t = '# 实验\n\n见图 1、图 2 与图 4 的对比，另见图 5。\n\n## 结果\n完成。\n';
+  const r = AG.analyzer.objectiveFacts(t, { words: 40, numberCount: 2, figureCount: 3, tableCount: 0 });
+  if (!r.dangling.length) return '未检出断号';
+  return r.dangling.indexOf('图3') >= 0 ? true : '断号列表：' + r.dangling.join('、');
+});
+
+await ok('objectiveFacts 不把跳号引用误判为断号', () => {
+  // 只引用了图 1、图 5：不成连续序列，不应报断号（避免冤枉正常引用）
+  const t = '# 实验\n\n详见图 1 与图 5 的对比。\n\n## 结果\n完成。\n';
+  const r = AG.analyzer.objectiveFacts(t, { words: 40, numberCount: 2, figureCount: 2, tableCount: 0 });
+  return r.dangling.length === 0 ? true : '误报断号：' + r.dangling.join('、');
+});
+
+await ok('objectiveFacts 不产出任何分数字段', () => {
+  const r = AG.analyzer.objectiveFacts('# 实验\n\n## 结果\n图 1 连续。\n',
+    { words: 30, numberCount: 3, figureCount: 1, tableCount: 0 });
+  const keys = Object.keys(r);
+  const scoreKeys = keys.filter((k) => /score|grade|分/i.test(k) && k !== 'okCount' && k !== 'warnCount');
+  return scoreKeys.length === 0 ? true : '出现了疑似分数字段：' + scoreKeys.join('、');
 });
 
 await ok('providers.recommend 给出免费开源服务商', () => {
@@ -180,6 +234,50 @@ await ok('evidenceAudit 汇总证据核验', () => {
 await ok('llm.getConfig 默认指向开源服务商', () => {
   const c = AG.llm.getConfig();
   return AG.providers.isOpenModel ? true : JSON.stringify(c);
+});
+
+/* ---- 模型输出解析容错：真机上模型经常返回不干净的 JSON ---- */
+await ok('llm.parseJson 可解析干净 JSON', () => {
+  const o = AG.llm.parseJson('{"dims":[{"id":"code","score":20}],"overall":"好"}');
+  return o.dims && o.dims[0].score === 20 ? true : JSON.stringify(o);
+});
+
+await ok('llm.parseJson 可剥离 markdown 围栏', () => {
+  const o = AG.llm.parseJson('```json\n{"dims":[{"id":"code","score":18}]}\n```');
+  return o.dims[0].score === 18 ? true : JSON.stringify(o);
+});
+
+await ok('llm.parseJson 容忍尾逗号', () => {
+  const o = AG.llm.parseJson('{"dims":[{"id":"code","score":17,},],}');
+  return o.dims[0].score === 17 ? true : JSON.stringify(o);
+});
+
+await ok('llm.parseJson 可修复被截断的 JSON', () => {
+  // 模拟被 max_tokens 切断：最后一个维度写了一半
+  const o = AG.llm.parseJson('{"dims":[{"id":"code","score":15},{"id":"env","score":6');
+  return o.dims && o.dims[0].score === 15 ? true : JSON.stringify(o);
+});
+
+await ok('llm.parseJson 对完全无 JSON 的输入抛错而非静默返回 0 分', () => {
+  let threw = false;
+  try { AG.llm.parseJson('抱歉，我无法评阅这份报告。'); } catch (e) { threw = true; }
+  return threw ? true : '未抛错（危险：会被当成 0 分处理）';
+});
+
+/* ---- 漏答维度：绝不能把"模型没返回"伪装成"学生得 0 分" ---- */
+await ok('normalizeDim 把缺失分数的维度标记为 missingOutput', () => {
+  // 通过 assemble 的对外入口无法直接传入残缺 parsed，这里直接验证公开行为：
+  // 构造一个缺 score 的维度对象，走 llm.grade 的纯解析路径不可行（需要 API Key），
+  // 因此改为断言源码层面存在该防护（防止后续被误删）。
+  const src = fs.readFileSync(path.resolve(process.cwd(), 'assets/js/llm.js'), 'utf8');
+  // 去掉注释行再判断，避免把说明文字里引用的旧写法当成真代码
+  const code = src.split('\n')
+    .filter((l) => !/^\s*(\*|\/\/|\/\*)/.test(l))
+    .join('\n');
+  if (!/missingOutput/.test(code)) return 'llm.js 中已无 missingOutput 防护';
+  if (/Number\(m \? m\.score : 0\) \|\| 0/.test(code)) return '仍存在把缺失分数静默当 0 的旧写法';
+  if (!/m\.score == null \|\| isNaN/.test(code)) return '缺少对 score 缺失/非数的判定';
+  return true;
 });
 
 /* ---- 类型设置（需求③） ---- */
@@ -227,17 +325,17 @@ await ok('doctypes 改内置类型只存差异，不污染 builtins()', () => {
     ? true : JSON.stringify({ base: fresh.brief, now: after.brief });
 });
 await ok('doctypes.toggle 停用后从默认列表消失但仍可恢复', () => {
-  AG.doctypes.toggle('physics', false);
-  const gone = !AG.doctypes.get('physics');
-  const stillThere = !!AG.doctypes.get('physics', { includeDisabled: true });
-  AG.doctypes.toggle('physics', true);
-  return gone && stillThere && !!AG.doctypes.get('physics') ? true : `gone=${gone} kept=${stillThere}`;
+  AG.doctypes.toggle('net', false);
+  const gone = !AG.doctypes.get('net');
+  const stillThere = !!AG.doctypes.get('net', { includeDisabled: true });
+  AG.doctypes.toggle('net', true);
+  return gone && stillThere && !!AG.doctypes.get('net') ? true : `gone=${gone} kept=${stillThere}`;
 });
 await ok('doctypes.remove 内置类型等价于停用（可 resetAll 恢复）', () => {
-  AG.doctypes.remove('chemistry');
-  const gone = !AG.doctypes.get('chemistry');
+  AG.doctypes.remove('db');
+  const gone = !AG.doctypes.get('db');
   AG.doctypes.resetAll();
-  return gone && !!AG.doctypes.get('chemistry') ? true : `gone=${gone}`;
+  return gone && !!AG.doctypes.get('db') ? true : `gone=${gone}`;
 });
 await ok('doctypes.toRubric 编译出的量表合计 100 分', () => {
   const r = AG.doctypes.toRubric(AG.doctypes.get('cs-code'));

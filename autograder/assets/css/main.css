@@ -4,6 +4,14 @@
  */
 /* ============ 基础变量（未指定主题时的兜底取值） ============ */
 :root {
+  /* ===== Apple 流体交互：弹簧缓动（Web 原生映射 WWDC 参数）=====
+     damping 1.0 / response .4 → 平滑无过冲（移动·画中画）
+     damping .8  / response .3 → 轻微过冲弹跳（抽屉·sheet） */
+  --spring-smooth: cubic-bezier(0.22, 1, 0.36, 1);
+  --spring-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-sheet: .3s;
+  --dur-move: .4s;
+  --dur-quick: .16s;
   color-scheme: light;
   /* 底色层级 */
   --bg: #f5f7fb;
@@ -197,7 +205,7 @@
                inset 0 0 12px -4px rgba(38, 74, 140, .30),
                inset 0 -24px 36px -30px rgba(52, 104, 200, .50),
                0 48px 90px -32px rgba(24, 56, 120, .50);
-  --glass-blur: blur(40px) saturate(200%);
+  --glass-blur: blur(18px) saturate(180%);
   /* 玻璃体积：168° 厚度渐变（顶部厚→中部薄→下缘回亮）+ 右下冷色环境反光。
      左上那团「会动」的镜面高光斑不放在这里 —— CSS 自定义属性的 var()
      是在定义处（:root）解析的，写进 :root 变量里就吃不到元素级的 --lx/--ly。
@@ -297,7 +305,7 @@
                inset 0 -24px 36px -28px rgba(120, 90, 255, .45),
                inset 0 26px 40px -34px rgba(255, 255, 255, .22),
                0 52px 96px -32px rgba(2, 0, 18, .92);
-  --glass-blur: blur(40px) saturate(215%) brightness(1.06);
+  --glass-blur: blur(18px) saturate(195%) brightness(1.06);
   /* 深色玻璃的体积更克制：白色只做边缘反射，主体靠紫调明暗拉开厚度。
      动态高光斑同样拆到文件末尾的选择器块（元素作用域），这里只留
      静态的右下蓝紫环境反光 —— 深空间里的"环境"是背景那几团弥散光。 */
@@ -338,16 +346,20 @@ button, input, select, textarea { font: inherit; color: inherit; }
 h1, h2, h3, .brand h1 { font-family: var(--font-title); }
 
 /* ---------- 液态玻璃材质 ----------
- * 一条规则覆盖全部面板。玻璃主题在 :root 里定义 --glass-blur，
- * 其余主题没定义 → var() 取 fallback none → backdrop-filter 不生效，零副作用。 */
-.topbar, .card, .tabs, .segbar, .dropzone, .modal, .mask, .toast,
-.chat-panel, .kpi, .stat, .gate, .doclist li, .skin, .tone {
+ * 性能约定（重要）：backdrop-filter 会为每个命中元素建立独立 GPU 合成层，
+ * 40px 级模糊尤其昂贵。早期版本把模糊铺给"所有面板"，首屏同时有 30+ 个元素
+ * 各背一层 40px 模糊（含 15 张卡片、6 个主题色点、3 个语气卡），真机上滚动 /
+ * 动画时整片重栅格化，表现为"卡"。因此这里只把模糊留给**真正需要玻璃通透感的
+ * 大面板**（顶栏 / 弹窗 / 遮罩 / 聊天面板 / toast），其余小元素一律不设模糊 ——
+ * 它们本来就有实色背景，去掉视觉几乎无损。玻璃主题在 :root 定义 --glass-blur，
+ * 其余主题没定义 → var() 取 fallback none，零副作用。 */
+.topbar, .modal, .mask, .toast, .chat-panel {
   backdrop-filter: var(--glass-blur, none);
   -webkit-backdrop-filter: var(--glass-blur, none);
 }
 
 /* ---------- 布局 ---------- */
-.app { max-width: 1280px; margin: 0 auto; padding: 20px 20px 60px; }
+.app { max-width: 1280px; margin: 0 auto; padding: 20px 20px 80px; }
 .topbar {
   display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
   padding: 14px 20px; background: var(--panel); border: var(--bw) solid var(--line);
@@ -377,14 +389,16 @@ h1, h2, h3, .brand h1 { font-family: var(--font-title); }
 
 /* 设置模块的分区导航（个性化 / 类型 / 模型 / 量表 / 分析 / 关于）。
    与诱导面板里那个 .seg 容器同名，所以全部规则都收在 .segbar 下，避免互相污染。 */
-.segbar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; padding: 5px; background: var(--tabs-bg); border-radius: 12px; }
+/* 二级导航要明显「低一级」：去掉与一级 .tabs 同款的底色胶囊，改用下划线指示，
+   字号/字重/对比度同步下压 —— 否则两套导航长得几乎一样，层级读不出来。 */
+.segbar { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 14px; padding: 0 0 6px; border-bottom: 1px solid var(--line); }
 .segbar > .seg {
-  display: inline-flex; align-items: center; padding: 6px 14px;
-  border: 0; background: transparent; border-radius: 9px; cursor: pointer;
-  color: var(--muted); font: inherit; font-size: 13px; font-weight: 600; transition: .15s;
+  display: inline-flex; align-items: center; padding: 6px 10px;
+  border: 0; background: transparent; border-radius: 0; cursor: pointer;
+  color: var(--muted); font: inherit; font-size: 12.5px; font-weight: 500; transition: .15s;
 }
-.segbar > .seg:hover { color: var(--brand); background: var(--surface-2); }
-.segbar > .seg.active { background: var(--surface); color: var(--brand); box-shadow: var(--shadow-sm); }
+.segbar > .seg:hover { color: var(--brand); background: transparent; }
+.segbar > .seg.active { background: transparent; color: var(--brand); font-weight: 700; box-shadow: inset 0 -2px 0 var(--brand); }
 
 .layout { display: grid; grid-template-columns: 320px 1fr; gap: 16px; align-items: start; }
 @media (max-width: 980px) { .layout { grid-template-columns: 1fr; } }
@@ -406,10 +420,7 @@ h1, h2, h3, .brand h1 { font-family: var(--font-title); }
   background-image: var(--grad); color: #fff;
   border-color: transparent; box-shadow: var(--shadow-sm);
 }
-:root[data-theme="classic"] .segbar > .seg.active,
-:root[data-theme="tech"] .segbar > .seg.active {
-  background-image: var(--grad); color: #fff; border-color: transparent;
-}
+/* 二级导航不参与渐变填充：一级选中胶囊保留渐变，二级走下划线，层级才拉得开 */
 :root[data-theme="classic"] .btn.primary,
 :root[data-theme="tech"] .btn.primary {
   background-image: var(--grad); border-color: transparent;
@@ -502,6 +513,31 @@ label.fld > span { display: block; font-size: 12.5px; color: var(--muted); margi
 .stat b { display: block; font-size: 17px; font-weight: 800; font-family: var(--font-num); font-variant-numeric: tabular-nums; }
 .stat small { color: var(--muted); font-size: 11.5px; }
 
+/* ---------- 成绩汇总：统计摘要 + 分数分布（P4 重构） ----------
+ * 老师打开「成绩汇总」最先想知道「这批整体如何」，所以摘要卡与分布图
+ * 比明细表更靠前、更大。摘要卡用 auto-fit 铺满宽度，屏幕越宽信息越舒展。 */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+  gap: 10px; margin: 4px 0 16px;
+}
+.stat-grid .stat { padding: 13px 12px; }
+.stat-grid .stat b { font-size: 23px; letter-spacing: -.4px; }
+.stat-grid .stat small { margin-top: 3px; }
+.stat-grid .stat span { display: block; margin-top: 3px; font-size: 11px; color: var(--muted); }
+
+.dist-box { margin: 0 0 18px; }
+.dist-title { font-size: 12.5px; color: var(--muted); margin-bottom: 8px; }
+.dist-bars {
+  display: flex; align-items: flex-end; gap: 4px;
+  height: 116px; padding: 0 2px 0;
+  border-bottom: 1px solid var(--line);
+}
+.dist-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; min-width: 0; }
+.dist-col .dist-n { font-size: 10.5px; color: var(--ink-2); font-weight: 700; line-height: 1; margin-bottom: 2px; }
+.dist-col .dist-bar { display: block; width: 100%; max-width: 40px; border-radius: 4px 4px 0 0; transition: height var(--dur-move) var(--spring-smooth); }
+.dist-col small { font-size: 10px; color: var(--muted); margin-top: 4px; }
+
 .dim { border: var(--bw) solid var(--line); border-radius: var(--radius-sm); margin-bottom: 8px; overflow: hidden; }
 .dim > .hd {
   display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer; background: var(--surface);
@@ -529,6 +565,85 @@ label.fld > span { display: block; font-size: 12.5px; color: var(--muted); margi
 .grp > .lb { font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 5px; }
 .ev { font-size: 12.5px; color: var(--ink-2); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px; margin-top: 5px; }
 .ev em { font-style: normal; color: var(--brand); font-weight: 600; }
+
+/* ── 评分锚点档位徽标：放在维度名右侧，一眼看出"为什么是这个分" ── */
+.dim .lv {
+  font-size: 11.5px; padding: 2px 8px; border-radius: 6px; font-weight: 650; white-space: nowrap;
+  border: 1px solid var(--line-2); background: var(--surface-2); color: var(--ink-2);
+}
+/* 四档配色：达成度从高到低由绿→黄→橙→红，与等级色语义保持独立（档内分≠等级） */
+.dim .lv1 { background: var(--ok-soft); border-color: var(--ok-line); color: var(--ok-ink); }
+.dim .lv2 { background: var(--brand-soft); border-color: var(--brand-line, var(--line-2)); color: var(--brand); }
+.dim .lv3 { background: var(--warn-soft); border-color: var(--warn-line); color: var(--warn-ink); }
+.dim .lv4 { background: var(--bad-soft); border-color: var(--bad-line); color: var(--bad-ink); }
+
+/* ── 定档理由 ── */
+.lv-reason {
+  font-size: 12.5px; color: var(--ink-2); line-height: 1.6; margin-top: 8px;
+  padding: 7px 10px; border-radius: 8px; background: var(--surface); border: 1px solid var(--line);
+}
+.lv-reason b { display: block; font-size: 11.5px; color: var(--muted); margin-bottom: 3px; font-weight: 700; }
+
+/* ── 强制原文引用：判定依据是报告里的原句，老师可当场核对 ── */
+.cite {
+  display: flex; flex-direction: column; gap: 3px; margin-top: 5px;
+  padding: 7px 10px; border-radius: 8px; background: var(--surface);
+  border: 1px solid var(--line); border-left: 3px solid var(--brand);
+}
+.cite .q { font-size: 12.5px; color: var(--ink-2); line-height: 1.55; }
+.cite small { font-size: 11px; color: var(--muted); }
+.cite small.nt { color: var(--warn-ink); }
+/* 查不到原文的引用：整体转红，性质从「依据」变成「警情」 */
+.cite.bad { border-left-color: var(--bad-ink); background: var(--bad-soft); }
+.cite.bad .q { color: var(--bad-ink); }
+.cite.bad small.nt { color: var(--bad-ink); font-weight: 650; }
+
+/* ── 建议得分区间横幅：副驾驶定位的核心展示，压在总分上方 ── */
+.range-band {
+  margin: 14px 0 4px; padding: 12px 14px; border-radius: var(--radius-sm);
+  border: var(--bw) solid var(--brand-line, var(--line-2)); background: var(--brand-soft);
+}
+.range-band .rb-main { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.range-band .rb-label { font-size: 12.5px; color: var(--muted); font-weight: 650; }
+.range-band .rb-val {
+  font-size: 30px; font-weight: 800; color: var(--brand); line-height: 1.05;
+  font-family: var(--font-num); font-variant-numeric: tabular-nums; letter-spacing: -.5px;
+}
+.range-band .rb-unit { font-size: 13px; color: var(--muted); }
+.range-band .rb-cur {
+  margin-left: auto; font-size: 12.5px; color: var(--ink-2); font-weight: 650;
+  padding: 3px 10px; border-radius: 7px; background: var(--surface); border: 1px solid var(--line);
+}
+.range-band .rb-note { font-size: 12px; color: var(--muted); line-height: 1.6; margin-top: 7px; }
+.range-band .rb-note b { color: var(--warn-ink); }
+@media (max-width: 560px) {
+  .range-band .rb-cur { margin-left: 0; }
+}
+
+/* ── 本地事实核对：不依赖模型的独立信源，样式上要和模型评语明显区分 ── */
+.facts {
+  margin-top: 18px; padding: 13px 15px; border-radius: var(--radius-sm);
+  border: var(--bw) dashed var(--line-2); background: var(--surface-2);
+}
+.facts-hd { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; margin-bottom: 9px; }
+.facts-hd > b { font-size: 13.5px; }
+.facts-hd .hint { font-size: 11.5px; }
+.facts-hd .hint b { color: var(--brand); }
+.facts-alert {
+  font-size: 12.5px; line-height: 1.6; padding: 8px 11px; border-radius: 8px; margin-bottom: 9px;
+  background: var(--warn-soft); border: 1px solid var(--warn-line); color: var(--warn-ink);
+}
+.facts-alert b { color: var(--bad-ink); }
+.facts-list { list-style: none; margin: 0; padding: 0; }
+.facts-list li {
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  padding: 6px 0; border-top: 1px solid var(--line); font-size: 12.5px;
+}
+.facts-list li:first-child { border-top: none; }
+.facts-list .badge { flex: none; }
+.facts-list .fk { font-weight: 650; color: var(--ink-2); }
+.facts-list .fd { color: var(--muted); font-size: 11.5px; }
+
 .cmt { font-size: 13px; color: var(--ink-2); background: var(--brand-soft); border-left: 3px solid var(--brand); padding: 8px 11px; border-radius: 0 8px 8px 0; margin-top: 6px; }
 
 .overall {
@@ -546,27 +661,50 @@ table.tb td.r, table.tb th.r { text-align: right; }
 table.tb input { padding: 5px 8px; }
 
 /* ---------- 弹层 ---------- */
+/* 弹层：默认隐藏，靠 visibility/opacity 控制；常驻 flex 居中，避免 display 切换打断过渡。
+   遮罩淡入 + 轻微毛玻璃；弹窗从触发源（transform-origin 由 JS 设定）弹簧放大入场。 */
 .mask {
-  position: fixed; inset: 0; background: rgba(15, 23, 42, .45); display: none;
-  align-items: center; justify-content: center; z-index: 60; padding: 20px;
+  position: fixed; inset: 0; background: rgba(15, 23, 42, .45);
+  display: flex; align-items: center; justify-content: center; z-index: 60; padding: 20px;
+  opacity: 0; visibility: hidden; pointer-events: none;
+  -webkit-backdrop-filter: blur(0px); backdrop-filter: blur(0px);
+  transition: opacity .2s var(--spring-smooth), backdrop-filter .26s ease, visibility 0s linear .28s;
 }
-.mask.on { display: flex; }
+.mask.on {
+  opacity: 1; visibility: visible; pointer-events: auto;
+  -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px);
+  transition: opacity .2s var(--spring-smooth), backdrop-filter .26s ease, visibility 0s;
+}
 .modal {
   background: var(--panel); color: var(--modal-ink); border: var(--bw) solid var(--line);
   border-radius: var(--radius); width: min(620px, 100%); max-height: 86vh;
   overflow: auto; padding: 20px 22px; box-shadow: var(--shadow-lg);
+  transform: scale(.94) translateY(10px); opacity: 0; will-change: transform, opacity;
+  transition: transform var(--dur-sheet) var(--spring-bounce), opacity .18s ease;
 }
+.mask.on .modal { transform: none; opacity: 1; }
 .modal h3 { margin: 0 0 12px; font-size: 16px; }
 
+/* 应用内对话框：比常规 modal 更窄，文案独占一行，按钮靠右 */
+.modal-sm { width: min(420px, 100%); }
+.dlg-msg { margin: 0 0 16px; font-size: 14px; line-height: 1.7; color: var(--ink-2); white-space: pre-line; }
+.dlg-input { width: 100%; margin: 0 0 16px; padding: 9px 11px; border: var(--bw) solid var(--line-2); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); font: inherit; }
+.dlg-input:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
+/* 对话框里的破坏性确认按钮：实心红，让"清空/删除"这个不可逆选择一眼可辨
+   （区别于页面里偏 ghost 的 .btn.danger，那是在按钮群中作次要动作） */
+.btn.danger-solid { background: var(--red); border-color: var(--red); color: #fff; }
+.btn.danger-solid:hover { background: var(--bad-ink); border-color: var(--bad-ink); color: #fff; }
+
 /* ---------- 提示 ---------- */
-.toast-wrap { position: fixed; right: 18px; bottom: 18px; z-index: 80; display: flex; flex-direction: column; gap: 8px; }
+/* bottom 让到 78px：FAB 顶缘约 68px（bottom 22 + 高 46），栈向上生长才不会把答疑按钮埋掉 */
+.toast-wrap { position: fixed; right: 18px; bottom: 78px; z-index: 80; display: flex; flex-direction: column; gap: 8px; }
 .toast {
   background: var(--ink); color: var(--bg); padding: 10px 15px; border-radius: 10px; font-size: 13.5px;
-  box-shadow: var(--shadow-lg); animation: in .22s ease; max-width: 340px;
+  box-shadow: var(--shadow-lg); animation: toast-in .42s var(--spring-bounce); max-width: 340px;
 }
 .toast.ok { background: var(--green); color: #fff; }
 .toast.err { background: var(--red); color: #fff; }
-@keyframes in { from { opacity: 0; transform: translateY(8px); } }
+@keyframes toast-in { from { opacity: 0; transform: translateY(14px) scale(.96); } }
 
 .spin { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255, 255, 255, .35); border-top-color: #fff; border-radius: 50%; animation: sp .7s linear infinite; }
 @keyframes sp { to { transform: rotate(360deg); } }
@@ -778,6 +916,17 @@ table.tb input { padding: 5px 8px; }
   background: var(--panel); color: var(--ink);
   box-shadow: var(--shadow-lg);
   overflow: hidden;
+  /* 右下角悬浮抽屉：从下方弹簧浮现（drawer damping .8 / response .3） */
+  opacity: 0; visibility: hidden; pointer-events: none;
+  transform: translateY(16px) scale(.98);
+  transition: opacity var(--dur-sheet) var(--spring-smooth),
+              transform var(--dur-sheet) var(--spring-bounce),
+              visibility 0s linear var(--dur-sheet);
+}
+.chat-panel.on {
+  opacity: 1; visibility: visible; pointer-events: auto; transform: none;
+  transition: opacity var(--dur-sheet) var(--spring-smooth),
+              transform var(--dur-sheet) var(--spring-bounce), visibility 0s;
 }
 .chat-head {
   display: flex; align-items: center; gap: 8px;
@@ -857,6 +1006,7 @@ table.tb input { padding: 5px 8px; }
 @media (max-width: 640px) {
   .chat-panel { right: 12px; left: 12px; width: auto; bottom: 74px; }
   .chat-fab { right: 14px; bottom: 14px; }
+  .toast-wrap { right: 14px; bottom: 70px; }
 }
 
 /* ============================================================
@@ -920,3 +1070,68 @@ table.tb input { padding: 5px 8px; }
   :root[data-theme="classic"] :is(.card, .kpi, .stat):hover,
   :root[data-theme="tech"] :is(.card, .kpi, .stat):hover { transform: none; }
 }
+
+/* ====================================================================
+   Apple 流体交互层（新增）：按下反馈 / 视图入场 / 减弱动效
+   原则：按下即反馈、动画可中断、用弹簧而非固定时长、动量友好
+   ==================================================================== */
+
+/* 按钮：按下即反馈（弹簧微缩）。toon 主题保留其硬阴影位移风格，不覆盖 */
+.btn { transition: transform var(--dur-quick) var(--spring-smooth), border-color .16s ease, background .16s ease, color .16s ease, box-shadow .16s ease; }
+:root:not([data-theme="toon"]) .btn:active { transform: scale(.96); }
+.btn.primary:active { transform: scale(.97); }
+
+/* 卡片：弹簧过渡（悬浮位移保留各主题既有规则，不强行覆盖 transform） */
+.card { transition: transform var(--dur-move) var(--spring-smooth), box-shadow var(--dur-move) ease, border-color .16s ease; }
+
+/* 顶栏 Tab：选中态带弹簧，点击即时反馈、无延迟 */
+.tab { transition: background .18s var(--spring-smooth), color .18s ease, box-shadow .18s ease; }
+
+/* 视图切换：每次切到新视图都从下方弹簧浮现（移动 damping 1.0 / response .4） */
+.view-enter { animation: view-in var(--dur-move) var(--spring-smooth) both; }
+@keyframes view-in { from { opacity: 0; transform: translateY(10px); } }
+
+/* 减弱动效：保留必要淡入反馈，关闭位移/缩放与毛玻璃，避免前庭不适 */
+@media (prefers-reduced-motion: reduce) {
+  .mask, .modal, .chat-panel, .toast, .btn, .card, .tab, .view-enter {
+    transition: opacity .15s ease !important;
+    animation: none !important;
+  }
+  .modal, .chat-panel { transform: none !important; }
+  :root:not([data-theme="toon"]) .btn:active { transform: none !important; }
+}
+
+/* ====================================================================
+   折叠块 .adv-block（新增，P2）：研究分析 / 高级参数 / 更多语气
+   把面向研究或高级的功能默认收起，普通教师进来不晃眼、不堆叠
+   ==================================================================== */
+.adv-block { margin: 0 0 14px; }
+.adv-block > summary {
+  list-style: none; cursor: pointer;
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 16px; border: var(--bw) solid var(--line);
+  border-radius: var(--radius); background: var(--surface);
+  box-shadow: var(--shadow-sm); font-weight: 600; color: var(--ink);
+  transition: border-color .16s ease, color .16s ease;
+}
+.adv-block > summary::-webkit-details-marker { display: none; }
+.adv-block > summary::before {
+  content: '\25B8'; color: var(--muted); font-size: 12px; transition: transform .2s var(--spring-smooth);
+}
+.adv-block[open] > summary::before { content: '\25BE'; }
+.adv-block > summary:hover { color: var(--brand); border-color: var(--brand); }
+.adv-block[open] > summary { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.adv-block > .adv-body { padding-top: 14px; }
+.adv-block > summary .sub { font-weight: 500; font-size: 12.5px; color: var(--muted); margin-left: auto; }
+/* 收起的人格块需在 .tone-card 网格里占满整行 */
+.tone-card > .tone-more { grid-column: 1 / -1; }
+
+/* 类型设置表格：行可折叠（P1）。摘要行紧凑，▸ 展开特征词 / 评分方向，缓解 7 类全展开过载 */
+.type-toggle {
+  border: 0; background: transparent; color: var(--muted); cursor: pointer;
+  font-size: 14px; line-height: 1; padding: 2px 5px; border-radius: 6px; transition: .15s;
+}
+.type-toggle:hover { color: var(--brand); background: var(--surface-3); }
+.type-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 6px 2px 10px; }
+.type-detail-grid .lb { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+@media (max-width: 680px) { .type-detail-grid { grid-template-columns: 1fr; } }

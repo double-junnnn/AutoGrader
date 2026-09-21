@@ -24,8 +24,6 @@
     rubric: AG.rubric.deserializeRubric(U.store.get('rubric', null)),
     // 本地启发式引擎已移除，评分只有模型这一条路，保留字段仅为兼容旧存档
     engine: 'llm',
-    sim: null,
-    simScope: U.store.get('simScope', 'batch'),   // 查重范围，需求③「范围待定」故做成可切换
     induceGroups: {},   // docId -> 'high' | 'low'
     induced: null,      // 最近一次诱导结果
     labPreview: null,   // 最近一次「一句话生成」的建议量表
@@ -33,64 +31,95 @@
     autoFitTimer: null,
     autoFitMuted: U.store.get('autoFitMuted', false), // 用户显式关闭过自动建议
     chat: U.store.get('chat', []),                    // 答疑会话，刷新后还在
-    setSection: U.store.get('setSection', 'personal'), // 设置模块上次停留的分区
+    setSection: U.store.get('setSection', 'general'), // 设置模块上次停留的分区
   };
 
-  /* 设置模块的分区。需求③：原「智能分析」与「量表与模型」合并为一个「设置」，
-   * 下设个性化 / 类型 / 模型 / 量表 / 分析 / 关于 六个分区。 */
-  const SET_SECTIONS = ['personal', 'type', 'model', 'rubric', 'insight', 'about'];
+  /* 设置模块的分区（P1 重构：原 6 个分区合并为 3 个顶级分区）。
+   * 通用 / 评阅规则 / 关于；其中「评阅规则」把模型引擎、文档类型、智能量表、
+   * 评分量表、研究分析平铺为卡片。旧的分区名（model/type/rubric/insight）
+   * 现在只是「评阅规则」里的某张卡片，跳转时映射到 rules 并定位到对应卡片。 */
+  const SET_SECTIONS = ['general', 'rules', 'about'];
+  const SECTION_OF = { general: 'general', rules: 'rules', about: 'about', model: 'rules', type: 'rules', rubric: 'rules', insight: 'rules' };
+  const CARD_OF = { model: 'card-model', type: 'card-type', rubric: 'card-rubric', insight: 'card-insight' };
+
+  // 无障碍：打开弹窗前记录焦点元素，关闭时归还，键盘用户才不会「卡」在弹窗之外
+  let lastModalOpener = null;
 
   /* ---------------- 基础 UI ---------------- */
   // 批量评阅时，同一条错误会按文档逐条抛出（3 篇报告 = 3 条一模一样的红框，糊满屏幕）。
   // 这里把 3 秒内的同文案合并成一条并累加次数。
+  // 合并键带上 type：同一句文案先「成功」后「报错」时，不该被当成同一条去累加次数。
+  // TOAST_LIMIT 限制屏上同时存在的条数，超出就顶掉最旧的一条（Map 按插入序迭代，首项即最旧）。
+  const TOAST_LIMIT = 3;
   const toastCache = new Map();
 
   function toast(msg, type) {
+    type = type || '';
+    const key = type + '\u0000' + msg;
     const now = Date.now();
-    const hit = toastCache.get(msg);
+    const hit = toastCache.get(key);
     if (hit && hit.el.isConnected && now - hit.last < 3000) {
       hit.count += 1;
       hit.last = now;
       hit.el.innerHTML = U.esc(msg) + ' <b style="opacity:.7">×' + hit.count + '</b>';
       clearTimeout(hit.t1); clearTimeout(hit.t2);
       hit.t1 = setTimeout(() => { hit.el.style.opacity = '0'; hit.el.style.transition = '.3s'; }, 2600);
-      hit.t2 = setTimeout(() => { hit.el.remove(); toastCache.delete(msg); }, 3000);
+      hit.t2 = setTimeout(() => { hit.el.remove(); toastCache.delete(key); }, 3000);
       return;
     }
-    const t = U.el('div', { class: 'toast ' + (type || ''), html: U.esc(msg) });
+    const t = U.el('div', { class: 'toast ' + type, html: U.esc(msg) });
     $('#toastWrap').appendChild(t);
+    // 先新后旧：裁剪放在 set 之前，新加的这条一定不会被自己顶掉
+    while (toastCache.size >= TOAST_LIMIT) {
+      const oldestKey = toastCache.keys().next().value;
+      const oldest = toastCache.get(oldestKey);
+      toastCache.delete(oldestKey);
+      if (oldest) { clearTimeout(oldest.t1); clearTimeout(oldest.t2); oldest.el.remove(); }
+    }
     const rec = { el: t, last: now, count: 1 };
     rec.t1 = setTimeout(() => { t.style.opacity = '0'; t.style.transition = '.3s'; }, 2600);
-    rec.t2 = setTimeout(() => { t.remove(); toastCache.delete(msg); }, 3000);
-    toastCache.set(msg, rec);
+    rec.t2 = setTimeout(() => { t.remove(); toastCache.delete(key); }, 3000);
+    toastCache.set(key, rec);
   }
 
   /**
-   * 设置模块内部的分区切换。
-   * 分区内容各自独立，切换时只渲染**当前分区真正需要的东西**——
-   * 「分析」分区要填报告下拉框，「类型」分区要重绘类型表，全量渲染既浪费也不必要。
+   * 设置模块内部的（顶级）分区切换。
+   * name 可以是顶级分区（general/rules/about），也可以是旧的分区名
+   * （model/type/rubric/insight）——后者会落到「评阅规则」并滚动定位到对应卡片。
+   * 「评阅规则」是卡片平铺，进入时把各卡片的按需渲染都跑一遍，保证数据最新。
    */
   function switchSettingsSection(name) {
-    if (SET_SECTIONS.indexOf(name) < 0) name = 'personal';
-    state.setSection = name;
-    U.store.set('setSection', name);
+    const sec = SECTION_OF[name] || 'general';
+    state.setSection = sec;
+    U.store.set('setSection', sec);
     SET_SECTIONS.forEach((s) => {
       const el = $('#setsec-' + s);
-      if (el) el.style.display = s === name ? 'block' : 'none';
+      if (el) el.style.display = s === sec ? 'block' : 'none';
     });
-    $$('#setSeg .seg').forEach((b) => b.classList.toggle('active', b.dataset.sec === name));
-    // 「加载示例」等入口会带 hash 直接跳到某个分区
-    if (name === 'type') renderTypeTable();
-    if (name === 'rubric') { renderRubricTable(); renderLabChrome(); }
-    if (name === 'model') loadCfgForm();
-    if (name === 'insight') renderInsight();
+    $$('#setSeg .seg').forEach((b) => b.classList.toggle('active', b.dataset.sec === sec));
+    if (sec === 'rules') {
+      loadCfgForm(); renderTypeTable(); renderRubricTable(); renderLabChrome(); renderInsight();
+    }
+    // 若目标是「评阅规则」里的某张卡片，滚动定位过去
+    if (name !== sec) {
+      const cid = CARD_OF[name];
+      const card = cid && document.getElementById(cid);
+      if (card) requestAnimationFrame(() => card.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    }
   }
 
   function switchView(name) {
     ['work', 'batch', 'settings'].forEach((v) => {
       $('#view-' + v).style.display = v === name ? (v === 'work' ? 'grid' : 'block') : 'none';
     });
-    $$('.tab').forEach((b) => b.classList.toggle('active', b.dataset.view === name));
+    $$('.tab').forEach((b) => {
+      const on = b.dataset.view === name;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    // 视图弹簧入场：每次切到新视图都从下方浮现（强制重排以重启动画）
+    const vEl = $('#view-' + name);
+    if (vEl) { vEl.classList.remove('view-enter'); void vEl.offsetWidth; vEl.classList.add('view-enter'); }
     if (name === 'batch') renderBatch();
     if (name === 'settings') switchSettingsSection(state.setSection);
     if (name === 'work') renderTypeBox();
@@ -192,12 +221,12 @@
     const label = on ? '模型引擎 · ' + cfg.model : '未配置模型引擎';
     badge.className = 'badge ' + (on ? 'blue' : 'gray');
     badge.innerHTML = '<i class="dot"></i>' + U.esc(label);
-    badge.title = on ? '当前使用 ' + cfg.model : '点击前往「设置 → 模型设置」配置开源模型 API Key';
+    badge.title = on ? '当前使用 ' + cfg.model : '点击前往「设置 → 评阅规则（模型引擎）」配置开源模型 API Key';
 
     const tip = $('#engineTip');
     if (tip) {
       tip.innerHTML = on
-        ? `当前由 <b>${U.esc(cfg.model)}</b> 评阅。可在「设置 → 模型设置」中切换开源模型。`
+        ? `当前由 <b>${U.esc(cfg.model)}</b> 评阅。可在「设置 → 评阅规则（模型引擎）」中切换开源模型。`
         : '<b>尚未配置模型引擎。</b>本地启发式引擎已按需求下线，评分需接入开源大模型 —— 点「配置模型」选一个免费开源服务商，填入 API Key 即可。';
     }
     const go = $('#btnEngineLLM');
@@ -309,9 +338,11 @@
 
     /* 本地启发式引擎已移除，没有 Key 就是评不了。
      * 这里**不**再静默改用别的口径打分——那样教师会以为拿到了分，
-     * 实际拿到的是另一套标准的结果，比直接告诉他"评不了"更糟。 */
+     * 实际拿到的是另一套标准的结果，比直接告诉他"评不了"更糟。
+     * 同时也不跳转设置页：改为在当前结果卡片内就地给出配置引导（P0）。 */
     if (!cfg.apiKey) {
-      toast('尚未配置模型引擎：请到「设置 → 模型设置」选择一个开源服务商并填入 API Key', 'err');
+      toast('尚未配置模型引擎：请到「设置 → 评阅规则（模型引擎）」选择一个开源服务商并填入 API Key', 'err');
+      if (state.currentId === id) guideToConfigure(doc);
       return null;
     }
 
@@ -347,11 +378,13 @@
 
   async function gradeAll() {
     if (!state.docs.length) return toast('请先录入报告', 'err');
-    // 没配 Key 时逐份弹同一句报错没有意义，在这里一次性拦掉
+    // 没配 Key 时：不再整页跳设置，而是在需要评阅的文档上就地引导；
+    // 若当前这批里含内置示例，顺带给示例套上预置结果，保证「看得见产出物」。
     if (!AG.llm.getConfig().apiKey) {
-      toast('尚未配置模型引擎：请到「设置 → 模型设置」选择开源服务商并填入 API Key', 'err');
-      switchView('settings');
-      switchSettingsSection('model');
+      toast('尚未配置模型引擎：请到「设置 → 评阅规则（模型引擎）」选择开源服务商并填入 API Key', 'err');
+      const demoN = applyPresetResults();
+      const doc = curDoc();
+      if (!demoN) guideToConfigure(doc);
       return;
     }
     const btn = $('#btnGradeAll');
@@ -365,11 +398,49 @@
     btn.disabled = false;
     btn.textContent = '全部重新评分';
     renderDocList();
-    computeSim();
     toast(done === state.docs.length
       ? `已完成 ${done} 份报告的评阅`
       : `评阅中断：${done}/${state.docs.length} 份完成，其余未成功`, done ? 'ok' : 'err');
     if (state.currentId) renderResult();
+  }
+
+  /**
+   * 把内置示例的**预置评分结果**套到当前文档上（P0）。
+   * 仅对内置示例生效：非示例文档没有预置结果，跳过——绝不为了「看起来能用」
+   * 而给用户自己上传的报告编一个分数，那是评分工具最不该做的事。
+   * @returns {Number} 成功套用的份数
+   */
+  function applyPresetResults() {
+    let n = 0;
+    state.docs.forEach((d) => {
+      if (!AG.demoResults.has(d.name)) return;
+      const res = AG.demoResults.build(d.name, activeRubric(), d);
+      if (res) { d.result = res; n++; }
+    });
+    if (!n) return 0;
+    persist();
+    renderDocList();
+    if (state.currentId) renderResult();
+    return n;
+  }
+
+  /** 无 Key 且用户试图评阅自己上传的文档时，给出**不跳转**的可见引导（P0）。
+   *  改为在结果卡片内就地提示，而不是把人整页踢去设置——那会打断他正在做的事。 */
+  function guideToConfigure(doc) {
+    const card = $('#resultCard');
+    if (!card) return;
+    card.innerHTML = `<div class="empty">
+      <div class="ic">${ICONS.target}</div>
+      <b>评分需要先配置模型引擎</b>
+      <p class="hint">本地评分引擎已下线，评阅统一由开源大模型完成。<br>
+        配好 API Key 后即可为《${U.esc(doc ? doc.name : '这份报告')}》评分；也可以在设置里选一个免费服务商。</p>
+      <div class="btn-row" style="justify-content:center;margin-top:14px">
+        <button class="btn primary" id="btnGoConfigure">去配置模型引擎</button>
+      </div>
+      <p class="hint" style="margin-top:10px">想先看看评阅结果长什么样？点左侧「加载示例」即可查看内置示例的演示结果。</p>
+    </div>`;
+    const go = $('#btnGoConfigure');
+    if (go) go.addEventListener('click', () => { switchView('settings'); switchSettingsSection('model'); });
   }
 
   /* ---------------- 渲染：文档列表 ---------------- */
@@ -399,7 +470,7 @@
         e.stopPropagation();
         state.docs = state.docs.filter((x) => x.id !== d.id);
         if (state.currentId === d.id) state.currentId = state.docs[0] ? state.docs[0].id : null;
-        persist(); renderDocList(); renderResult(); computeSim();
+        persist(); renderDocList(); renderResult();
         maybeAutoFit();
       });
       li.appendChild(del);
@@ -440,8 +511,6 @@
   function renderResult() {
     const card = $('#resultCard');
     const doc = state.docs.find((d) => d.id === state.currentId);
-    const geb = $('#btnGradeEmpty');
-    if (geb) geb.disabled = !doc;
 
     if (!doc) {
       // 空状态：卡通主题下用原创吉祥物插画，其余主题仍用通用图标
@@ -451,9 +520,7 @@
       card.innerHTML = `<div class="empty">
         <div class="ic">${art}</div><b>还没有可展示的评阅结果</b>
         <p class="hint">上传或粘贴一份实验报告，点击「开始评分」<br>也可以先「加载示例」体验完整流程</p>
-        <div class="btn-row" style="justify-content:center;margin-top:14px">
-          <button class="btn primary" id="btnGradeEmpty" disabled>开始评分</button>
-        </div></div>`;
+      </div>`;
       bindResultButtons();
       // 空状态的吉祥物插画是 innerHTML 重建的，重建后重新挂一次互动
       if (AG.pet) AG.pet.attachAll();
@@ -490,18 +557,42 @@
       const snip = (d.evidence || []).filter((e) => e.snippets && e.snippets.length)
         .slice(0, 3).map((e) => `<div class="ev"><em>${U.esc(e.label)}</em>：${U.esc(e.snippets[0].snippet)}</div>`).join('');
 
+      // ── 评分锚点档位：本维度落在第几档、该档分数区间是多少 ──
+      // 档位是「为什么是这个分」的直接答案，放在维度名旁边，比分数本身更重要
+      const lv = d.level ? `<span class="lv lv${d.level}">档${d.level} · ${U.esc(d.levelName || '')}</span>` : '';
+      const bandTip = d.bandRange
+        ? `<span class="hint" style="font-size:11px">该档 ${d.bandRange[0]}–${d.bandRange[1]} 分</span>` : '';
+      const crossChip = d.crossBand
+        ? '<span class="chip amber">模型所给分数与所选档位不符，已按档位区间校正</span>' : '';
+      const reason = d.levelReason
+        ? `<div class="lv-reason"><b>定档理由</b>${U.esc(d.levelReason)}</div>` : '';
+      // 强制原文引用：本维度判断所依据的报告原句，逐条展示，老师可当场核对。
+      // 查不到原文的引用用红色标出 —— 这是"模型编了依据"，比没有引用更严重。
+      const cites = (d.citations || []).length
+        ? `<div class="grp" style="margin-top:10px"><div class="lb">判定依据 · 报告原文（共 ${d.citations.length} 处）</div>${
+          d.citations.map((c) => `<div class="cite${c.verified === false ? ' bad' : ''}"><span class="q">${U.esc(c.quote)}</span>${
+            c.where ? `<small>${U.esc(c.where)}</small>` : ''}${
+            c.verified === false ? '<small class="nt">⚠ 该引用在报告中查不到，评分依据存疑</small>' : ''}${
+            c.note ? `<small class="nt">${U.esc(c.note)}</small>` : ''}</div>`).join('')}</div>`
+        : '<div class="grp" style="margin-top:10px"><div class="lb">判定依据 · 报告原文</div><div class="hint" style="font-size:12px">本维度未给出原文引用，扣分理由无法当场核对，建议人工复核</div></div>';
+
       return `<div class="dim${i === 0 ? ' open' : ''}" data-i="${i}">
         <div class="hd">
           <span class="caret">▶</span>
           <span class="nm">${U.esc(d.name)}</span>
+          ${lv}
           <span class="bar"><i style="width:${pct}%"></i></span>
-          <span class="val" style="color:${g.color}">${d.score}/${d.max}</span>
+          <span class="val" style="color:${d.missingOutput ? 'var(--red)' : g.color}">${d.missingOutput ? '—' : d.score}/${d.max}</span>
         </div>
         <div class="bd">
           <div class="desc">${U.esc(d.desc || '')}</div>
-          ${evChips || missChips || penChips ? `<div class="chips">${evChips}${missChips}${penChips}</div>` : ''}
+          ${d.missingOutput ? '<div class="chips" style="margin-bottom:8px"><span class="chip pen">⚠ 模型未返回该维度分数，当前按 0 分计入总分，请人工评分</span></div>' : ''}
+          ${d.bandRange ? `<div class="chips" style="margin-bottom:8px">${bandTip}${crossChip}</div>` : (crossChip ? `<div class="chips" style="margin-bottom:8px">${crossChip}</div>` : '')}
+          ${reason}
+          ${cites}
+          ${evChips || missChips || penChips ? `<div class="chips" style="margin-top:10px">${evChips}${missChips}${penChips}</div>` : ''}
           <div class="chips" style="margin-top:8px">
-            ${traceChip || (tr ? `<span class="chip">溯源：证据占得分依据 ${Math.round(tr.support * 100)}% · 命中 ${tr.evidenceCount} 项${tr.missingCount ? ' / 未命中 ' + tr.missingCount + ' 项' : ''}</span>` : '')}
+            ${traceChip || (tr ? `<span class="chip">溯源：证据可查证率 ${Math.round(tr.rate * 100)}% · 命中 ${tr.evidenceCount} 项${tr.missingCount ? ' / 未命中 ' + tr.missingCount + ' 项' : ''}</span>` : '')}
           </div>
           ${snip ? `<div class="grp" style="margin-top:10px"><div class="lb">命中原文证据</div>${snip}</div>` : ''}
           <div class="cmt">${U.esc(d.comment || d.advice || '')}</div>
@@ -516,20 +607,45 @@
           <h2>${U.esc(doc.name)}</h2>
           <div class="hint">
             <span class="badge ${r.engine === 'llm' ? 'blue' : 'gray'}"><i class="dot"></i>${U.esc(r.engineLabel)}</span>
-            &nbsp;评阅于 ${U.fmtTime(r.gradedAt)}
+            ${r.isPreset ? '&nbsp;<span class="badge amber">示例演示 · 非本次模型输出</span>' : `&nbsp;评阅于 ${U.fmtTime(r.gradedAt)}`}
             ${r.scaled ? '&nbsp;<span class="badge amber">已折算为百分制</span>' : ''}
           </div>
         </div>
         <div class="btn-row">
           <button class="btn sm" id="btnRegrade">重新评分</button>
           <button class="btn sm primary" id="btnExportOnePdf">导出 PDF</button>
-          <button class="btn sm" id="btnExportOne">导出 Markdown</button>
         </div>
       </div>
+
+      ${r.isPreset ? `<div class="gate warn"><div class="gt"><b>这是示例演示结果</b>
+        <span class="badge amber">预置数据</span></div>
+        <div class="hint" style="font-size:13px">下方分数与评语是为「内置示例报告」预置的演示数据，<b>并非本次模型实时评阅输出</b>。
+        配置模型引擎后，点「重新评分」即可对这份示例跑一次真实评阅；你自己上传的报告则始终走真实模型评分。</div></div>` : ''}
+
+      ${r.unanswered && r.unanswered.length ? `<div class="gate">
+        <div class="gt"><b>⚠ 有 ${r.unanswered.length} 个维度模型未给出分数</b>
+          <span class="badge red">分数不可信</span></div>
+        <ul><li>涉及维度：${r.unanswered.map(U.esc).join('、')}</li>
+        <li>这些维度当前显示为 0 分，但那是<b>模型没有返回结果</b>，不是学生没做——总分也因此偏低。</li></ul>
+        <div class="hint" style="margin-top:6px">建议点「重新评分」重跑一次；若反复出现，多半是模型输出被长度截断，
+        可在设置里调高 max_tokens，或换用输出更稳定的服务商。</div>
+      </div>` : ''}
 
       ${renderGate(r, doc)}
       ${r.langNote ? `<div class="gate warn"><div class="gt"><b>评分可能失真</b></div>
         <div class="hint" style="font-size:13px">${U.esc(r.langNote)}</div></div>` : ''}
+
+      ${r.range ? `<div class="range-band">
+        <div class="rb-main">
+          <span class="rb-label">建议得分区间</span>
+          <b class="rb-val">${r.range[0]} – ${r.range[1]}</b>
+          <span class="rb-unit">分</span>
+          <span class="rb-cur">本档取值 ${r.total} 分</span>
+        </div>
+        <div class="rb-note">${r.straddles
+          ? `该区间横跨 <b>${U.esc(r.gradeStraddle || '')}</b> 两个等级，最终等级由老师裁定。`
+          : '区间来源于各维度「档位下界之和 ~ 档位上界之和」，代表模型判断的置信范围，老师可在此范围内直接定分。'}</div>
+      </div>` : ''}
 
       <div class="score-grid">
         <div class="gauge-box" id="gaugeBox"></div>
@@ -548,15 +664,27 @@
 
       <div class="overall" style="margin:16px 0 14px">${U.esc(r.overall || '')}</div>
 
-      <h3 style="font-size:14px;margin:0 0 10px">逐项核查 <span class="hint" style="font-weight:500">点击维度展开证据与改进建议</span></h3>
+      <h3 style="font-size:14px;margin:0 0 10px">逐项核查 <span class="hint" style="font-weight:500">点击维度展开档位理由与报告原文</span></h3>
+      ${r.citationAudit && r.citationAudit.total ? `<div class="susp${r.citationAudit.unverified ? ' warn' : ''}" style="margin-bottom:12px">
+        <span class="badge ${r.citationAudit.unverified ? 'red' : 'green'}">原文引用核查</span>
+        <span>模型共给出 <b>${r.citationAudit.total}</b> 条判定依据引用，其中 <b>${r.citationAudit.verified}</b> 条可在报告中逐字查到${
+          r.citationAudit.unverified ? `，<b>${r.citationAudit.unverified}</b> 条查不到（已在下方标红，该维度的扣分理由需您自行判断）` : '，全部可核对'}。${
+          (r.citationAudit.missingDims || []).length ? `另有 ${r.citationAudit.missingDims.length} 个维度未给引用（${r.citationAudit.missingDims.map(U.esc).join('、')}）。` : ''}</span></div>` : ''}
+      ${r.anchorAudit && r.anchorAudit.total ? `<div class="susp" style="margin-bottom:12px">
+        <span class="badge ${r.anchorAudit.crossBands ? 'amber' : 'green'}">评分锚点</span>
+        <span>${r.anchorAudit.total} 个维度全部采用「先定档、再在档内取分」的方式判定${r.anchorAudit.crossBands
+          ? `。其中 <b>${r.anchorAudit.crossBands}</b> 个维度模型给出的分数与所选档位不符（${
+            (r.anchorAudit.crossBandNames || []).map(U.esc).join('、')}），已自动按档位区间校正，可直接核查。`
+          : '。模型给分与所选档位完全一致，评分过程可逐档复核。'}</span></div>` : ''}
       ${trace.ok ? `<div class="susp" style="margin-bottom:12px">
-        <span class="badge ${trace.weak.length || trace.penalized.length ? 'amber' : 'green'}">溯源自检</span>
-        <span>${trace.dims.length} 个维度中，<b>${trace.solid.length}</b> 个由直接证据支撑（占得分依据 70% 以上）${trace.weak.length ? `，<b>${trace.weak.length}</b> 个主要靠结构特征得分` : ''}${trace.penalized.length ? `，<b>${trace.penalized.length}</b> 个被具体缺陷扣掉 25% 以上` : ''}。
+        <span class="badge ${trace.thin.length || trace.hallucinated.length ? 'amber' : 'green'}">溯源自检</span>
+        <span>${trace.dims.length} 个维度中，<b>${trace.solid.length}</b> 个由直接证据支撑（占得分依据 70% 以上）${trace.thin.length ? `，<b>${trace.thin.length}</b> 个主要靠结构特征得分` : ''}${trace.hallucinated.length ? `，<b>${trace.hallucinated.length}</b> 个存在无法核实的证据` : ''}。
         全卷证据支撑度 <b>${Math.round(trace.supportRate * 100)}%</b>，共命中 ${trace.evidenceTotal} 项证据、未命中 ${trace.missingTotal} 项。</span></div>` : ''}
       ${dimsHtml}
+      ${renderFacts(doc)}
     `;
 
-    $('#gaugeBox').appendChild(AG.charts.gauge(r.total, { size: 250 }));
+    $('#gaugeBox').appendChild(AG.charts.gauge(r.total, { size: 250, range: r.range, gradeStraddle: r.gradeStraddle }));
     $('#radarBox').appendChild(AG.charts.radar(r.dims, { size: 400 }));
 
     $$('.dim .hd', card).forEach((hd) => {
@@ -565,15 +693,44 @@
     bindResultButtons();
   }
 
+  /**
+   * 客观事实层：只报"机器能裁决"的事实，不报"我觉得好不好"。
+   * 这一块存在的意义，是给老师一个**不依赖模型**的独立信源：
+   * 模型说「结果部分充实」，这里说「正文引用了图 5，但全文只有图 1」。
+   * 两者对照着看，老师的终评就有据可依；模型万一判错，这里也能当场拆穿。
+   * 所以它刻意不显示分数，也不参与任何打分。
+   */
+  function renderFacts(doc) {
+    if (!doc || !doc.text || !AG.analyzer.objectiveFacts) return '';
+    let r;
+    try { r = AG.analyzer.objectiveFacts(doc.text, doc.features); } catch (e) { return ''; }
+    if (!r || !r.facts || !r.facts.length) return '';
+
+    const colorOf = (lv) => (lv === 'warn' ? 'red' : lv === 'ok' ? 'green' : 'gray');
+    const badgeOf = (lv) => (lv === 'warn' ? '需核对' : lv === 'ok' ? '已核对' : '供参考');
+    const rows = r.facts.map((f) => `<li>
+      <span class="badge ${colorOf(f.level)}">${badgeOf(f.level)}</span>
+      <span class="fk">${U.esc(f.label)}</span>
+      ${f.detail ? `<span class="fd">${U.esc(f.detail)}</span>` : ''}
+    </li>`).join('');
+
+    return `<div class="facts">
+      <div class="facts-hd">
+        <b>本地事实核对</b>
+        <span class="hint">由本机直接读取报告文本判定，<b>不依赖模型</b>、不参与打分 —— 供您与模型评语交叉验证</span>
+      </div>
+      ${r.dangling.length ? `<div class="facts-alert">⚠ 检出悬空引用 <b>${r.dangling.length}</b> 处（${r.dangling.map(U.esc).join('、')}）：正文引用了这些编号，全文却找不到对应图表，建议核对是否漏贴或模板残留。</div>` : ''}
+      <ul class="facts-list">${rows}</ul>
+    </div>`;
+  }
+
   function bindResultButtons() {
-    const one = $('#btnGradeOne') || $('#btnGradeEmpty');
+    const one = $('#btnGradeOne');
     if (one) one.addEventListener('click', async () => {
-      if (state.currentId) { await gradeDoc(state.currentId); renderDocList(); computeSim(); }
+      if (state.currentId) { await gradeDoc(state.currentId); renderDocList(); }
     });
     const re = $('#btnRegrade');
     if (re) re.addEventListener('click', async () => { await gradeDoc(state.currentId); renderDocList(); });
-    const ex = $('#btnExportOne');
-    if (ex) ex.addEventListener('click', () => exportOneMd());
     const exPdf = $('#btnExportOnePdf');
     if (exPdf) exPdf.addEventListener('click', exportOnePdf);
     const ig = $('#btnIgnoreGate');
@@ -588,87 +745,109 @@
     });
   }
 
-  /* ---------------- 渲染：批量与查重 ---------------- */
+  /* ---------------- 渲染：成绩汇总 ---------------- */
   /**
-   * 查重。范围由 state.simScope 决定 —— 需求③「查重范围界定」结论是暂不界定，
-   * 所以两种范围都实现好，默认跑「当前批次」，等范围定稿切一下即可。
+   * 成绩汇总 = 统计摘要 + 分数分布 + 明细表。
+   * 老师打开这一页，最想先知道的是「这一批整体怎么样」：
+   * 平均分多少、有没有不及格、分布是集中的还是两极分化，
+   * 其次才是逐份明细。所以摘要与分布图放在表格上方，明细表退居其次。
    */
-  function computeSim() {
-    const graded = state.docs.filter((d) => d.result);
-    state.sim = graded.length >= 2
-      ? AG.analyzer.similarity(graded, { scope: state.simScope })
-      : null;
-  }
-
   function renderBatch() {
     const graded = state.docs.filter((d) => d.result);
     $('#batchCount').textContent = graded.length + ' 份已评分';
+    renderBatchStats(graded);
+    renderBatchRows(graded);
+  }
+
+  /** 统计摘要：平均/最高/最低/及格率 + 各等级人数 */
+  function renderBatchStats(graded) {
+    const box = $('#batchStats');
+    if (!box) return;
+    if (!graded.length) { box.innerHTML = ''; const d = $('#batchDist'); if (d) d.innerHTML = ''; return; }
+    const totals = graded.map((d) => d.result.total);
+    const n = totals.length;
+    const sum = totals.reduce((a, b) => a + b, 0);
+    const avg = sum / n;
+    const max = Math.max.apply(null, totals);
+    const min = Math.min.apply(null, totals);
+    const passN = totals.filter((t) => t >= 60).length;
+    const passRate = Math.round((passN / n) * 100);
+
+    // 各等级人数：按分数从高到低
+    const order = ['A', 'B', 'C', 'D', 'F'];
+    const tally = {};
+    graded.forEach((d) => { const g = d.result.grade || 'F'; tally[g] = (tally[g] || 0) + 1; });
+    const grades = order.filter((g) => tally[g]).map((g) => {
+      const sample = graded.find((d) => (d.result.grade || 'F') === g).result;
+      return { g: g, label: sample.gradeLabel, color: sample.gradeColor, n: tally[g] };
+    });
+
+    const stat = (label, value, sub, color) =>
+      '<div class="stat"><b' + (color ? ' style="color:' + color + '"' : '') + '>' + value + '</b><small>' + label + '</small>' + (sub ? '<span>' + sub + '</span>' : '') + '</div>';
+
+    box.innerHTML = [
+      stat('平均分', avg.toFixed(1)),
+      stat('最高分', max, '', 'var(--green)'),
+      stat('最低分', min, '', min < 60 ? 'var(--red)' : ''),
+      stat('及格率', passRate + '%', '≥60 分 ' + passN + ' / ' + n + ' 份', passRate < 60 ? 'var(--red)' : 'var(--green)'),
+    ].join('') + grades.map((x) =>
+      stat(x.label + ' · ' + x.g, x.n + ' 份', '', x.color),
+    ).join('');
+
+    renderBatchDist(totals);
+  }
+
+  /** 分数分布直方图（纯 CSS 柱状，不依赖图表库，按分数段着色） */
+  function renderBatchDist(totals) {
+    const box = $('#batchDist');
+    if (!box) return;
+    if (!totals.length) { box.innerHTML = ''; return; }
+    // 10 分一档：0-9…90-100（把满分并入最后一档）
+    const bins = [
+      { lo: 0, hi: 10 }, { lo: 10, hi: 20 }, { lo: 20, hi: 30 }, { lo: 30, hi: 40 },
+      { lo: 40, hi: 50 }, { lo: 50, hi: 60 }, { lo: 60, hi: 70 }, { lo: 70, hi: 80 },
+      { lo: 80, hi: 90 }, { lo: 90, hi: 101 },
+    ];
+    const counts = bins.map((b) => totals.filter((t) => t >= b.lo && t < b.hi).length);
+    const peak = Math.max.apply(null, [1].concat(counts));
+    const color = (lo) => (lo < 60 ? 'var(--red)' : lo < 80 ? 'var(--amber)' : 'var(--green)');
+    box.innerHTML =
+      '<div class="dist-title">分数分布（每 10 分一档）</div><div class="dist-bars">' +
+      bins.map((b, i) => {
+        const h = Math.round((counts[i] / peak) * 100);
+        const hiLabel = b.hi === 101 ? 100 : b.hi;
+        return '<div class="dist-col" title="' + b.lo + '–' + hiLabel + ' 分：' + counts[i] + ' 份">' +
+          '<span class="dist-n">' + (counts[i] || '') + '</span>' +
+          '<i class="dist-bar" style="height:' + (counts[i] ? Math.max(6, h) : 2) + '%;background:' + color(b.lo) + '"></i>' +
+          '<small>' + b.lo + '</small></div>';
+      }).join('') +
+      '</div>';
+  }
+
+  function renderBatchRows(graded) {
     const tbody = $('#scoreTable').querySelector('tbody');
     tbody.innerHTML = '';
-
     if (!graded.length) {
-      tbody.innerHTML = '<tr><td colspan="8" class="c hint" style="padding:26px">暂无已评分报告，请先到「评分工作台」完成评阅</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" class="c hint" style="padding:26px">暂无已评分报告，请先到「评分工作台」完成评阅</td></tr>';
+      return;
     }
-    const simMap = {};
-    if (state.sim) {
-      graded.forEach((d, i) => {
-        const others = state.sim.matrix[i].map((v, j) => ({ v, j })).filter((o) => o.j !== i);
-        const top = others.sort((a, b) => b.v - a.v)[0];
-        simMap[d.id] = top ? top.v : 0;
-      });
-    }
-
     graded.forEach((d) => {
       const r = d.result;
-      const sv = simMap[d.id];
       const tr = U.el('tr', {});
-      tr.innerHTML = `
-        <td>${U.esc(d.name)}</td>
-        <td class="c" style="font-weight:800;color:${r.gradeColor}">${r.total}</td>
-        <td class="c"><span class="badge" style="background:${r.gradeColor}18;color:${r.gradeColor}">${r.grade} · ${r.gradeLabel}</span></td>
-        <td class="c">${r.features.words}</td>
-        <td class="c">${r.features.codeBlockCount}</td>
-        <td class="c">${r.features.figureCount + r.features.tableCount}</td>
-        <td class="c">${sv === undefined ? '—' : (sv >= 0.45 ? `<span style="color:var(--red);font-weight:700">${Math.round(sv * 100)}%</span>` : Math.round(sv * 100) + '%')}</td>
-        <td class="r"><button class="btn sm" data-view-doc="${d.id}">查看</button></td>`;
+      tr.innerHTML =
+        '<td>' + U.esc(d.name) + '</td>' +
+        '<td class="c" style="font-weight:800;color:' + r.gradeColor + '">' + r.total + '</td>' +
+        '<td class="c"><span class="badge" style="background:' + r.gradeColor + '18;color:' + r.gradeColor + '">' + r.grade + ' · ' + r.gradeLabel + '</span></td>' +
+        '<td class="c">' + r.features.words + '</td>' +
+        '<td class="c">' + r.features.codeBlockCount + '</td>' +
+        '<td class="c">' + (r.features.figureCount + r.features.tableCount) + '</td>' +
+        '<td class="r"><button class="btn sm" data-view-doc="' + d.id + '">查看</button></td>';
       tbody.appendChild(tr);
     });
     $$('[data-view-doc]', tbody).forEach((b) => b.addEventListener('click', () => {
       state.currentId = b.dataset.viewDoc;
       switchView('work'); renderDocList(); renderResult();
     }));
-
-    renderSim();
-  }
-
-  function renderSim() {
-    const box = $('#simBox');
-    const graded = state.docs.filter((d) => d.result);
-    if (graded.length < 2) {
-      box.innerHTML = `<div class="empty" style="padding:34px 20px"><div class="ic">${ICONS.search}</div><b>至少需要 2 份报告才能进行相似度比对</b></div>`;
-      return;
-    }
-    computeSim();
-    const names = graded.map((d) => d.name);
-    let html = '';
-    // 范围提示前置：查重范围尚未定稿，结果按哪种口径算出来的必须写在结果上方，
-    // 否则教师会把「本批次内相似」误读成「确认抄袭」
-    if (state.sim && state.sim.scopeNote) {
-      html += `<div class="susp warn" style="margin-bottom:10px"><span class="badge amber">${U.esc(state.sim.scopeLabel)}</span><span>${U.esc(state.sim.scopeNote)}</span></div>`;
-    }
-    if (state.sim.suspicious.length) {
-      html += state.sim.suspicious.map((p) => {
-        const lvl = p.value >= 0.7 ? 'red' : 'amber';
-        return `<div class="susp${lvl === 'amber' ? ' warn' : ''}">
-          <span class="badge ${p.value >= 0.7 ? 'red' : 'amber'}">${Math.round(p.value * 100)}%</span>
-          <span><b>${U.esc(names[p.a])}</b> 与 <b>${U.esc(names[p.b])}</b> 高度相似，建议人工复核是否存在抄袭。</span>
-        </div>`;
-      }).join('');
-    } else {
-      html += '<div class="susp" style="border-color:#bbf7d0;background:#f0fdf4"><span class="badge green">未发现可疑</span><span>所有报告两两相似度均低于 45% 阈值。</span></div>';
-    }
-    box.innerHTML = html + '<div id="hmBox" style="margin-top:14px;overflow-x:auto"></div>';
-    $('#hmBox').appendChild(AG.charts.heatmap(state.sim.matrix, names));
   }
 
   /* ============================================================
@@ -1234,7 +1413,7 @@
     if (!ref || !ref.length) return next;
     const pos = new Map(ref.map((d, i) => [d.id || d.name, i]));
     const overlap = next.filter((d) => pos.has(d.id || d.name)).length;
-    // 换模板时两边维度八成对不上（物理 vs 编程只共用 purpose/format），强行按旧顺序排
+    // 换模板时两边维度八成对不上（网络 vs 数据库只共用 format 之类），强行按旧顺序排
     // 只能得到一串没有意义的先后关系，这时照搬新模板自己的顺序 —— 它本来就是按教学流程排的
     if (overlap * 2 < next.length) return next;
     const tail = 1e6;   // 新增维度排到最后；sort 稳定，它们之间的相对顺序也不变
@@ -1456,7 +1635,7 @@
         <button class="btn sm primary" id="tbNew">按此文档新增类型</button>
         ${cands.length ? '<button class="btn sm" id="tbManual">手动指定</button>' : ''}
       </div>
-      <p class="hint" style="margin-top:8px">新增后会写进「设置 → 类型设置」，两边始终一致。</p>`;
+      <p class="hint" style="margin-top:8px">新增后会写进「设置 → 评阅规则 → 文档类型」，两边始终一致。</p>`;
     const nb = $('#tbNew');
     if (nb) nb.addEventListener('click', () => openTypeModal(AG.doctypes.draftFromDoc(doc), doc));
     const mb = $('#tbManual');
@@ -1466,12 +1645,18 @@
     }));
   }
 
-  /** 手动指定类型的下拉（所有类型，含已停用的内置类型不列出） */
-  function openTypePicker(doc) {
+  /** 手动指定类型的对话框（所有类型，已停用的内置类型不列出） */
+  async function openTypePicker(doc) {
     const types = AG.doctypes.all();
     if (!types.length) return toast('还没有任何可用类型，请先新增一个', 'warn');
     const names = types.map((t, i) => `${i + 1}. ${t.name}${t.builtin ? '' : '（自定义）'}`).join('\n');
-    const raw = prompt('输入序号为《' + doc.name + '》指定类型：\n\n' + names, '1');
+    const raw = await AG.ask({
+      title: '指定文档类型',
+      message: '输入序号为《' + doc.name + '》指定类型：\n\n' + names,
+      value: '1',
+      placeholder: '输入序号，如 1',
+      okText: '指定',
+    });
     if (raw == null) return;
     const idx = parseInt(raw, 10) - 1;
     if (!(idx >= 0 && idx < types.length)) return toast('序号无效', 'warn');
@@ -1490,11 +1675,16 @@
   }
 
   /** 把类型的评分方向写进当前量表（覆盖式，但会提示） */
-  function applyTypeToRubric(type) {
+  async function applyTypeToRubric(type) {
     if (!type) return;
     const dims = AG.doctypes.toRubric(type);
     if (!dims || !dims.length) return toast('该类型还没有评分方向，请先在类型设置里添加', 'warn');
-    if (!confirm('将把当前量表替换为「' + type.name + '」的 ' + dims.length + ' 个评分方向（分值合计 100）。\n当前量表的手动改动会被覆盖，确定继续？')) return;
+    const ok = await AG.confirm({
+      title: '套用评分方向',
+      message: '将把当前量表替换为「' + type.name + '」的 ' + dims.length + ' 个评分方向（分值合计 100）。\n当前量表的手动改动会被覆盖，确定继续？',
+      okText: '替换量表',
+    });
+    if (!ok) return;
     state.rubric = dims;
     U.store.set('rubric', AG.rubric.serializeRubric(state.rubric));
     renderRubricTable();
@@ -1515,22 +1705,25 @@
     tbody.innerHTML = '';
 
     if (!types.length) {
-      tbody.innerHTML = '<tr><td colspan="6" class="hint" style="text-align:center;padding:20px">还没有任何类型，点「新增类型」开始</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="4" class="hint" style="text-align:center;padding:20px">还没有任何类型，点「新增类型」开始</td></tr>';
       return;
     }
 
+    // 每行：紧凑摘要行（启用 / 名称 / 来源 / 操作）+ 可展开详情行（特征词 · 评分方向）。
+    // 默认收起，避免 7 类大表格一次全展开造成认知过载；点 ▸ 展开当前类型。
     types.forEach((t) => {
       const tr = U.el('tr', { style: t.enabled ? '' : 'opacity:.55' });
-      const kws = (t.keywords || []).slice(0, 6).map((k) => `<span class="chip">${U.esc(k)}</span>`).join('');
-      const dirs = (t.directions || []).map((d) => `<span class="chip">${U.esc(d.name)} ${d.max}</span>`).join('');
       const src = t.builtin
         ? (t.edited ? '<span class="badge amber">内置·已改</span>' : '<span class="badge blue">内置</span>')
         : '<span class="badge green">自定义</span>';
       tr.innerHTML = `
         <td class="c"><input type="checkbox" data-toggle-type="${U.esc(t.id)}" ${t.enabled ? 'checked' : ''} title="停用后不参与自动识别"></td>
-        <td><b>${U.esc(t.name)}</b>${t.brief ? `<div class="hint">${U.esc(t.brief)}</div>` : ''}</td>
-        <td><div class="chips">${kws || '<span class="hint">无</span>'}${(t.keywords || []).length > 6 ? `<span class="chip">+${t.keywords.length - 6}</span>` : ''}</div></td>
-        <td><div class="chips">${dirs || '<span class="hint">无</span>'}</div></td>
+        <td>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <b>${U.esc(t.name)}</b>${t.brief ? `<span class="hint">${U.esc(t.brief)}</span>` : ''}
+            <button type="button" class="type-toggle" data-toggle-row="${U.esc(t.id)}" aria-label="展开特征词与评分方向" aria-expanded="false">▸</button>
+          </div>
+        </td>
         <td class="c">${src}</td>
         <td class="r">
           <button class="btn sm" data-apply-type="${U.esc(t.id)}">套用为评分准则</button>
@@ -1538,6 +1731,15 @@
           <button class="btn sm danger" data-del-type="${U.esc(t.id)}">${t.builtin ? '停用' : '删除'}</button>
         </td>`;
       tbody.appendChild(tr);
+
+      const kws = (t.keywords || []).map((k) => `<span class="chip">${U.esc(k)}</span>`).join('');
+      const dirs = (t.directions || []).map((d) => `<span class="chip">${U.esc(d.name)} ${d.max}</span>`).join('');
+      const dtr = U.el('tr', { class: 'type-detail', id: 'tdetail-' + t.id, style: 'display:none' });
+      dtr.innerHTML = `<td colspan="4"><div class="type-detail-grid">
+          <div><div class="lb">特征词（自动识别用）</div><div class="chips">${kws || '<span class="hint">无</span>'}</div></div>
+          <div><div class="lb">评分方向（分值合计 ${(t.directions || []).reduce((s, d) => s + (Number(d.max) || 0), 0)}）</div><div class="chips">${dirs || '<span class="hint">无</span>'}</div></div>
+        </div></td>`;
+      tbody.appendChild(dtr);
     });
   }
 
@@ -1599,14 +1801,35 @@
         : '';
     }
     renderDirEditor();
+    setModalOrigin('typeMask', document.activeElement);
     $('#typeMask').classList.add('on');
+    lastModalOpener = document.activeElement;
     $('#tpName').focus();
+  }
+
+  function restoreModalFocus() {
+    if (lastModalOpener && document.contains(lastModalOpener)) {
+      try { lastModalOpener.focus(); } catch (_) {}
+    }
+    lastModalOpener = null;
+  }
+
+  // 让弹窗从触发按钮位置弹簧弹出（Apple 流体原则：出场入场路径对称，弹窗从触发源展开）
+  function setModalOrigin(maskId, originEl) {
+    const mask = document.getElementById(maskId);
+    const modal = mask && mask.querySelector('.modal');
+    if (!modal || !originEl) return;
+    const r = originEl.getBoundingClientRect();
+    const ox = ((r.left + r.width / 2) / window.innerWidth) * 100;
+    const oy = ((r.top + r.height / 2) / window.innerHeight) * 100;
+    modal.style.transformOrigin = ox.toFixed(1) + '% ' + oy.toFixed(1) + '%';
   }
 
   function closeTypeModal() {
     $('#typeMask').classList.remove('on');
     typeDraft = null;
     typeDraftDoc = null;
+    restoreModalFocus();
   }
 
   function saveTypeModal() {
@@ -1729,43 +1952,6 @@
   }
 
   /* ---------------- 导出 ---------------- */
-  function buildMd(doc) {
-    const r = doc.result;
-    const lines = [];
-    lines.push(`# 实验报告评阅结果：${doc.name}`, '');
-    lines.push(`- 综合得分：**${r.total} / 100**（${r.grade} 级 · ${r.gradeLabel}）`);
-    lines.push(`- 评阅引擎：${r.engineLabel}`);
-    lines.push(`- 评阅时间：${U.fmtTime(r.gradedAt)}`);
-    lines.push(`- 篇幅：${r.features.words} 字 / 代码块 ${r.features.codeBlockCount} 个 / 图表引用 ${r.features.figureCount + r.features.tableCount} 处 / 数据点 ${r.features.numberCount} 个`, '');
-    lines.push(`## 总体评语`, '', r.overall || '', '');
-    lines.push(`## 分项得分`, '');
-    lines.push(`| 维度 | 得分 | 满分 | 得分率 | 评价 |`, `| --- | --- | --- | --- | --- |`);
-    r.dims.forEach((d) => {
-      lines.push(`| ${d.name} | ${d.score} | ${d.max} | ${Math.round(d.ratio * 100)}% | ${(d.comment || '').replace(/\|/g, '/')} |`);
-    });
-    lines.push('', `## 逐项核查明细`, '');
-    r.dims.forEach((d) => {
-      lines.push(`### ${d.name}（${d.score}/${d.max}）`, '');
-      if (d.evidence && d.evidence.length) {
-        lines.push(`**命中证据**：${d.evidence.map((e) => e.label).join('、')}`, '');
-        d.evidence.filter((e) => e.snippets && e.snippets.length).slice(0, 3)
-          .forEach((e) => lines.push(`> ${e.label}：${e.snippets[0].snippet}`, ''));
-      }
-      if (d.missing && d.missing.length) lines.push(`**缺失要点**：${d.missing.map((m) => m.label).join('、')}`, '');
-      if (d.penalties && d.penalties.length) lines.push(`**扣分项**：${d.penalties.map((p) => `${p.label}（-${p.weight}）`).join('、')}`, '');
-      if (d.advice) lines.push(`**改进建议**：${d.advice}`, '');
-    });
-    lines.push('---', `由 AutoGrader 自动生成 · 粤港澳大湾区 AI Coding 创新大赛参赛作品`);
-    return lines.join('\n');
-  }
-
-  function exportOneMd() {
-    const doc = state.docs.find((d) => d.id === state.currentId);
-    if (!doc || !doc.result) return toast('该报告尚未评分', 'err');
-    U.download(`评阅报告-${doc.name.replace(/\.[^.]+$/, '')}.md`, buildMd(doc), 'text/markdown');
-    toast('已导出 Markdown 评阅报告', 'ok');
-  }
-
   /** 单篇导出 PDF（直接落盘，不弹打印对话框） */
   async function exportOnePdf() {
     const doc = state.docs.find((d) => d.id === state.currentId);
@@ -1802,51 +1988,32 @@
     }
   }
 
-  function exportAllMd() {
+  /** 成绩表 PDF：一行一份报告（登分 / 归档用），不是逐份详版。
+   *  老师登分时最需要的是「一张能打印、能对着抄的表」，
+   *  与「导出评阅报告 PDF」（每份含逐维度证据与评语的详版）用途不同，故分成两个入口。 */
+  async function exportScorePdf() {
     const graded = state.docs.filter((d) => d.result);
     if (!graded.length) return toast('暂无已评分报告', 'err');
-    U.download('评阅报告汇总.md', graded.map(buildMd).join('\n\n---\n\n'), 'text/markdown');
-    toast('已导出全部评阅报告', 'ok');
+    const btn = $('#btnExportScorePdf');
+    if (btn) { btn.disabled = true; btn.textContent = `生成中… (${graded.length} 份)`; }
+    try {
+      await AG.pdf.exportScoreTable(graded, '成绩表.pdf');
+      toast(U.downloadRisky()
+        ? `已生成成绩表 PDF（${graded.length} 份）。若浏览器没有开始下载，请看导出按钮下方的提示`
+        : `已导出成绩表 PDF（${graded.length} 份）`, 'ok');
+    } catch (e) {
+      toast('成绩表导出失败：' + e.message, 'err');
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = '导出成绩表 (PDF)'; }
+    }
   }
 
-  function exportCsv() {
-    const graded = state.docs.filter((d) => d.result);
-    if (!graded.length) return toast('暂无已评分报告', 'err');
-    const dimNames = (graded[0].result.dims || []).map((d) => d.name);
-    const head = ['报告名称', ...dimNames, '总分', '等级', '字数', '代码块', '评阅引擎', '评阅时间'];
-    const rows = graded.map((d) => {
-      const r = d.result;
-      return [
-        d.name, ...r.dims.map((x) => x.score), r.total, r.grade,
-        r.features.words, r.features.codeBlockCount, r.engineLabel, U.fmtTime(r.gradedAt),
-      ];
-    });
-    const csv = '\uFEFF' + [head, ...rows]
-      .map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
-    U.download('成绩汇总.csv', csv, 'text/csv');
-    toast('已导出成绩表 CSV', 'ok');
-  }
 
   /* ---------------- 站内答疑助手 ----------------
    * 引擎在 chat.js；这里只负责把「当前站内的真实状态」交给它，并把回答渲染出来。
    * 上下文是每次提问时现算的，所以评了一份新报告、换了量表、切了人格，
    * 下一次提问立刻按新状态答——不需要用户手动刷新什么。
    */
-
-  /** 当前这批里最相似的一对，供答疑引用具体数字 */
-  function chatSimTop() {
-    const s = state.sim;
-    if (!s || !s.matrix || !s.matrix.length) return null;
-    const graded = state.docs.filter((d) => d.result);
-    let best = null;
-    s.matrix.forEach((row, i) => {
-      (row || []).forEach((v, j) => {
-        if (j <= i || !graded[i] || !graded[j]) return;
-        if (!best || v > best.value) best = { i, j, value: v };
-      });
-    });
-    return best ? { a: graded[best.i].name, b: graded[best.j].name, value: best.value } : null;
-  }
 
   function chatContext() {
     const doc = state.docs.find((d) => d.id === state.currentId) || null;
@@ -1856,21 +2023,12 @@
     let cur = null;
     if (doc && doc.result) {
       const r = doc.result;
-      let sim = null;
-      const gi = graded.indexOf(doc);
-      if (gi >= 0 && state.sim && state.sim.matrix && state.sim.matrix[gi]) {
-        const top = state.sim.matrix[gi]
-          .map((v, j) => ({ v, j })).filter((o) => o.j !== gi)
-          .sort((a, b) => b.v - a.v)[0];
-        if (top) sim = top.v;
-      }
       cur = {
         name: doc.name,
         total: r.total, grade: r.grade, gradeLabel: r.gradeLabel,
         words: r.features ? r.features.words : 0,
         dims: r.dims || [],
         gate: r.gate || null,
-        similarity: sim,
       };
     }
 
@@ -1885,8 +2043,7 @@
       llmReady: !!(cfg && cfg.apiKey),
       llmModel: (cfg && cfg.model) || '',
       tone: AG.voice.get(),
-      simTop: chatSimTop(),
-      simCount: graded.length,
+      gradedCount: graded.length,
     };
   }
 
@@ -1906,7 +2063,7 @@
     if (!state.chat.length) {
       body.appendChild(U.el('div', { class: 'msg ai' }, [
         U.el('div', { class: 'bubble' }, [
-          '本站怎么用、这个分为什么这么低、查重怎么看——都可以问我。\n' +
+          '本站怎么用、这个分为什么这么低、成绩表怎么看——都可以问我。\n' +
           '默认走本地知识库，不联网、不花 token；配了 API Key 之后，' +
           '本地答不上来的才会转给大模型，并且带上当前报告的评分上下文。',
         ]),
@@ -1977,8 +2134,8 @@
   function toggleChat(open) {
     const p = $('#chatPanel'), fab = $('#chatFab');
     if (!p || !fab) return;
-    const show = open === undefined ? p.style.display === 'none' : !!open;
-    p.style.display = show ? 'flex' : 'none';
+    const show = open === undefined ? !p.classList.contains('on') : !!open;
+    p.classList.toggle('on', show);
     fab.classList.toggle('on', show);
     if (show) { updateChatMode(); renderChatChips(); renderChat(); $('#chatInput').focus(); }
   }
@@ -1993,9 +2150,20 @@
     /* ---------------- 类型设置 ---------------- */
     const typeTbody = $('#typeTable') ? $('#typeTable').querySelector('tbody') : null;
     if (typeTbody) {
-      typeTbody.addEventListener('click', (e) => {
+      typeTbody.addEventListener('click', async (e) => {
         const btn = e.target.closest('button');
         if (!btn) return;
+        // 展开/收起某类型的特征词与评分方向
+        if (btn.dataset.toggleRow) {
+          const det = document.getElementById('tdetail-' + btn.dataset.toggleRow);
+          if (det) {
+            const open = det.style.display !== 'none';
+            det.style.display = open ? 'none' : '';
+            btn.textContent = open ? '▸' : '▾';
+            btn.setAttribute('aria-expanded', String(!open));
+          }
+          return;
+        }
         const id = btn.dataset.editType || btn.dataset.delType || btn.dataset.applyType;
         if (btn.dataset.editType) {
           const t = AG.doctypes.get(id, { includeDisabled: true });
@@ -2004,9 +2172,15 @@
           const t = AG.doctypes.get(id, { includeDisabled: true });
           if (!t) return;
           const isBuiltin = !!t.builtin;
-          if (!confirm(isBuiltin
-            ? `停用内置类型「${t.name}」？它不会再参与自动识别，可随时重新启用。`
-            : `删除自定义类型「${t.name}」？不可恢复。`)) return;
+          const ok = await AG.confirm({
+            title: isBuiltin ? '停用内置类型' : '删除自定义类型',
+            message: isBuiltin
+              ? `停用内置类型「${t.name}」？它不会再参与自动识别，可随时重新启用。`
+              : `删除自定义类型「${t.name}」？不可恢复。`,
+            okText: isBuiltin ? '停用' : '删除',
+            danger: true,
+          });
+          if (!ok) return;
           AG.doctypes.remove(id);
           toast(isBuiltin ? `已停用「${t.name}」` : `已删除「${t.name}」`, 'ok');
         } else if (btn.dataset.applyType) {
@@ -2033,8 +2207,14 @@
       if (!doc) return toast('工作台上还没有文档，先录入一份再来提取', 'warn');
       openTypeModal(AG.doctypes.draftFromDoc(doc), doc);
     });
-    $('#btnTypeReset').addEventListener('click', () => {
-      if (!confirm('将清空全部自定义类型，并撤销对内置类型的所有改动（不可恢复）。确定？')) return;
+    $('#btnTypeReset').addEventListener('click', async () => {
+      const ok = await AG.confirm({
+        title: '重置全部类型',
+        message: '将清空全部自定义类型，并撤销对内置类型的所有改动（不可恢复）。确定？',
+        okText: '重置',
+        danger: true,
+      });
+      if (!ok) return;
       AG.doctypes.resetAll();
       toast('已恢复内置默认类型', 'ok');
     });
@@ -2065,7 +2245,15 @@
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
     });
     $('#chatInput').addEventListener('input', autoGrowChat);
-    $('#chatClear').addEventListener('click', () => {
+    $('#chatClear').addEventListener('click', async () => {
+      if (!state.chat.length) return;
+      const ok = await AG.confirm({
+        title: '清空答疑记录',
+        message: '将清空当前答疑会话的全部记录（不可恢复）。确定？',
+        okText: '清空',
+        danger: true,
+      });
+      if (!ok) return;
       state.chat = [];
       renderChat();
       renderChatChips();
@@ -2086,10 +2274,13 @@
     $('#btnPaste').addEventListener('click', () => {
       $('#pasteName').value = '';
       $('#pasteText').value = '';
+      setModalOrigin('pasteMask', document.activeElement);
       $('#pasteMask').classList.add('on');
+      lastModalOpener = document.activeElement;
+      $('#pasteName').focus();
     });
-    $('#pasteCancel').addEventListener('click', () => $('#pasteMask').classList.remove('on'));
-    $('#pasteMask').addEventListener('click', (e) => { if (e.target.id === 'pasteMask') $('#pasteMask').classList.remove('on'); });
+    $('#pasteCancel').addEventListener('click', () => { $('#pasteMask').classList.remove('on'); restoreModalFocus(); });
+    $('#pasteMask').addEventListener('click', (e) => { if (e.target.id === 'pasteMask') { $('#pasteMask').classList.remove('on'); restoreModalFocus(); } });
     $('#pasteOk').addEventListener('click', () => {
       const text = $('#pasteText').value.trim();
       if (!text) return toast('请输入报告正文', 'err');
@@ -2097,22 +2288,38 @@
       AG.parser.fromText(name, text);
       addDoc(name, text);
       $('#pasteMask').classList.remove('on');
+      restoreModalFocus();
       toast('已录入，点击「全部重新评分」开始评阅', 'ok');
     });
 
     // 示例
+    // P0：点「加载示例」不再强绑「触发真实评阅 → 没 Key 报错 → 跳设置」。
+    //   · 没配 Key：用内置的**预置评分结果**直接渲染出完整结果页（示例演示，非模型输出），
+    //     让人第一眼就看得见产品产出物；不再弹红字、不再跳设置。
+    //   · 已配 Key：照常加载并真实评阅。
     $('#btnDemo').addEventListener('click', async () => {
       AG.demos.forEach((s) => addDoc(s.name, s.text));
+      if (!AG.llm.getConfig().apiKey) {
+        applyPresetResults();
+        toast('已加载 3 份示例报告（示例演示结果，未调用模型）', 'ok');
+        return;
+      }
       toast('已加载 3 份示例报告，开始评阅…', 'ok');
       await gradeAll();
     });
 
     // 评分
     $('#btnGradeAll').addEventListener('click', gradeAll);
-    $('#btnClear').addEventListener('click', () => {
+    $('#btnClear').addEventListener('click', async () => {
       if (!state.docs.length) return;
-      if (!confirm('确认清空所有已录入的报告？')) return;
-      state.docs = []; state.currentId = null; state.sim = null;
+      const ok = await AG.confirm({
+        title: '清空所有报告',
+        message: '确认清空所有已录入的报告？此操作不可恢复。',
+        okText: '清空',
+        danger: true,
+      });
+      if (!ok) return;
+      state.docs = []; state.currentId = null;
       persist(); renderDocList(); renderResult(); renderBatch();
       maybeAutoFit();
     });
@@ -2131,9 +2338,8 @@
     }
 
     // 批量页导出
-    $('#btnExportCsv').addEventListener('click', exportCsv);
-    $('#btnExportAll').addEventListener('click', exportAllMd);
     $('#btnExportAllPdf').addEventListener('click', exportAllPdf);
+    $('#btnExportScorePdf').addEventListener('click', exportScorePdf);
 
     // 智能分析
     $('#btnInduce').addEventListener('click', runInduce);
@@ -2149,16 +2355,34 @@
     $('#promptInput').addEventListener('keydown', (e) => {
       if (e.key === 'Enter') { e.preventDefault(); genFromPrompt(); }
     });
-    $('#btnResetRubric').addEventListener('click', () => {
-      if (!confirm('恢复为默认量表？自定义分值与锁定状态将丢失。')) return;
+    $('#btnResetRubric').addEventListener('click', async () => {
+      const ok = await AG.confirm({
+        title: '恢复默认量表',
+        message: '恢复为默认量表？自定义分值与锁定状态将丢失。',
+        okText: '恢复',
+        danger: true,
+      });
+      if (!ok) return;
       state.rubric = AG.rubric.cloneRubric().map((d) => Object.assign({ enabled: true }, d));
       U.store.set('rubric', AG.rubric.serializeRubric(state.rubric));
       renderRubricTable(); toast('已恢复默认量表', 'ok');
     });
-    $('#btnAddDim').addEventListener('click', () => {
-      const name = prompt('新维度名称：', '自定义维度');
+    $('#btnAddDim').addEventListener('click', async () => {
+      const name = await AG.ask({
+        title: '新增评分维度',
+        message: '新维度名称：',
+        value: '自定义维度',
+        okText: '下一步',
+      });
       if (!name) return;
-      const max = Number(prompt('该维度分值：', '5')) || 5;
+      const maxRaw = await AG.ask({
+        title: '新增评分维度',
+        message: '「' + name + '」的分值：',
+        value: '5',
+        okText: '添加',
+      });
+      if (maxRaw == null) return;
+      const max = Number(maxRaw) || 5;
       state.rubric.push({
         id: 'custom_' + U.uid(''), name, max, desc: '自定义评分维度（本地引擎按通用规则评分）',
         signals: [{ label: '包含相关内容', re: /./g, w: 1 }], penalties: [], advice: '', enabled: true,
@@ -2199,7 +2423,15 @@
         toast('测试失败：' + e.message, 'err');
       } finally { btn.disabled = false; btn.textContent = '测试连通性'; }
     });
-    $('#btnClearCfg').addEventListener('click', () => {
+    $('#btnClearCfg').addEventListener('click', async () => {
+      // API Key 一旦清除就得重新去服务商后台翻，属于不可逆操作，必须先问一句
+      const ok = await AG.confirm({
+        title: '清除模型配置',
+        message: '将清除已填写的 API Key 与模型配置（不可恢复）。确定？',
+        okText: '清除',
+        danger: true,
+      });
+      if (!ok) return;
       AG.llm.saveConfig(Object.assign({}, AG.llm.DEFAULT_CONFIG));
       loadCfgForm(); refreshEngineBadge(); toast('已清除 API Key', 'ok');
     });
@@ -2221,21 +2453,13 @@
     $$('[data-preset]').forEach((btn) => {
       btn.addEventListener('click', () => applyPreset(PROVIDER_PRESETS[btn.dataset.preset], '#cfg'));
     });
-    // 查重范围切换（需求③范围待定，故两种都提供）
-    $$('[data-simscope]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        state.simScope = btn.dataset.simscope;
-        U.store.set('simScope', state.simScope);
-        $$('[data-simscope]').forEach((b) => b.classList.toggle('primary', b === btn));
-        computeSim(); renderBatch();
-        toast('查重范围已切换为：' + (AG.analyzer.SCOPES[state.simScope] || {}).label, 'ok');
-      });
-    });
   }
 
   /* ---------------- 启动 ---------------- */
   function init() {
     bind();
+    // 应用内对话框：绑定自身按钮/键盘（替代原生 confirm / prompt，见 confirm.js）
+    if (AG.dialogInit) AG.dialogInit();
     // 提前把吉祥物解码成 Image，供 PDF 导出的 Canvas 同步绘制用
     // （导出流程是同步的，不能在那里等图片 onload）
     if (AG.mascots && AG.mascots.load) AG.mascots.load();
@@ -2249,11 +2473,17 @@
     // 恢复上次会话时，若文档已有评阅结果则直接展示
     if (state.docs.length) {
       state.currentId = state.currentId || state.docs[0].id;
-      computeSim();
     }
     renderDocList();
     renderResult();
     renderTypeBox();
+
+    // 无障碍：Esc 关闭当前打开的模态框（粘贴 / 类型编辑）
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      if ($('#typeMask').classList.contains('on')) closeTypeModal();
+      else if ($('#pasteMask').classList.contains('on')) { $('#pasteMask').classList.remove('on'); restoreModalFocus(); }
+    });
 
     /* 类型库的变更订阅——「双向同步」的另一半。
      * 在工作台新建的类型，设置模块要立刻能看到；在设置里改动的类型，

@@ -42,15 +42,34 @@
   function buildPrompt(doc, rubric) {
     /* 量表下发给模型时，把 signals / penalties 一并转成文字要点。
      * 这两个字段原本还要驱动本地正则打分，现在专供 Prompt 使用，
-     * 于是可以放心地把 penalties（扣分项）也带上——旧版为了兼容正则引擎没敢动。 */
-    const dims = rubric.map((d) => ({
-      id: d.id,
-      name: d.name,
-      max: Number(d.max),
-      desc: d.desc,
-      points: (d.signals || []).map((s) => s.label),
-      deductions: (d.penalties || []).map((p) => p.label),
-    }));
+     * 于是可以放心地把 penalties（扣分项）也带上——旧版为了兼容正则引擎没敢动。
+     *
+     * 【2026-09 二轮变更】每维度追加**评分锚点**（档位 + 区间 + 行为描述）。
+     * 旧版只说「给 0 到 max 之间的分数」，模型只能凭手感给分，同一份报告
+     * 连评几次极差可达十几分。锚点把"分数"翻译成"可观察的行为"，
+     * 强制模型先选档、再在档内取值，分数因此变得可复现、可解释。 */
+    const A = AG.anchors;
+    const dims = rubric.map((d) => {
+      const item = {
+        id: d.id,
+        name: d.name,
+        max: Number(d.max),
+        desc: d.desc,
+        points: (d.signals || []).map((s) => s.label),
+        deductions: (d.penalties || []).map((p) => p.label),
+      };
+      if (A && d.max) {
+        const bands = A.anchorsFor(d);
+        if (bands.length) {
+          item.anchors = bands.map((b) => ({
+            level: b.idx,
+            range: b.lo + '-' + b.hi,
+            behavior: b.text,
+          }));
+        }
+      }
+      return item;
+    });
 
     const content = (doc.text || '').slice(0, getConfig().maxChars);
     const truncated = (doc.text || '').length > getConfig().maxChars;
@@ -58,27 +77,37 @@
     // 语气人格由 AG.voice 注入：换「学院派 / 傲娇小天才 / 火力全开」即换整套评语风格，
     // 且人格提示里已写死「对事不对人 + 毒舌必带解药」两条硬约束。
     const toneHint = AG.voice ? AG.voice.systemHint() : '';
+    const hasAnchors = dims.some((d) => d.anchors && d.anchors.length);
 
     const system = `你是一名严谨的高校计算机专业实验报告评阅助教。
 你将收到一份实验报告和一份评分量表（JSON）。请严格依据量表逐项评分。
 
 要求：
 1. 只依据报告实际内容评分，不得臆测未写出的内容。
-2. 每个维度给出 0 到 max 之间的分数（可保留 1 位小数）。
-3. points 是该维度的得分要点，deductions 是该维度的扣分情形；命中扣分情形时须在 comment 中说明。
-4. 评分须可复现：同一份报告重复评阅应给出接近的分数，不要因表述顺序变化而漂移。
-5. evidence 必须引用报告中的**逐字原文片段**（每条不超过 40 字），
+${hasAnchors ? `2. 【评分锚点】每个维度都给出了若干档位，每档含 level（档位号）、range（分数区间）、behavior（该档的行为描述）。
+   你必须**先判断报告的表现属于哪一档，再在该档位的分数区间内取值**，不得跨档给分。
+   判定顺序：从最高档开始向下比对，第一个"报告确实做到了"的档位即为所选档。
+3. level 填你选中的档位号（数字，最高档为 1）。
+4. levelReason 用一句话说明为什么选这一档（不超过 30 字，须引用报告中的具体表现）。` : `2. 每个维度给出 0 到 max 之间的分数（可保留 1 位小数）。`}
+${hasAnchors ? '5' : '3'}. points 是该维度的得分要点，deductions 是该维度的扣分情形；命中扣分情形时须在 comment 中说明。
+${hasAnchors ? '6' : '4'}. 评分须可复现：同一份报告重复评阅应给出接近的分数，不要因表述顺序变化而漂移。
+${hasAnchors ? '7' : '5'}. evidence 必须引用报告中的**逐字原文片段**（每条不超过 40 字），
    不得改写、不得杜撰——系统会逐条回查原文，编造的证据将直接作废。没有证据时为空数组。
-6. missing 列出该维度明显缺失的要点。
-7. comment 用一句话给出具体、可执行的改进建议，禁止空话。
-8. 整体评语 overall 控制在 120 字以内，先肯定再指出最关键的改进点。
-9. 只输出 JSON，不要输出任何解释或 Markdown 代码块标记。
+${hasAnchors ? '8' : '6'}. citations 是本维度**扣分/给分所依据的报告原句**，格式为
+   [{"quote": "报告里的逐字原句", "where": "所在章节名"}]。要求：
+   · 每条 quote 必须是报告原文的**连续逐字片段**（15–60 字），不得改写、不得拼接、不得杜撰；
+   · 至少给出 1 条；确实无从引用（如整章缺失）时给空数组，并在此处说明原因；
+   · 系统会逐条回查原文，查不到的引用会被标红，教师据此可当场判断这次扣分是否站得住。
+${hasAnchors ? '9' : '7'}. missing 列出该维度明显缺失的要点。
+${hasAnchors ? '10' : '8'}. comment 用一句话给出具体、可执行的改进建议，禁止空话。
+${hasAnchors ? '11' : '9'}. 整体评语 overall 控制在 120 字以内，先肯定再指出最关键的改进点。
+${hasAnchors ? '12' : '10'}. 只输出 JSON，不要输出任何解释或 Markdown 代码块标记。
 
 ${toneHint ? '【语气设定】\n' + toneHint + '\n' : ''}
 输出格式：
 {
   "dims": [
-    { "id": "维度id", "score": 12.5, "evidence": ["…"], "missing": ["…"], "comment": "…" }
+    { "id": "维度id"${hasAnchors ? ', "level": 2, "score": 8.5, "levelReason": "…"' : ', "score": 12.5'}, "evidence": ["…"], "citations": [{"quote": "…", "where": "…"}], "missing": ["…"], "comment": "…" }
   ],
   "overall": "…"
 }`;
@@ -86,7 +115,7 @@ ${toneHint ? '【语气设定】\n' + toneHint + '\n' : ''}
     const user = `【评分量表】\n${JSON.stringify(dims, null, 2)}\n\n` +
       `【实验报告：${doc.name}】\n${content}${truncated ? '\n\n（报告过长，以上为前 ' + getConfig().maxChars + ' 字）' : ''}`;
 
-    return { system, user };
+    return { system, user, hasAnchors };
   }
 
   /**
@@ -193,23 +222,110 @@ ${toneHint ? '【语气设定】\n' + toneHint + '\n' : ''}
     return callChat(cfg, messages);
   }
 
+  /**
+   * 解析模型返回的 JSON。
+   * 现实里模型的输出经常不是干净 JSON：带围栏、末尾多一句解释、被 max_tokens 截断、
+   * 键值之间留尾逗号。原先只做「截第一个 { 到最后一个 }」再 JSON.parse，
+   * 遇到截断或尾逗号会直接抛错 —— 在大模型评分里这等于整份报告白评。
+   * 因此这里层层降级，尽量把可用内容捞回来；实在捞不回才抛错（由上层如实报给用户）。
+   */
   function parseJson(text) {
-    // 容错：剥离可能存在的 ```json 围栏
-    const cleaned = String(text).replace(/```(?:json)?/gi, '').trim();
-    const start = cleaned.indexOf('{');
-    const end = cleaned.lastIndexOf('}');
-    if (start < 0 || end < 0) throw new Error('模型未返回 JSON');
-    return JSON.parse(cleaned.slice(start, end + 1));
+    const raw = String(text == null ? '' : text);
+    if (!raw.trim()) throw new Error('模型未返回任何内容');
+
+    const start = raw.indexOf('{');
+    if (start < 0) throw new Error('模型未返回 JSON');
+
+    // 候选串：完整切片 → 去尾逗号 → 截断补括号（模型被 max_tokens 切断时最常见）
+    const tail = raw.slice(start);
+    const lastBrace = tail.lastIndexOf('}');
+    const cands = [];
+    if (lastBrace >= 0) cands.push(tail.slice(0, lastBrace + 1));
+    cands.push(tail);
+    const base = cands.slice();
+    base.forEach((c) => {
+      cands.push(c.replace(/```(?:json)?/gi, '').trim());
+      cands.push(c.replace(/,\s*([}\]])/g, '$1'));           // 去尾逗号
+      cands.push(c.replace(/```(?:json)?/gi, '').replace(/,\s*([}\]])/g, '$1'));
+      // 截断修复：补上缺失的收尾括号
+      cands.push(c.replace(/```(?:json)?/gi, '').replace(/,\s*([}\]])/g, '$1') + '}');
+      cands.push(c.replace(/```(?:json)?/gi, '').replace(/,\s*([}\]])/g, '$1') + ']}');
+      cands.push(c.replace(/```(?:json)?/gi, '').replace(/,\s*([}\]])/g, '$1') + '}]}');
+    });
+
+    for (const c of cands) {
+      if (!c || c.indexOf('{') < 0) continue;
+      try {
+        const obj = JSON.parse(c);
+        if (obj && typeof obj === 'object') return obj;
+      } catch (e) { /* 换下一个候选 */ }
+    }
+    throw new Error('模型返回的内容不是合法 JSON（可能被截断）。可减少报告长度或调高 max_tokens 后重试。');
   }
 
   /** 把模型返回的一个维度对象规整成统一结构 */
   function normalizeDim(dim, m, text) {
     const max = Number(dim.max) || 0;
-    const score = U.clamp(Number(m ? m.score : 0) || 0, 0, max);
+
+    /* 模型漏给这个维度时的处理。
+     *
+     * 这是评分系统里最危险的失败模式：原写法 `Number(m ? m.score : 0) || 0`
+     * 会把"模型根本没提这一项"静默变成"这一项得 0 分"，老师端看起来
+     * 就是学生这项完全没做——一个纯粹的模型输出缺陷，被伪装成了学生的失分。
+     *
+     * 现在分开处理：分数仍然记 0（保证总分口径完整），但打上 missingOutput 标记，
+     * 由上层汇总后在结果页显著提示"该维度模型未返回，分数不可信，请人工评分"。
+     * 不抛错是因为一份报告不该因为一个维度而整份丢弃，但要让人看得见。 */
+    const missingOutput = !m || m.score == null || isNaN(Number(m.score));
+    let score = missingOutput ? 0 : U.clamp(Number(m.score) || 0, 0, max);
     const evidence = ((m && m.evidence) || []).slice(0, 4)
       .map((t) => ({ label: String(t).slice(0, 60), snippets: [] }));
     const missing = ((m && m.missing) || []).slice(0, 4)
       .map((t) => ({ label: String(t).slice(0, 60) }));
+
+    /* 原文引用（判定依据）：这是「评阅副驾驶」的核心承诺——老师必须能当场核对
+     * "模型到底凭什么扣这几分"。所以每条引用都要回原文查，查不到就标出来。
+     * 这里不做"悄悄丢掉查不到的引用"这种处理：那等于替模型掩盖编造行为。 */
+    const src = String(text || '');
+    const citations = ((m && m.citations) || []).slice(0, 5).map((c) => {
+      const quote = String((c && c.quote) || c || '').trim().slice(0, 200);
+      if (!quote) return null;
+      // 逐字回查：命中即为可核对；未命中标记出来，由教师判断
+      const verified = src.indexOf(quote) >= 0;
+      return {
+        quote,
+        where: String((c && c.where) || '').slice(0, 40),
+        note: (c && c.note ? String(c.note).slice(0, 60) : ''),
+        verified,
+      };
+    }).filter(Boolean);
+
+    /* 档位校正：模型自称的 level 可能与它给的 score 对不上（它偶尔会
+     * "选 2 档却给 1 档的分"）。以 score 落点为真相，level 只作参考，
+     * 但两者冲突时把分数**拉回它自选档位的区间内** —— 既然它已声明这是哪一档，
+     * 档内取值才是它真实意图，越档给分多半是顺手写了个整数。 */
+    const A = AG.anchors;
+    let level = null, levelName = '', levelReason = '';
+    let bandRange = null, crossBand = false;
+    if (A && max > 0) {
+      const bands = A.anchorsFor(dim);
+      const declared = Number(m && m.level) || 0;
+      const byScore = A.levelOf(score, max);
+      const declaredHit = bands.find((b) => b.idx === declared) || null;
+      if (declaredHit && byScore !== declared) {
+        // 档位与分数冲突：以模型自选的档位为准，把分数拉回该档区间
+        // （既然它已声明这是哪一档，档内取值才是真实意图，越档给分多半是顺手写了整数）
+        const fixed = U.clamp(score, declaredHit.lo, declaredHit.hi);
+        if (fixed !== score) { crossBand = true; score = fixed; }
+      }
+      const hit = declaredHit || bands.find((b) => b.idx === byScore) || null;
+      if (hit) {
+        level = hit.idx;
+        levelName = hit.name;
+        bandRange = [hit.lo, hit.hi];
+      }
+      levelReason = String((m && m.levelReason) || '').slice(0, 80);
+    }
 
     /* 证据核验：本地引擎没了，但本地**查证**还在。
      * 模型自称引用了原文，那就回查一遍——编造的证据会让教师误信评分依据，
@@ -226,7 +342,14 @@ ${toneHint ? '【语气设定】\n' + toneHint + '\n' : ''}
       max,
       score: U.round(score, 1),
       ratio: U.round(score / (max || 1), 3),
+      level,
+      levelName,
+      levelReason,
+      bandRange,
+      crossBand,
+      missingOutput,
       evidence,
+      citations,
       missing,
       penalties: [],
       comment: (m && m.comment) || '',
@@ -234,7 +357,7 @@ ${toneHint ? '【语气设定】\n' + toneHint + '\n' : ''}
     };
   }
 
-  /** 单次评分的收尾：算总分、评级、组装结果对象 */
+  /** 单次评分的收尾：算总分、算区间、评级、组装结果对象 */
   function assemble(doc, rubric, parsed, cfg, raw) {
     const byId = {};
     (parsed.dims || []).forEach((d) => { byId[d.id] = d; });
@@ -242,10 +365,56 @@ ${toneHint ? '【语气设定】\n' + toneHint + '\n' : ''}
     const dims = rubric.map((dim) => normalizeDim(dim, byId[dim.id], doc.text));
 
     const total = U.clamp(U.round(dims.reduce((s, d) => s + d.score, 0), 1), 0, 100);
+
+    /* 分数区间：各维度已选定档位，档位的下界之和 / 上界之和就是**理论**范围。
+     *
+     * 但直接把它当区间端点是错的：8 个维度各自贡献一个档位宽度，累加起来常有 20 分以上
+     * （实测示例报告出现 50–72），这种宽度对老师毫无参考价值 —— 等于说"这报告可能很差也可能还行"。
+     *
+     * 因此这里做一次收窄：以模型实际取分 total 为中心，按 **各维度档内剩余空间** 取
+     * 「还能往上抬多少 / 还能往下压多少」的较小者作为半径（取半，且不超过理论范围）。
+     * 含义很明确：在模型已定档的前提下，这份报告最合理的浮动范围。
+     * 老师看到的仍不是虚假的精确值，而是一个敢用的区间。 */
+    const graded = dims.filter((d) => d.bandRange);
+    const rawLo = graded.length
+      ? Math.min(100, U.round(dims.reduce((s, d) => s + (d.bandRange ? d.bandRange[0] : d.score), 0), 1))
+      : total;
+    const rawHi = graded.length
+      ? Math.min(100, U.round(dims.reduce((s, d) => s + (d.bandRange ? d.bandRange[1] : d.score), 0), 1))
+      : total;
+    // 自由度：向下最多压到各档下界之和，向上最多抬到各档上界之和
+    const downRoom = Math.max(0, total - rawLo);
+    const upRoom = Math.max(0, rawHi - total);
+    // 半径取两侧较小者的一半，再夹在 2~4 分内。上限压到 4 分是有意的：
+    // 实测半径 7 时区间宽达 14 分（51–65），等于同时承认「可能不及格也可能中上」，
+    // 对老师没有决策价值。4 分半径给出 8 分左右的带宽，是「敢用」与「不假装精确」的平衡点。
+    let radius = Math.max(downRoom, upRoom) / 2;
+    radius = U.clamp(radius, 2, 4);
+    radius = Math.min(radius, Math.max(downRoom, upRoom));   // 不越出理论范围
+    const lo = U.clamp(U.round(total - Math.min(radius, downRoom), 1), 0, 100);
+    const hi = U.clamp(U.round(total + Math.min(radius, upRoom), 1), 0, 100);
+    const range = graded.length && hi > lo ? [lo, hi] : graded.length ? [lo, hi] : null;
+
     const g = AG.rubric.gradeOf(total);
+    // 区间跨越等级边界时如实提示——这正是最该让老师亲自定分的场景
+    const gradeAtLo = AG.rubric.gradeOf(lo);
+    const gradeAtHi = AG.rubric.gradeOf(hi);
+    const straddles = !!(range && gradeAtLo.grade !== gradeAtHi.grade);
 
     const hallucinated = dims.reduce((s, d) => s + ((d.evidenceCheck && d.evidenceCheck.hallucinated) || []).length, 0);
     const checkedTotal = dims.reduce((s, d) => s + ((d.evidenceCheck && d.evidenceCheck.total) || 0), 0);
+    const crossBands = dims.filter((d) => d.crossBand);
+
+    /* 引用核查汇总：教师最需要知道的三个数——总共引了多少条、多少条查得到、
+     * 多少条查不到。查不到的必须显式计数，不能只展示"好看"的那部分。 */
+    const citeTotal = dims.reduce((s, d) => s + ((d.citations || []).length), 0);
+    const citeBad = dims.reduce(
+      (s, d) => s + ((d.citations || []).filter((c) => !c.verified).length), 0);
+    const citeMissingDims = dims.filter((d) => !(d.citations || []).length).map((d) => d.name);
+
+    /* 模型漏答维度：必须显式计数并置顶提示。这些维度的 0 分不是学生的分，
+     * 是模型的输出缺口——混在正常分数里会直接误导老师。 */
+    const unanswered = dims.filter((d) => d.missingOutput).map((d) => d.name);
 
     let overall = parsed.overall || '';
     if (!overall) {
@@ -262,6 +431,9 @@ ${toneHint ? '【语气设定】\n' + toneHint + '\n' : ''}
       engineLabel: '大模型引擎 · ' + cfg.model,
       model: cfg.model,
       total,
+      range,
+      straddles,
+      gradeStraddle: straddles ? gradeAtLo.grade + '–' + gradeAtHi.grade : null,
       grade: g.grade,
       gradeLabel: g.label,
       gradeColor: g.color,
@@ -269,6 +441,19 @@ ${toneHint ? '【语气设定】\n' + toneHint + '\n' : ''}
       features: doc.features || AG.parser.extractFeatures(doc.text),
       overall,
       evidenceAudit: { total: checkedTotal, hallucinated },
+      citationAudit: {
+        total: citeTotal,
+        verified: citeTotal - citeBad,
+        unverified: citeBad,
+        missingDims: citeMissingDims,
+      },
+      unanswered,
+      anchorAudit: {
+        graded: graded.length,
+        total: dims.length,
+        crossBands: crossBands.length,
+        crossBandNames: crossBands.map((d) => d.name),
+      },
       gradedAt: Date.now(),
       raw,
     };
@@ -379,7 +564,7 @@ ${toneHint ? '【语气设定】\n' + toneHint + '\n' : ''}
 
   AG.llm = {
     getConfig, saveConfig, chat, chatJson, grade, testConnection,
-    buildPrompt, sampleGrade,
+    buildPrompt, sampleGrade, parseJson,
     DEFAULT_CONFIG,
   };
 })(window);

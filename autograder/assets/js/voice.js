@@ -35,7 +35,7 @@
       quote: '这一项不是写得差，是没写。从「误差来源」开始补，别跟我谈别的。',
     },
   ];
-  const DEFAULT_TONE = 'kid';
+  const DEFAULT_TONE = 'strict';
 
   function get() {
     const t = U.store.get('tone', DEFAULT_TONE);
@@ -382,16 +382,22 @@
     return CHAT_HINT[tone || get()] || CHAT_HINT.strict;
   }
 
-  /* ---------- 渲染语气选择器 ---------- */
+  /* ---------- 渲染语气选择器 ----------
+     P2：默认语气（学院派）常显，其余趣味档收进默认收起的「更多语气风格」折叠块，
+     普通教师主界面不再被趣味档占空间；若当前选中恰为收起档，则自动展开以便可见 */
   function mountTonePicker(container, opts) {
     if (!container) return;
     opts = opts || {};
     container.className = 'tone-card';
     container.innerHTML = '';
-    TONES.forEach((t) => {
+    const cur = get();
+    const def = TONES.find((t) => t.id === DEFAULT_TONE) || TONES[0];
+    const others = TONES.filter((t) => t.id !== def.id);
+
+    function makeToneBtn(t) {
       const b = U.el('button', {
         type: 'button',
-        class: 'tone' + (get() === t.id ? ' on' : ''),
+        class: 'tone' + (cur === t.id ? ' on' : ''),
         'data-tone-id': t.id,
       }, [
         U.el('b', {}, [t.name]),
@@ -403,8 +409,21 @@
         U.$$('.tone', container).forEach((x) => x.classList.toggle('on', x.dataset.toneId === t.id));
         if (opts.onChange) opts.onChange(t.id);
       });
-      container.appendChild(b);
-    });
+      return b;
+    }
+
+    container.appendChild(makeToneBtn(def));
+    const det = U.el('details', { class: 'adv-block tone-more' }, [
+      U.el('summary', {}, [
+        document.createTextNode('更多语气风格（趣味）'),
+        U.el('span', { class: 'sub' }, ['仅改表达，不改分数']),
+      ]),
+      U.el('div', { class: 'adv-body' }, [
+        U.el('div', { class: 'tone-card' }, others.map(makeToneBtn)),
+      ]),
+    ]);
+    if (cur !== def.id) det.open = true; // 用户此前选了趣味档，展开并高亮，避免选中项被藏起来
+    container.appendChild(det);
   }
 
   AG.voice = {
