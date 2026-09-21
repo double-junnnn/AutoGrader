@@ -368,9 +368,37 @@
     }
   }
 
+  /**
+   * 报告清晰度（0~1）：由客观事实层（objectiveFacts）的指标粗估——章节齐全、量化数据充足、
+   * 代码完整、悬空编号少 = 清晰；反之 = 模糊。
+   *
+   * 注意：这是一个**文本层面的粗代理**，只供审计/提示展示，**不驱动**锚点强度。
+   * 原因（真实对照实验，deepseek-chat / temp=0.7）：硬锚点对模糊报告显著降噪，
+   * 但对模型已很确定的清晰报告反而增噪（把选档的轻微摇摆放大成整档差）。
+   * 而文本清晰度区分不开"模型确定性"——抄袭版在客观上也很完整，照样被判清晰，
+   * 若用它驱动锚点会让所有报告都走软锚点、直接废掉 P5 的降噪价值。
+   * 真正的信号是「模型打分的方差」，由采样路径（sampleGrade / stability）经
+   * anchors.anchorFitFromVariance 反推，单次级评分拿不到，故默认硬锚点。
+   */
+  function clarityOf(text) {
+    const raw = String(text || '');
+    if (!raw.replace(/\s+/g, '').length) return 0;
+    const words = raw.replace(/\s+/g, '').length;
+    const numberCount = (raw.match(/\d+(?:\.\d+)?/g) || []).length;
+    const of = objectiveFacts(raw, { words, numberCount });
+    let s = 0.55;                                   // 基准：中等清晰
+    s += Math.min(0.22, of.okCount * 0.07);          // 客观事实达标越多越清晰
+    s -= Math.min(0.45, of.warnCount * 0.10);         // 警告越多越模糊
+    s -= Math.min(0.18, of.dangling.length * 0.09);  // 悬空编号
+    if (!of.codeLines) s -= 0.04;                     // 编程类报告缺失代码略降
+    const clamp01 = (v) => Math.max(0, Math.min(1, v));
+    return clamp01(Math.round(s * 100) / 100);
+  }
+
   AG.analyzer = {
     genreCheck,
     verifyEvidence,
     objectiveFacts,
+    clarityOf,
   };
 })(window);

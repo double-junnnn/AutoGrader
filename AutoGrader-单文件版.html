@@ -3319,6 +3319,7 @@ table.tb input { padding: 5px 8px; }
 (function (global) {
   'use strict';
   const AG = (global.AG = global.AG || {});
+  const U = AG.utils;
 
   /* ==================================================================
    * 一、档位划分
@@ -3621,6 +3622,65 @@ table.tb input { padding: 5px 8px; }
     return bad;
   }
 
+  /** 锚点强度：由报告清晰度驱动。
+   *  实验发现：硬锚点对模糊报告降噪显著，但对清晰报告反而增噪（把选档的轻微摇摆放大成整档差）。
+   *  因此清晰报告改用语义更松的「软锚点」——档位仍展示，但分数允许在档位 ±tolerance 浮动，
+   *  不把档位冲突硬卡回区间；模糊报告保持硬锚点（tolerance=0）。 */
+  function anchorStrength(clarity) {
+    if (clarity == null) return 'hard';
+    return clarity >= 0.75 ? 'soft' : 'hard';
+  }
+
+  /** 软锚点容差（整数分）：清晰报告允许分数在所选档位区间外 ±tolerance 浮动。
+   *  clarity ≤ 0.5 → 0（等同硬锚点）；clarity = 1 → 约最高档宽度的 0.6 倍。
+   *  取最高档宽度作参考：它是单档能容纳的最大浮动空间，超出就失去档位意义。 */
+  function toleranceOf(clarity, max) {
+    if (clarity == null || clarity <= 0.5) return 0;
+    const b = bandsOf(max);
+    if (!b.length) return 0;
+    const width = Math.max(1, b[0].hi - b[0].lo);
+    const t = Math.round((clarity - 0.5) * 2 * width * 0.6);
+    return Math.max(0, Math.min(width, t));
+  }
+
+  /**
+   * 锚点适配建议：由「实测评分标准差」反推报告清晰度与推荐锚点强度。
+   *
+   * 【背景 · 真实对照实验】deepseek-chat / temp=0.7，3 份报告各连评 10 次：
+   *   硬锚点对「模型不确定」的模糊报告显著降噪（模糊报告 SD 6.73 → 2.18，收窄 3 倍）；
+   *   但对「模型已很确定」的清晰报告反而增噪（清晰报告 SD 1.9 → 4.4、2.9 → 5.1，
+   *   把选档的轻微摇摆放大成整档差）。
+   * 因此锚点强度不该由「报告文字是否齐备」这类粗代理决定 —— 抄袭版在客观上也很完整，
+   * 根本区分不开模型的打分确定性。真正的信号是「模型打分的方差」：
+   *   方差小 = 模型笃定 = 清晰报告 → 硬锚点纯属添乱，宜用软锚点；
+   *   方差大 = 模型犹豫 = 模糊报告 → 硬锚点正在定档降噪，应保持。
+   * 该信号只能来自采样（stability / sampleGrade），单次级评分拿不到，
+   * 故单次级评分默认硬锚点（安全、保 P5 降噪），自适应建议只在采样路径给出。
+   *
+   * 注：这里传入的 sd 是「在硬锚点下」测得的。对清晰报告，硬锚点本身会把 SD 抬高
+   * （实测 1.9→4.4），所以即便 sd 偏大也说明底层自由方差更小、模型更笃定 —— 方向一致。
+   *
+   * @param {number} sd     同一份报告连评 N 次的总分标准差（0~scale）
+   * @param {number} [scale=100] 量表满分，用于把 sd 归一到 0~1
+   * @returns {{strength:'soft'|'hard', clarity:number, sd:number, hint:string}}
+   */
+  function anchorFitFromVariance(sd, scale) {
+    const sc = Number(scale) || 100;
+    const s = Math.max(0, Number(sd) || 0);
+    // 归一：sd 达满分的 12% 视为"极不稳定"（clarity=0），0 视为"完全确定"（clarity=1）
+    const n = Math.max(0, Math.min(1, s / (sc * 0.12)));
+    const clarity = Math.round((1 - n) * 100) / 100;
+    // sd 不超过满分 5% → 模型笃定 → 软锚点更合适；否则硬锚点定档降噪
+    const strength = s <= sc * 0.05 ? 'soft' : 'hard';
+    const sdTxt = U.round(s, 2) + ' 分';
+    const hint = strength === 'soft'
+      ? `本测试在硬锚点下进行，测得总分标准差 ${sdTxt}（偏小），说明模型对这份报告的判断本就一致、较为笃定。` +
+        `此时硬锚点反而可能把"选档的轻微摇摆"放大成整档差。若改用软锚点（档位仅作参照、分数允许在档位附近小幅浮动），评分会更贴合模型本意。`
+      : `本测试在硬锚点下进行，测得总分标准差 ${sdTxt}（偏大），说明模型对这份报告的判断仍有犹疑。` +
+        `硬锚点正通过"先定档、再在档内取分"压低评分波动，建议保持硬锚点定档。`;
+    return { strength, clarity, sd: s, hint };
+  }
+
   AG.anchors = {
     LEVEL_NAMES,
     levelCountOf,
@@ -3631,6 +3691,9 @@ table.tb input { padding: 5px 8px; }
     renderForPrompt,
     validateRubric,
     ANCHOR_TEXT,
+    anchorStrength,
+    toleranceOf,
+    anchorFitFromVariance,
   };
 })(window);
 
@@ -6012,10 +6075,38 @@ table.tb input { padding: 5px 8px; }
     }
   }
 
+  /**
+   * 报告清晰度（0~1）：由客观事实层（objectiveFacts）的指标粗估——章节齐全、量化数据充足、
+   * 代码完整、悬空编号少 = 清晰；反之 = 模糊。
+   *
+   * 注意：这是一个**文本层面的粗代理**，只供审计/提示展示，**不驱动**锚点强度。
+   * 原因（真实对照实验，deepseek-chat / temp=0.7）：硬锚点对模糊报告显著降噪，
+   * 但对模型已很确定的清晰报告反而增噪（把选档的轻微摇摆放大成整档差）。
+   * 而文本清晰度区分不开"模型确定性"——抄袭版在客观上也很完整，照样被判清晰，
+   * 若用它驱动锚点会让所有报告都走软锚点、直接废掉 P5 的降噪价值。
+   * 真正的信号是「模型打分的方差」，由采样路径（sampleGrade / stability）经
+   * anchors.anchorFitFromVariance 反推，单次级评分拿不到，故默认硬锚点。
+   */
+  function clarityOf(text) {
+    const raw = String(text || '');
+    if (!raw.replace(/\s+/g, '').length) return 0;
+    const words = raw.replace(/\s+/g, '').length;
+    const numberCount = (raw.match(/\d+(?:\.\d+)?/g) || []).length;
+    const of = objectiveFacts(raw, { words, numberCount });
+    let s = 0.55;                                   // 基准：中等清晰
+    s += Math.min(0.22, of.okCount * 0.07);          // 客观事实达标越多越清晰
+    s -= Math.min(0.45, of.warnCount * 0.10);         // 警告越多越模糊
+    s -= Math.min(0.18, of.dangling.length * 0.09);  // 悬空编号
+    if (!of.codeLines) s -= 0.04;                     // 编程类报告缺失代码略降
+    const clamp01 = (v) => Math.max(0, Math.min(1, v));
+    return clamp01(Math.round(s * 100) / 100);
+  }
+
   AG.analyzer = {
     genreCheck,
     verifyEvidence,
     objectiveFacts,
+    clarityOf,
   };
 })(window);
 
@@ -6288,7 +6379,7 @@ ${toneHint ? '【语气设定】\n' + toneHint + '\n' : ''}
   }
 
   /** 把模型返回的一个维度对象规整成统一结构 */
-  function normalizeDim(dim, m, text) {
+  function normalizeDim(dim, m, text, tolerance) {
     const max = Number(dim.max) || 0;
 
     /* 模型漏给这个维度时的处理。
@@ -6337,10 +6428,15 @@ ${toneHint ? '【语气设定】\n' + toneHint + '\n' : ''}
       const byScore = A.levelOf(score, max);
       const declaredHit = bands.find((b) => b.idx === declared) || null;
       if (declaredHit && byScore !== declared) {
-        // 档位与分数冲突：以模型自选的档位为准，把分数拉回该档区间
-        // （既然它已声明这是哪一档，档内取值才是真实意图，越档给分多半是顺手写了整数）
-        const fixed = U.clamp(score, declaredHit.lo, declaredHit.hi);
-        if (fixed !== score) { crossBand = true; score = fixed; }
+        // 档位与分数冲突：软锚点（tolerance>0，即清晰报告）下允许分数在档位 ±tolerance 内浮动，
+        // 不硬卡、不标 crossBand；硬锚点（tolerance=0）或超出容差时才拉回档位区间并标记 crossBand。
+        // 这是对「锚点对清晰报告反而增噪」的针对性处理：清晰报告本就稳，别把选档的轻微摇摆放大成整档差。
+        const t = Number(tolerance) || 0;
+        const within = score >= declaredHit.lo - t && score <= declaredHit.hi + t;
+        if (!within) {
+          const fixed = U.clamp(score, declaredHit.lo, declaredHit.hi);
+          if (fixed !== score) { crossBand = true; score = fixed; }
+        }
       }
       const hit = declaredHit || bands.find((b) => b.idx === byScore) || null;
       if (hit) {
@@ -6381,12 +6477,33 @@ ${toneHint ? '【语气设定】\n' + toneHint + '\n' : ''}
     };
   }
 
-  /** 单次评分的收尾：算总分、算区间、评级、组装结果对象 */
-  function assemble(doc, rubric, parsed, cfg, raw) {
+  /** 样本标准差（本地统计，避免依赖 reliability 的加载顺序） */
+  function sampleStdev(a) {
+    if (!a || a.length < 2) return 0;
+    const m = a.reduce((s, x) => s + x, 0) / a.length;
+    const v = a.reduce((s, x) => s + (x - m) * (x - m), 0) / (a.length - 1);
+    return Math.sqrt(v);
+  }
+
+  /** 单次评分的收尾：算总分、算区间、评级、组装结果对象
+   * @param {Object} [opts] 可选覆盖：{ anchorStrength:'soft'|'hard', clarity:number }
+   *   单次级评分不传 → 默认**硬锚点**（保留 P5 降噪价值）。软锚点只在"模型方差"信号明确时启用，
+   *   而该信号只能来自采样路径（sampleGrade / stability），故此处除非显式传入，否则一律硬锚点。 */
+  function assemble(doc, rubric, parsed, cfg, raw, opts) {
     const byId = {};
     (parsed.dims || []).forEach((d) => { byId[d.id] = d; });
 
-    const dims = rubric.map((dim) => normalizeDim(dim, byId[dim.id], doc.text));
+    // 清晰度仍计算并保留（供审计/提示展示），但**不驱动**锚点强度——
+    // 文本清晰度是粗代理，连抄袭版都判得"很完整"，区分不开模型确定性（见 anchors.anchorFitFromVariance）。
+    const clarity = (opts && opts.clarity != null) ? Number(opts.clarity)
+      : (AG.analyzer && AG.analyzer.clarityOf ? AG.analyzer.clarityOf(doc.text) : 0);
+    // 单次级评分默认硬锚点；仅当显式要求 soft 时才放宽（自适应建议由采样方差给出，见 sampleGrade）。
+    const anchorStrength = (opts && opts.anchorStrength) || 'hard';
+
+    const dims = rubric.map((dim) => {
+      const tol = (anchorStrength === 'soft' && AG.anchors) ? AG.anchors.toleranceOf(clarity, dim.max) : 0;
+      return normalizeDim(dim, byId[dim.id], doc.text, tol);
+    });
 
     const total = U.clamp(U.round(dims.reduce((s, d) => s + d.score, 0), 1), 0, 100);
 
@@ -6478,6 +6595,8 @@ ${toneHint ? '【语气设定】\n' + toneHint + '\n' : ''}
         crossBands: crossBands.length,
         crossBandNames: crossBands.map((d) => d.name),
       },
+      anchorStrength,
+      clarity,
       gradedAt: Date.now(),
       raw,
     };
@@ -6556,7 +6675,14 @@ ${toneHint ? '【语气设定】\n' + toneHint + '\n' : ''}
       res.dims.forEach((d) => { (dimScores[d.id] = dimScores[d.id] || []).push(d.ratio); });
     }
 
-    return { ok: true, totals, runs, dimScores, iterations: totals.length, model: cfg.model };
+    // 锚点适配建议：用连评 N 次的总分标准差反推"模型是否笃定"。
+    // 这是唯一可靠的清晰/模糊信号（文本清晰度区分不开抄袭版与真清晰报告）。
+    const sd = sampleStdev(totals);
+    const anchorFit = (AG.anchors && AG.anchors.anchorFitFromVariance)
+      ? AG.anchors.anchorFitFromVariance(sd, 100)
+      : null;
+
+    return { ok: true, totals, runs, dimScores, iterations: totals.length, model: cfg.model, sd: U.round(sd, 2), anchorFit };
   }
 
   /**
@@ -9548,6 +9674,9 @@ def quick_sort(arr):
       dims,
       stability: stabilityGrade(hi - lo, cv),
       samples: sorted,
+      // 锚点适配建议：来自 sampleGrade 用连评方差反推出的"清晰/模糊"判定（见 anchors.anchorFitFromVariance）。
+      // 这是对「锚点对清晰报告反而增噪」这一实测发现的产品化：教师在此直接看到该报告该用硬锚点还是软锚点。
+      anchorFit: s.anchorFit || null,
     };
   }
 
@@ -10173,9 +10302,12 @@ def quick_sort(arr):
       if (hasRange) {
         ctx.font = `500 11px ${FONT}`;
         ctx.fillStyle = C.faint;
+        const aMode = r.anchorStrength === 'soft'
+          ? '（软锚点·报告清晰，档位仅供参考）'
+          : (r.anchorStrength === 'hard' ? '（硬锚点·先定档再在档内取分，可逐档复核）' : '');
         const note = r.straddles
-          ? `本档取值 ${r.total} 分 · 区间横跨 ${r.gradeStraddle || ''} 两个等级，最终等级由教师裁定`
-          : `本档取值 ${r.total} 分 · 教师可在区间内终评`;
+          ? `本档取值 ${r.total} 分 · 区间横跨 ${r.gradeStraddle || ''} 两个等级，最终等级由教师裁定${aMode}`
+          : `本档取值 ${r.total} 分 · 教师可在区间内终评${aMode}`;
         ctx.fillText(note, M + 24, top + 99);
       }
     });
@@ -11781,6 +11913,12 @@ def quick_sort(arr):
     }).join('');
 
     const f = r.features || doc.features;
+    const anchorMode = r.anchorStrength === 'soft' ? 'soft' : 'hard';
+    const anchorNote = (r.anchorAudit && r.anchorAudit.total)
+      ? (anchorMode === 'soft'
+          ? '本报告判定为清晰（模型打分稳定' + (r.clarity != null ? '，适配置信度 ' + Math.round(r.clarity * 100) + '%' : '') + '），已切换为软锚点：档位仅作参照，分数允许在档位附近小幅浮动，以避免把选档的轻微摇摆放大成整档差；请以「建议得分区间」为准。'
+          : '采用「先定档、再在档内取分」的硬锚点判定，分数可逐档复核' + (r.anchorAudit.crossBands ? '。其中 ' + r.anchorAudit.crossBands + ' 个维度分数与所选档位不符（' + (r.anchorAudit.crossBandNames || []).map(U.esc).join('、') + '），已自动按档位区间校正，可直接核查。' : '，模型给分与所选档位完全一致。') + '　提示：实测发现硬锚点对模糊/两可的报告降噪显著，但对模型本就笃定的清晰报告，可能把选档的轻微摇摆放大成整档差；可在「信度自检 → 单份报告稳定性」中查看锚点适配建议。')
+      : '';
     card.innerHTML = `
       <div class="result-head">
         <div class="meta">
@@ -11851,11 +11989,8 @@ def quick_sort(arr):
           r.citationAudit.unverified ? `，<b>${r.citationAudit.unverified}</b> 条查不到（已在下方标红，该维度的扣分理由需您自行判断）` : '，全部可核对'}。${
           (r.citationAudit.missingDims || []).length ? `另有 ${r.citationAudit.missingDims.length} 个维度未给引用（${r.citationAudit.missingDims.map(U.esc).join('、')}）。` : ''}</span></div>` : ''}
       ${r.anchorAudit && r.anchorAudit.total ? `<div class="susp" style="margin-bottom:12px">
-        <span class="badge ${r.anchorAudit.crossBands ? 'amber' : 'green'}">评分锚点</span>
-        <span>${r.anchorAudit.total} 个维度全部采用「先定档、再在档内取分」的方式判定${r.anchorAudit.crossBands
-          ? `。其中 <b>${r.anchorAudit.crossBands}</b> 个维度模型给出的分数与所选档位不符（${
-            (r.anchorAudit.crossBandNames || []).map(U.esc).join('、')}），已自动按档位区间校正，可直接核查。`
-          : '。模型给分与所选档位完全一致，评分过程可逐档复核。'}</span></div>` : ''}
+        <span class="badge ${r.anchorStrength === 'soft' ? 'blue' : (r.anchorAudit.crossBands ? 'amber' : 'green')}">${r.anchorStrength === 'soft' ? '评分锚点 · 软锚点' : '评分锚点'}</span>
+        <span>${r.anchorAudit.total} 个维度采用「先定档、再在档内取分」判定${anchorNote}</span></div>` : ''}
       ${trace.ok ? `<div class="susp" style="margin-bottom:12px">
         <span class="badge ${trace.thin.length || trace.hallucinated.length ? 'amber' : 'green'}">溯源自检</span>
         <span>${trace.dims.length} 个维度中，<b>${trace.solid.length}</b> 个由直接证据支撑（占得分依据 70% 以上）${trace.thin.length ? `，<b>${trace.thin.length}</b> 个主要靠结构特征得分` : ''}${trace.hallucinated.length ? `，<b>${trace.hallucinated.length}</b> 个存在无法核实的证据` : ''}。
@@ -12346,7 +12481,12 @@ def quick_sort(arr):
             <td class="c">${Math.round(d.ci[0] * 100)}% – ${Math.round(d.ci[1] * 100)}%</td>
             <td class="c">${d.sd}</td></tr>`).join('')}
           </tbody></table>
-        </div>`;
+        </div>
+        ${bs.anchorFit ? `
+        <div class="susp" style="margin-top:12px">
+          <span class="badge ${bs.anchorFit.strength === 'soft' ? 'blue' : 'green'}">锚点适配 · ${bs.anchorFit.strength === 'soft' ? '建议软锚点' : '保持硬锚点'}</span>
+          <span>${U.esc(bs.anchorFit.hint)}</span></div>` : ''}
+`;
     } else {
       html += `<div class="susp warn" style="margin-top:12px"><span class="badge amber">跳过</span><span>${U.esc(bs.note || '')}</span></div>`;
     }

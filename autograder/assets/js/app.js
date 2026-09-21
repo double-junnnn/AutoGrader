@@ -601,6 +601,12 @@
     }).join('');
 
     const f = r.features || doc.features;
+    const anchorMode = r.anchorStrength === 'soft' ? 'soft' : 'hard';
+    const anchorNote = (r.anchorAudit && r.anchorAudit.total)
+      ? (anchorMode === 'soft'
+          ? '本报告判定为清晰（模型打分稳定' + (r.clarity != null ? '，适配置信度 ' + Math.round(r.clarity * 100) + '%' : '') + '），已切换为软锚点：档位仅作参照，分数允许在档位附近小幅浮动，以避免把选档的轻微摇摆放大成整档差；请以「建议得分区间」为准。'
+          : '采用「先定档、再在档内取分」的硬锚点判定，分数可逐档复核' + (r.anchorAudit.crossBands ? '。其中 ' + r.anchorAudit.crossBands + ' 个维度分数与所选档位不符（' + (r.anchorAudit.crossBandNames || []).map(U.esc).join('、') + '），已自动按档位区间校正，可直接核查。' : '，模型给分与所选档位完全一致。') + '　提示：实测发现硬锚点对模糊/两可的报告降噪显著，但对模型本就笃定的清晰报告，可能把选档的轻微摇摆放大成整档差；可在「信度自检 → 单份报告稳定性」中查看锚点适配建议。')
+      : '';
     card.innerHTML = `
       <div class="result-head">
         <div class="meta">
@@ -671,11 +677,8 @@
           r.citationAudit.unverified ? `，<b>${r.citationAudit.unverified}</b> 条查不到（已在下方标红，该维度的扣分理由需您自行判断）` : '，全部可核对'}。${
           (r.citationAudit.missingDims || []).length ? `另有 ${r.citationAudit.missingDims.length} 个维度未给引用（${r.citationAudit.missingDims.map(U.esc).join('、')}）。` : ''}</span></div>` : ''}
       ${r.anchorAudit && r.anchorAudit.total ? `<div class="susp" style="margin-bottom:12px">
-        <span class="badge ${r.anchorAudit.crossBands ? 'amber' : 'green'}">评分锚点</span>
-        <span>${r.anchorAudit.total} 个维度全部采用「先定档、再在档内取分」的方式判定${r.anchorAudit.crossBands
-          ? `。其中 <b>${r.anchorAudit.crossBands}</b> 个维度模型给出的分数与所选档位不符（${
-            (r.anchorAudit.crossBandNames || []).map(U.esc).join('、')}），已自动按档位区间校正，可直接核查。`
-          : '。模型给分与所选档位完全一致，评分过程可逐档复核。'}</span></div>` : ''}
+        <span class="badge ${r.anchorStrength === 'soft' ? 'blue' : (r.anchorAudit.crossBands ? 'amber' : 'green')}">${r.anchorStrength === 'soft' ? '评分锚点 · 软锚点' : '评分锚点'}</span>
+        <span>${r.anchorAudit.total} 个维度采用「先定档、再在档内取分」判定${anchorNote}</span></div>` : ''}
       ${trace.ok ? `<div class="susp" style="margin-bottom:12px">
         <span class="badge ${trace.thin.length || trace.hallucinated.length ? 'amber' : 'green'}">溯源自检</span>
         <span>${trace.dims.length} 个维度中，<b>${trace.solid.length}</b> 个由直接证据支撑（占得分依据 70% 以上）${trace.thin.length ? `，<b>${trace.thin.length}</b> 个主要靠结构特征得分` : ''}${trace.hallucinated.length ? `，<b>${trace.hallucinated.length}</b> 个存在无法核实的证据` : ''}。
@@ -1166,7 +1169,12 @@
             <td class="c">${Math.round(d.ci[0] * 100)}% – ${Math.round(d.ci[1] * 100)}%</td>
             <td class="c">${d.sd}</td></tr>`).join('')}
           </tbody></table>
-        </div>`;
+        </div>
+        ${bs.anchorFit ? `
+        <div class="susp" style="margin-top:12px">
+          <span class="badge ${bs.anchorFit.strength === 'soft' ? 'blue' : 'green'}">锚点适配 · ${bs.anchorFit.strength === 'soft' ? '建议软锚点' : '保持硬锚点'}</span>
+          <span>${U.esc(bs.anchorFit.hint)}</span></div>` : ''}
+`;
     } else {
       html += `<div class="susp warn" style="margin-top:12px"><span class="badge amber">跳过</span><span>${U.esc(bs.note || '')}</span></div>`;
     }

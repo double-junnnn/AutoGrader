@@ -26,6 +26,7 @@
 (function (global) {
   'use strict';
   const AG = (global.AG = global.AG || {});
+  const U = AG.utils;
 
   /* ==================================================================
    * 一、档位划分
@@ -328,6 +329,65 @@
     return bad;
   }
 
+  /** 锚点强度：由报告清晰度驱动。
+   *  实验发现：硬锚点对模糊报告降噪显著，但对清晰报告反而增噪（把选档的轻微摇摆放大成整档差）。
+   *  因此清晰报告改用语义更松的「软锚点」——档位仍展示，但分数允许在档位 ±tolerance 浮动，
+   *  不把档位冲突硬卡回区间；模糊报告保持硬锚点（tolerance=0）。 */
+  function anchorStrength(clarity) {
+    if (clarity == null) return 'hard';
+    return clarity >= 0.75 ? 'soft' : 'hard';
+  }
+
+  /** 软锚点容差（整数分）：清晰报告允许分数在所选档位区间外 ±tolerance 浮动。
+   *  clarity ≤ 0.5 → 0（等同硬锚点）；clarity = 1 → 约最高档宽度的 0.6 倍。
+   *  取最高档宽度作参考：它是单档能容纳的最大浮动空间，超出就失去档位意义。 */
+  function toleranceOf(clarity, max) {
+    if (clarity == null || clarity <= 0.5) return 0;
+    const b = bandsOf(max);
+    if (!b.length) return 0;
+    const width = Math.max(1, b[0].hi - b[0].lo);
+    const t = Math.round((clarity - 0.5) * 2 * width * 0.6);
+    return Math.max(0, Math.min(width, t));
+  }
+
+  /**
+   * 锚点适配建议：由「实测评分标准差」反推报告清晰度与推荐锚点强度。
+   *
+   * 【背景 · 真实对照实验】deepseek-chat / temp=0.7，3 份报告各连评 10 次：
+   *   硬锚点对「模型不确定」的模糊报告显著降噪（模糊报告 SD 6.73 → 2.18，收窄 3 倍）；
+   *   但对「模型已很确定」的清晰报告反而增噪（清晰报告 SD 1.9 → 4.4、2.9 → 5.1，
+   *   把选档的轻微摇摆放大成整档差）。
+   * 因此锚点强度不该由「报告文字是否齐备」这类粗代理决定 —— 抄袭版在客观上也很完整，
+   * 根本区分不开模型的打分确定性。真正的信号是「模型打分的方差」：
+   *   方差小 = 模型笃定 = 清晰报告 → 硬锚点纯属添乱，宜用软锚点；
+   *   方差大 = 模型犹豫 = 模糊报告 → 硬锚点正在定档降噪，应保持。
+   * 该信号只能来自采样（stability / sampleGrade），单次级评分拿不到，
+   * 故单次级评分默认硬锚点（安全、保 P5 降噪），自适应建议只在采样路径给出。
+   *
+   * 注：这里传入的 sd 是「在硬锚点下」测得的。对清晰报告，硬锚点本身会把 SD 抬高
+   * （实测 1.9→4.4），所以即便 sd 偏大也说明底层自由方差更小、模型更笃定 —— 方向一致。
+   *
+   * @param {number} sd     同一份报告连评 N 次的总分标准差（0~scale）
+   * @param {number} [scale=100] 量表满分，用于把 sd 归一到 0~1
+   * @returns {{strength:'soft'|'hard', clarity:number, sd:number, hint:string}}
+   */
+  function anchorFitFromVariance(sd, scale) {
+    const sc = Number(scale) || 100;
+    const s = Math.max(0, Number(sd) || 0);
+    // 归一：sd 达满分的 12% 视为"极不稳定"（clarity=0），0 视为"完全确定"（clarity=1）
+    const n = Math.max(0, Math.min(1, s / (sc * 0.12)));
+    const clarity = Math.round((1 - n) * 100) / 100;
+    // sd 不超过满分 5% → 模型笃定 → 软锚点更合适；否则硬锚点定档降噪
+    const strength = s <= sc * 0.05 ? 'soft' : 'hard';
+    const sdTxt = U.round(s, 2) + ' 分';
+    const hint = strength === 'soft'
+      ? `本测试在硬锚点下进行，测得总分标准差 ${sdTxt}（偏小），说明模型对这份报告的判断本就一致、较为笃定。` +
+        `此时硬锚点反而可能把"选档的轻微摇摆"放大成整档差。若改用软锚点（档位仅作参照、分数允许在档位附近小幅浮动），评分会更贴合模型本意。`
+      : `本测试在硬锚点下进行，测得总分标准差 ${sdTxt}（偏大），说明模型对这份报告的判断仍有犹疑。` +
+        `硬锚点正通过"先定档、再在档内取分"压低评分波动，建议保持硬锚点定档。`;
+    return { strength, clarity, sd: s, hint };
+  }
+
   AG.anchors = {
     LEVEL_NAMES,
     levelCountOf,
@@ -338,5 +398,8 @@
     renderForPrompt,
     validateRubric,
     ANCHOR_TEXT,
+    anchorStrength,
+    toleranceOf,
+    anchorFitFromVariance,
   };
 })(window);

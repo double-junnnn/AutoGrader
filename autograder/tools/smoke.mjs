@@ -180,6 +180,34 @@ await ok('anchors.validateRubric 能指出量表满分异常', () => {
   return bad.length > 0 ? true : '满分为 0 的维度未被检出';
 });
 
+/* ---- 自适应软锚点：清晰度代理 + 由方差反推锚点适配 ---- */
+await ok('analyzer.clarityOf 落在 0~1（文本粗代理，仅展示用）', () => {
+  const c = AG.analyzer.clarityOf(TEXT);
+  return (c >= 0 && c <= 1) ? true : c;
+});
+await ok('anchors.anchorStrength 阈值为 0.75', () => {
+  return AG.anchors.anchorStrength(0.9) === 'soft' && AG.anchors.anchorStrength(0.5) === 'hard';
+});
+await ok('anchors.toleranceOf 高清晰>0、低清晰=0', () => {
+  return AG.anchors.toleranceOf(1, 25) > 0 && AG.anchors.toleranceOf(0.4, 25) === 0;
+});
+await ok('anchors.anchorFitFromVariance 低sd→soft、高sd→hard、clarity 反向', () => {
+  const lo = AG.anchors.anchorFitFromVariance(2, 100);
+  const hi = AG.anchors.anchorFitFromVariance(9, 100);
+  if (lo.strength !== 'soft') return 'sd=2 应为 soft，实为 ' + lo.strength;
+  if (hi.strength !== 'hard') return 'sd=9 应为 hard，实为 ' + hi.strength;
+  if (!(lo.clarity > hi.clarity)) return 'clarity 未随 sd 反向';
+  if (typeof lo.hint !== 'string' || lo.hint.length < 10) return 'anchorFit 缺少说明文案';
+  return true;
+});
+await ok('assemble 单次级评分默认硬锚点（源码断言，保 P5 降噪）', () => {
+  const src = fs.readFileSync(path.resolve(process.cwd(), 'assets/js/llm.js'), 'utf8')
+    .split('\n').filter((l) => !/^\s*(\*|\/\/|\/\*)/.test(l)).join('\n');
+  if (!/opts\.anchorStrength/.test(src)) return 'assemble 未接入 opts.anchorStrength';
+  if (!/const anchorStrength = \(opts && opts\.anchorStrength\) \|\| 'hard'/.test(src)) return 'assemble 未把默认锚点设为 hard';
+  return true;
+});
+
 /* ---- 本地客观事实层：只报事实、绝不给分 ---- */
 await ok('analyzer.objectiveFacts 已导出', () => typeof AG.analyzer.objectiveFacts === 'function');
 

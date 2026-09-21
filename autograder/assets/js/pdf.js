@@ -375,9 +375,12 @@
       if (hasRange) {
         ctx.font = `500 11px ${FONT}`;
         ctx.fillStyle = C.faint;
+        const aMode = r.anchorStrength === 'soft'
+          ? '（软锚点·报告清晰，档位仅供参考）'
+          : (r.anchorStrength === 'hard' ? '（硬锚点·先定档再在档内取分，可逐档复核）' : '');
         const note = r.straddles
-          ? `本档取值 ${r.total} 分 · 区间横跨 ${r.gradeStraddle || ''} 两个等级，最终等级由教师裁定`
-          : `本档取值 ${r.total} 分 · 教师可在区间内终评`;
+          ? `本档取值 ${r.total} 分 · 区间横跨 ${r.gradeStraddle || ''} 两个等级，最终等级由教师裁定${aMode}`
+          : `本档取值 ${r.total} 分 · 教师可在区间内终评${aMode}`;
         ctx.fillText(note, M + 24, top + 99);
       }
     });

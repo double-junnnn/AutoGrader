@@ -211,6 +211,9 @@
       dims,
       stability: stabilityGrade(hi - lo, cv),
       samples: sorted,
+      // 锚点适配建议：来自 sampleGrade 用连评方差反推出的"清晰/模糊"判定（见 anchors.anchorFitFromVariance）。
+      // 这是对「锚点对清晰报告反而增噪」这一实测发现的产品化：教师在此直接看到该报告该用硬锚点还是软锚点。
+      anchorFit: s.anchorFit || null,
     };
   }
 

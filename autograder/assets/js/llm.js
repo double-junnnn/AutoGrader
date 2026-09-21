@@ -264,7 +264,7 @@ ${toneHint ? '【语气设定】\n' + toneHint + '\n' : ''}
   }
 
   /** 把模型返回的一个维度对象规整成统一结构 */
-  function normalizeDim(dim, m, text) {
+  function normalizeDim(dim, m, text, tolerance) {
     const max = Number(dim.max) || 0;
 
     /* 模型漏给这个维度时的处理。
@@ -313,10 +313,15 @@ ${toneHint ? '【语气设定】\n' + toneHint + '\n' : ''}
       const byScore = A.levelOf(score, max);
       const declaredHit = bands.find((b) => b.idx === declared) || null;
       if (declaredHit && byScore !== declared) {
-        // 档位与分数冲突：以模型自选的档位为准，把分数拉回该档区间
-        // （既然它已声明这是哪一档，档内取值才是真实意图，越档给分多半是顺手写了整数）
-        const fixed = U.clamp(score, declaredHit.lo, declaredHit.hi);
-        if (fixed !== score) { crossBand = true; score = fixed; }
+        // 档位与分数冲突：软锚点（tolerance>0，即清晰报告）下允许分数在档位 ±tolerance 内浮动，
+        // 不硬卡、不标 crossBand；硬锚点（tolerance=0）或超出容差时才拉回档位区间并标记 crossBand。
+        // 这是对「锚点对清晰报告反而增噪」的针对性处理：清晰报告本就稳，别把选档的轻微摇摆放大成整档差。
+        const t = Number(tolerance) || 0;
+        const within = score >= declaredHit.lo - t && score <= declaredHit.hi + t;
+        if (!within) {
+          const fixed = U.clamp(score, declaredHit.lo, declaredHit.hi);
+          if (fixed !== score) { crossBand = true; score = fixed; }
+        }
       }
       const hit = declaredHit || bands.find((b) => b.idx === byScore) || null;
       if (hit) {
@@ -357,12 +362,33 @@ ${toneHint ? '【语气设定】\n' + toneHint + '\n' : ''}
     };
   }
 
-  /** 单次评分的收尾：算总分、算区间、评级、组装结果对象 */
-  function assemble(doc, rubric, parsed, cfg, raw) {
+  /** 样本标准差（本地统计，避免依赖 reliability 的加载顺序） */
+  function sampleStdev(a) {
+    if (!a || a.length < 2) return 0;
+    const m = a.reduce((s, x) => s + x, 0) / a.length;
+    const v = a.reduce((s, x) => s + (x - m) * (x - m), 0) / (a.length - 1);
+    return Math.sqrt(v);
+  }
+
+  /** 单次评分的收尾：算总分、算区间、评级、组装结果对象
+   * @param {Object} [opts] 可选覆盖：{ anchorStrength:'soft'|'hard', clarity:number }
+   *   单次级评分不传 → 默认**硬锚点**（保留 P5 降噪价值）。软锚点只在"模型方差"信号明确时启用，
+   *   而该信号只能来自采样路径（sampleGrade / stability），故此处除非显式传入，否则一律硬锚点。 */
+  function assemble(doc, rubric, parsed, cfg, raw, opts) {
     const byId = {};
     (parsed.dims || []).forEach((d) => { byId[d.id] = d; });
 
-    const dims = rubric.map((dim) => normalizeDim(dim, byId[dim.id], doc.text));
+    // 清晰度仍计算并保留（供审计/提示展示），但**不驱动**锚点强度——
+    // 文本清晰度是粗代理，连抄袭版都判得"很完整"，区分不开模型确定性（见 anchors.anchorFitFromVariance）。
+    const clarity = (opts && opts.clarity != null) ? Number(opts.clarity)
+      : (AG.analyzer && AG.analyzer.clarityOf ? AG.analyzer.clarityOf(doc.text) : 0);
+    // 单次级评分默认硬锚点；仅当显式要求 soft 时才放宽（自适应建议由采样方差给出，见 sampleGrade）。
+    const anchorStrength = (opts && opts.anchorStrength) || 'hard';
+
+    const dims = rubric.map((dim) => {
+      const tol = (anchorStrength === 'soft' && AG.anchors) ? AG.anchors.toleranceOf(clarity, dim.max) : 0;
+      return normalizeDim(dim, byId[dim.id], doc.text, tol);
+    });
 
     const total = U.clamp(U.round(dims.reduce((s, d) => s + d.score, 0), 1), 0, 100);
 
@@ -454,6 +480,8 @@ ${toneHint ? '【语气设定】\n' + toneHint + '\n' : ''}
         crossBands: crossBands.length,
         crossBandNames: crossBands.map((d) => d.name),
       },
+      anchorStrength,
+      clarity,
       gradedAt: Date.now(),
       raw,
     };
@@ -532,7 +560,14 @@ ${toneHint ? '【语气设定】\n' + toneHint + '\n' : ''}
       res.dims.forEach((d) => { (dimScores[d.id] = dimScores[d.id] || []).push(d.ratio); });
     }
 
-    return { ok: true, totals, runs, dimScores, iterations: totals.length, model: cfg.model };
+    // 锚点适配建议：用连评 N 次的总分标准差反推"模型是否笃定"。
+    // 这是唯一可靠的清晰/模糊信号（文本清晰度区分不开抄袭版与真清晰报告）。
+    const sd = sampleStdev(totals);
+    const anchorFit = (AG.anchors && AG.anchors.anchorFitFromVariance)
+      ? AG.anchors.anchorFitFromVariance(sd, 100)
+      : null;
+
+    return { ok: true, totals, runs, dimScores, iterations: totals.length, model: cfg.model, sd: U.round(sd, 2), anchorFit };
   }
 
   /**
