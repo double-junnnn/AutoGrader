@@ -122,6 +122,9 @@
     const t = normalize(id);
     document.documentElement.setAttribute('data-theme', t);
     liquidLight(t === 'classic' || t === 'tech');
+    // 壁纸要跟着主题重算：浅玻璃叠白兜底、深玻璃叠黑兜底，换肤后必须换回来；
+    // 切到卡通主题时 wallpaper 会把 inline 变量撤掉，让主题自带底色重新生效。
+    if (AG.wallpaper) AG.wallpaper.apply(t);
     if (t !== id) U.store.set('theme', t);
     return t;
   }

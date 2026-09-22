@@ -170,6 +170,10 @@
     if (AG.pet) AG.pet.attachAll();
   }
 
+  // 壁纸模块的提示语（上传失败/图片太大等）由这里统一弹出，
+  // 免得 wallpaper.js 反过来依赖 app.js 里的 toast。
+  U.bus.on('wallpaper:note', (m) => toast(m.text, m.kind || 'ok'));
+
   function setupAppearance() {
     AG.theme.apply(AG.theme.get());
     renderLogo();
@@ -181,10 +185,14 @@
       renderLogo();
       renderResult();
       if ($('#view-batch').style.display !== 'none') renderBatch();
+      // 换肤会改变「壁纸是否生效」与雾化兜底色，选择器要跟着刷新
+      if (AG.wallpaper) AG.wallpaper.mount($('#wallpaperBox'));
       toast('已切换界面主题：' + (t ? t.name : id), 'ok');
     };
     AG.theme.mountSkinBar($('#skinBarTop'), { compact: true, onChange: onTheme });
     AG.theme.mountSkinBar($('#skinBarSettings'), { onChange: onTheme });
+    // 壁纸选择器：与主题栏同属「外观」，主题栏下面紧跟一行
+    if (AG.wallpaper) AG.wallpaper.mount($('#wallpaperBox'));
 
     AG.voice.mountTonePicker($('#tonePicker'), {
       onChange: (id) => {

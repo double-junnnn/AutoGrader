@@ -338,6 +338,10 @@ body {
   background: var(--bg);
   background-image: var(--bg-image, none);
   background-attachment: fixed;
+  /* 壁纸要铺满、居中、不重复；对多层渐变无副作用（渐变本来就铺满）。 */
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   color: var(--ink);
   font: 14.5px/1.7 var(--font-ui);
   -webkit-font-smoothing: antialiased;
@@ -786,6 +790,41 @@ table.tb input { padding: 5px 8px; }
 .skin i.sw-toon { background: #ffd75c; }
 .skin i.sw-classic { background: #a7c6f7; }
 .skin i.sw-tech { background: #2b2154; }
+
+/* ---------- 玻璃主题壁纸（见 wallpaper.js） ----------
+ * 壁纸本身由 JS 写进 html 的 inline --bg-image（优先于主题选择器里的定义），
+ * 这里只负责选择器本体。缩略图用与真实壁纸同一套渐变，所见即所得。 */
+.wall-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(86px, 1fr));
+  gap: 8px; margin-top: 2px;
+}
+.wall-chip {
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  padding: 6px; cursor: pointer; transition: .15s;
+  background: var(--surface); border: var(--bw) solid var(--line-2);
+  border-radius: var(--radius-sm); color: var(--muted);
+}
+.wall-chip:hover { border-color: var(--brand); background: var(--brand-soft); }
+.wall-chip.on { border-color: var(--brand); background: var(--brand-soft); color: var(--brand); box-shadow: var(--shadow-sm); }
+.wall-sw {
+  display: block; width: 100%; height: 44px; border-radius: 7px;
+  background-size: cover; background-position: center;
+  border: 1.5px solid rgba(0, 0, 0, .16);
+}
+/* 「无」这一格不铺渐变，改成一道斜杠，表示回到主题自带底色 */
+.wall-sw.is-none {
+  background: repeating-linear-gradient(135deg,
+    var(--surface-3) 0 7px, var(--surface) 7px 14px);
+}
+.wall-nm { font-size: 11.5px; line-height: 1.2; }
+.wall-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.wall-veil { margin-top: 12px; }
+.wall-veil input[type="range"] { width: 100%; accent-color: var(--brand); }
+.wall-veil b { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+
+@media print {
+  .wall-grid, .wall-row, .wall-veil { display: none !important; }
+}
 
 .tone-card { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
 .tone {
