@@ -396,6 +396,35 @@ h1, h2, h3, .brand h1 { font-family: var(--font-title); }
 .logo img { width: 100%; height: 100%; object-fit: contain; display: block; }
 /* 位图吉祥物是暖色调的，压在品牌冷色渐变上会像贴纸 —— 换成它自带的暖奶油底 */
 .logo.is-art { background: #fcf7eb; box-shadow: inset 0 0 0 1.5px rgba(31, 26, 23, .14); }
+
+/* 玻璃主题下把标志的底换成一块「玻璃底座」。
+   位图是抠过底的透明 PNG，直接压在冷色玻璃上会像贴纸；
+   给半透明玻璃面 + 白色上缘高光 + 一圈细 rim，再把位图缩到 86% 让玻璃边露出来，
+   观感就从「贴在玻璃上的贴纸」变成「站在一片玻璃上」。 */
+:root[data-theme="classic"] .logo.is-art {
+  background: linear-gradient(168deg, rgba(255, 255, 255, .74), rgba(255, 255, 255, .36));
+  box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, .95),
+              inset 0 0 0 1px rgba(255, 255, 255, .80),
+              0 2px 10px -3px rgba(10, 16, 32, .30);
+  backdrop-filter: blur(14px) saturate(170%);
+  -webkit-backdrop-filter: blur(14px) saturate(170%);
+}
+:root[data-theme="tech"] .logo.is-art {
+  background: linear-gradient(168deg, rgba(255, 255, 255, .18), rgba(255, 255, 255, .05));
+  box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, .52),
+              inset 0 0 0 1px rgba(255, 255, 255, .22),
+              0 2px 14px -4px rgba(0, 0, 20, .62);
+  backdrop-filter: blur(14px) saturate(180%) brightness(1.05);
+  -webkit-backdrop-filter: blur(14px) saturate(180%) brightness(1.05);
+}
+.logo.is-art img, .logo.is-art svg.mascot { width: 86%; height: 86%; margin: 7%; }
+/* 万一没有位图、退回「AG」字标时，也给它补上玻璃质感的边缘高光 */
+:root[data-theme="classic"] .logo:not(.is-art),
+:root[data-theme="tech"] .logo:not(.is-art) {
+  box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, .55),
+              inset 0 0 0 1px rgba(255, 255, 255, .28),
+              0 2px 10px -3px rgba(10, 16, 32, .28);
+}
 .logo .txt { font-weight: 800; font-size: 18px; letter-spacing: -.5px; }
 .brand h1 { font-size: 18px; margin: 0; font-weight: 750; letter-spacing: -.2px; }
 .brand p { margin: 0; font-size: 12.5px; color: var(--muted); }
@@ -11908,11 +11937,14 @@ def quick_sort(arr):
    * 所以只在「动画卡通」主题下用它，其余主题回到文字标。
    */
   function renderLogo() {
-    const toon = AG.theme.get() === 'toon';
-    $('#logoBox').innerHTML = toon && AG.theme.HAS_MASCOT
+    // 吉祥物是品牌资产，**所有主题都用它当标志**；外观差异交给 CSS
+    // （卡通主题是暖奶油底，玻璃主题换成一块玻璃底座，见 main.css）。
+    // 原先只有卡通主题用它，默认主题改成浅玻璃之后顶栏就只剩「AG」两个字了。
+    const hasArt = !!AG.theme.HAS_MASCOT;
+    $('#logoBox').innerHTML = hasArt
       ? AG.theme.MASCOT_HEAD
       : '<span class="txt">AG</span>';
-    $('#logoBox').classList.toggle('is-art', !!toon && AG.theme.HAS_MASCOT);
+    $('#logoBox').classList.toggle('is-art', hasArt);
     // 顶栏头像是 innerHTML 重建的，重建后重新挂一次互动
     // （44px 太小，眼睛层不参与，只做倾斜 + 点击）
     if (AG.pet) AG.pet.attachAll();
@@ -12269,8 +12301,8 @@ def quick_sort(arr):
     const doc = state.docs.find((d) => d.id === state.currentId);
 
     if (!doc) {
-      // 空状态：卡通主题下用原创吉祥物插画，其余主题仍用通用图标
-      // （位图是暖色调的，在冷色主题里降透明度会显脏，不如不给）
+      // 空状态：只有卡通主题用大幅吉祥物插画（位图是暖色调，铺在玻璃主题的大片留白里会突兀）；
+      // 玻璃主题的品牌露出交给顶栏那个小标志（配玻璃底座，有容器框住就不会散）
       const toon = AG.theme.get() === 'toon';
       const art = (toon && AG.theme.HAS_MASCOT && AG.theme.MASCOT_FULL) || ICONS.target;
       card.innerHTML = `<div class="empty">

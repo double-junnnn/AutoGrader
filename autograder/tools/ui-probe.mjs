@@ -191,6 +191,35 @@ const CASES = [
       return true;`,
   },
   {
+    name: '标志：玻璃主题下顶栏也是吉祥物（不再是 AG 文字）',
+    body: `
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+      const results = [];
+      for (const theme of ['classic', 'tech', 'toon']) {
+        const dot = document.querySelector('.skin[data-theme-id="' + theme + '"]');
+        if (!dot) return '顶栏找不到主题色点：' + theme;
+        dot.click();                          // 真实换肤
+        await sleep(220);
+        const box = document.querySelector('#logoBox');
+        if (!box) return '找不到顶栏标志容器';
+        /* 只认位图（img.mascot）。SVG 那套是"没有位图时的兜底图形"，不是品牌形象 ——
+           第一版用例写成 img.mascot, svg.mascot，结果走了兜底也算通过，等于没测到东西。 */
+        const img = box.querySelector('img.mascot');
+        if (!img) return theme + ' 主题下顶栏没渲染吉祥物位图（走了 SVG 兜底或文字标）';
+        const w = parseFloat(getComputedStyle(img).width);
+        if (!(w > 0)) return theme + ' 主题下吉祥物位图宽度是 ' + w + '（图没显示出来）';
+        if (!box.classList.contains('is-art')) return theme + ' 主题下标志缺少 is-art 类';
+        if (theme !== 'toon' && getComputedStyle(box).boxShadow === 'none') {
+          return theme + ' 主题下标志没有玻璃底座（box-shadow 为空）';
+        }
+        results.push(theme + ':' + Math.round(w));
+      }
+      const dot = document.querySelector('.skin[data-theme-id="classic"]');
+      if (dot) { dot.click(); await sleep(150); }
+      return results.length === 3 ? true : '只验证了 ' + results.length + ' 个主题';
+    `,
+  },
+  {
     name: '设置页：页签切换真的切了分区',
     body: `
       const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
