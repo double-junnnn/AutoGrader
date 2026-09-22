@@ -128,7 +128,8 @@ autograder/
 │                               # （示例 A/B/C 已内置在 demos.js 里，点「加载示例」即得，故不再留副本）
 ├── tools/
 │   ├── scan-banned-words.mjs   # 违禁词体检：人格词库与界面文案的一级/二级扫描
-│   └── smoke.mjs               # 冒烟测试：Node + 最小 DOM 桩加载全部模块并验证纯函数
+│   ├── smoke.mjs               # 冒烟测试：Node + 最小 DOM 桩加载全部模块并验证纯函数
+│   └── ui-probe.mjs            # UI 回归：真浏览器 + 真实点击 + 读真实渲染值（无 Chrome 自动跳过）
 ├── build-single.py             # 打包脚本：把多文件版内联成单文件 HTML
 ├── LICENSE                     # MIT
 └── README.md
@@ -800,12 +801,29 @@ OpenAI 官方在部分网络环境下不可达——那是网络问题，不是�
 而应用真正的入口在 `autograder/` 子目录里。**该文件由 `build-single.py` 与
 `AutoGrader-单文件版.html` 同时产出，内容逐字节相同**，不会脱节。
 
+### 为什么还要一层「真浏览器」的回归
+
+纯函数层（评分口径、量表解析、信度统计）由 `smoke.mjs` 用 Node 里的 DOM 桩覆盖，够快也够准。
+但有一类问题它永远看不见：**变量算对了、样式却没生效；函数能调、点击却到不了。**
+
+壁纸功能上线时踩的就是这一类。两个 bug 都验证过「直接调 API → 全绿」，可一真实点击就炸：
+一个是存储写满后静默失败（当时读的是存储而不是内存），一个是点击被外层 `<label>` 转发吞掉。
+
+所以补了 `ui-probe.mjs`：**真的开一个浏览器、真的点、再读浏览器实际算出来的样式值**
+（`getComputedStyle`，而不是读我们自己写进去的变量）。它不引 puppeteer —— 项目零依赖，
+用本机已装的 Chrome（或 Edge）加 `--dump-dom` 把结果取回来；找不到浏览器就自动跳过，不阻塞流程。
+
+它自己也被验证过：**故意改坏一行源码，确认它只报出相关的那一条**，其余仍绿 ——
+说明断言有针对性，不是「一处坏、满盘红」的摆设。
+
 因此改完源码后**必须重跑打包**，否则线上仍是旧版：
 
 ```bash
 cd autograder
-python3 build-single.py       # ← 不能省，根 index.html 靠它刷新
+node tools/smoke.mjs           # 模块加载与纯函数
+node tools/ui-probe.mjs        # 真实点击 + 真实渲染值（需本机有 Chrome，没有会自动跳过）
 node tools/scan-banned-words.mjs
+python3 build-single.py        # ← 不能省，根 index.html 靠它刷新
 cd .. && git add -A && git commit -m "…" && git push
 ```
 
