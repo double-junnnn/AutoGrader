@@ -802,6 +802,10 @@ table.tb input { padding: 5px 8px; }
 /* ---------- 玻璃主题壁纸（见 wallpaper.js） ----------
  * 壁纸本身由 JS 写进 html 的 inline --bg-image（优先于主题选择器里的定义），
  * 这里只负责选择器本体。缩略图用与真实壁纸同一套渐变，所见即所得。 */
+/* 外壳不用 label（label 会把点击转发给里面的隐藏 file input），
+   样式照着 .fld 来一份，视觉上仍是同一排字段。 */
+.wall-field { display: block; margin-bottom: 12px; }
+.wall-field > span { display: block; font-size: 12.5px; color: var(--muted); margin-bottom: 5px; font-weight: 600; }
 .wall-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(86px, 1fr));
   gap: 8px; margin-top: 2px;
@@ -826,7 +830,7 @@ table.tb input { padding: 5px 8px; }
 }
 .wall-nm { font-size: 11.5px; line-height: 1.2; }
 .wall-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-.wall-veil { margin-top: 12px; }
+.wall-veil { display: block; margin-top: 12px; }
 .wall-veil input[type="range"] { width: 100%; accent-color: var(--brand); }
 .wall-veil b { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
 
@@ -1313,9 +1317,11 @@ table.tb input { padding: 5px 8px; }
       <label class="fld"><span>界面主题</span>
         <div class="skin-bar" id="skinBarSettings"></div>
       </label>
-      <label class="fld"><span>背景壁纸<span class="sub" style="margin-left:6px">仅玻璃主题生效</span></span>
+      <!-- 这里刻意用 div 而不是 label：壁纸选择器里有按钮和一个隐藏的 file input，
+           label 会把点击转发给它的关联控件，导致点任何空白处都弹出选文件对话框。 -->
+      <div class="wall-field"><span>背景壁纸<span class="sub" style="margin-left:6px">仅玻璃主题生效</span></span>
         <div id="wallpaperBox"></div>
-      </label>
+      </div>
       <label class="fld"><span>评语语气</span>
         <div id="tonePicker"></div>
       </label>
@@ -2903,30 +2909,76 @@ table.tb input { padding: 5px 8px; }
  * 给玻璃主题铺一层壁纸：半透面板 + backdrop-filter 会把壁纸糊成"材质"，
  * 这正是 visionOS 那套做法 —— 背景有内容，玻璃才有东西可折射，立体感立刻出来。
  *
- * 三个设计决定：
+ * 四个设计决定：
  *   1. **只服务玻璃主题**。卡通主题是平涂描边风格，铺壁纸只会跟描边打架，所以不生效。
  *   2. **预设壁纸用纯 CSS 多层渐变，不用位图**。零体积（单文件版不能因为壁纸变大）、
  *      任意分辨率都不糊，且离线可用。想要照片感就自己上传。
  *   3. **雾化（veil）是必要的，不是装饰**。浅玻璃是深色字，压在深色照片上会看不清；
  *      深玻璃是白色字，压在浅色照片上同样糊。所以壁纸上再叠一层半透明兜底色 ——
  *      浅玻璃叠白、深玻璃叠黑，强度让用户自己调（默认 0.34）。
- *
- * 上传的图片在本机压缩后存 localStorage：最长边 1920、JPEG 编码，
- * 再按体积自动降质量，避免撑爆 5MB 配额；存不下会回滚并如实告知。
+ *   4. **配置与图片分开存**（'wallpaper' 几字节 / 'wallpaperImage' 一个 data URL），
+ *      并且**以内存为运行时真相**。教训：早先两者存在同一个 key 里，
+ *      上传图片后那个 key 变成 ~1MB，之后切换预设时 `save` 要连图片一起重写 ——
+ *      超出 localStorage 配额就会静默失败，而 apply() 是从存储重读的，
+ *      于是表现为「点了预设不换背景、切回默认后再也换不回自己的图」。
+ *      现在切换预设只写几字节；图片只在换图时写一次。
  */
 (function (global) {
   'use strict';
   const AG = (global.AG = global.AG || {});
   const U = AG.utils;
 
-  const KEY = 'wallpaper';
+  const KEY = 'wallpaper';        // { id, veil }
+  const KEY_IMG = 'wallpaperImage'; // 压缩后的图片 data URL
   const GLASS = { classic: true, tech: true };
   const VEIL = { classic: [255, 255, 255], tech: [8, 10, 22] };
   const DEFAULT = { id: 'none', custom: '', veil: 0.34 };
 
-  const MAX_W = 1920;
-  const MAX_H = 1200;
-  const MAX_BYTES = 1.1e6;   // data URL 长度上限，留足 localStorage 余量
+  const MAX_W = 1600;
+  const MAX_H = 1000;
+  const MAX_BYTES = 6e5;   // data URL 字符上限；UTF-16 存进 localStorage 约 1.2MB
+
+  let mem = null;          // 运行时真相：持久化失败也不能影响"这一次"
+
+  function clampVeil(v) {
+    const n = Number(v);
+    return U.clamp(n === n ? n : DEFAULT.veil, 0, 0.85);
+  }
+
+  function note(text, kind) {
+    U.bus.emit('wallpaper:note', { text: text, kind: kind || 'ok' });
+  }
+
+  function read() {
+    if (mem) return mem;
+    const raw = U.store.get(KEY, null);
+    const c = raw && typeof raw === 'object' ? raw : {};
+    let img = U.store.get(KEY_IMG, '');
+    if (typeof img !== 'string') img = '';
+    // 兼容早先把图片塞在同一个 key 里的版本：读到就顺手迁移到独立 key，
+    // 并且把老 key 里的图片字段抹掉 —— 否则同一张图占两份配额，正是这次要修的病根。
+    if (!img && typeof c.custom === 'string' && c.custom) {
+      img = c.custom;
+      U.store.set(KEY_IMG, img);
+      U.store.set(KEY, { id: c.id || 'custom', veil: clampVeil(c.veil) });
+    }
+    mem = { id: c.id || 'none', veil: clampVeil(c.veil), custom: img };
+    return mem;
+  }
+
+  /** 取当前壁纸设置（返回副本，外部改不动内部状态）。 */
+  function get() {
+    const w = read();
+    return { id: w.id, veil: w.veil, custom: w.custom };
+  }
+
+  /** 只写配置（几字节）。写不进去时内存里仍然是新的，只是刷新后会回到旧值 —— 如实告知。 */
+  function persist() {
+    const w = read();
+    if (U.store.set(KEY, { id: w.id, veil: w.veil })) return true;
+    note('壁纸已切换，但本机存储写不进去（空间不足），刷新后会回到上一次的选择。', 'err');
+    return false;
+  }
 
   function P(id, name, css) { return { id: id, name: name, css: css }; }
 
@@ -2966,21 +3018,6 @@ table.tb input { padding: 5px 8px; }
     return null;
   }
 
-  function get() {
-    const raw = U.store.get(KEY, null);
-    if (!raw || typeof raw !== 'object') return Object.assign({}, DEFAULT);
-    return {
-      id: raw.id || 'none',
-      custom: typeof raw.custom === 'string' ? raw.custom : '',
-      veil: U.clamp(Number(raw.veil) === Number(raw.veil) ? Number(raw.veil) : DEFAULT.veil, 0, 0.85),
-    };
-  }
-
-  function save(w) {
-    // store.set 在配额超限时返回 false，让调用方能回滚并如实告知，而不是静默丢图
-    return U.store.set(KEY, w);
-  }
-
   /**
    * 拼出 --bg-image 的值。
    * 返回 null 表示「这一层不该由壁纸接管」—— 此时必须把 inline 变量撤掉，
@@ -2993,7 +3030,7 @@ table.tb input { padding: 5px 8px; }
       ? (w.custom ? 'url("' + w.custom + '")' : null)
       : (presetOf(w.id) || {}).css;
     if (!layer) return null;
-    const veil = U.clamp(Number(w.veil) || 0, 0, 0.85);
+    const veil = clampVeil(w.veil);
     if (!veil) return layer;
     const c = VEIL[theme] || VEIL.classic;
     const rgba = 'rgba(' + c.join(', ') + ', ' + veil + ')';
@@ -3004,8 +3041,7 @@ table.tb input { padding: 5px 8px; }
    *  由 theme.apply() 调用，保证切换主题后立刻按新主题重算雾化色。 */
   function apply(theme) {
     const t = theme || (AG.theme && AG.theme.get()) || 'classic';
-    const w = get();
-    const val = build(w, t);
+    const val = build(get(), t);
     const root = document.documentElement;
     if (val) root.style.setProperty('--bg-image', val);
     else root.style.removeProperty('--bg-image');
@@ -3013,54 +3049,58 @@ table.tb input { padding: 5px 8px; }
   }
 
   function set(id) {
-    const w = get();
+    const w = read();
     const ok = (id === 'custom' && !!w.custom) || !!presetOf(id);
     w.id = ok ? id : 'none';
-    save(w);
+    persist();
     apply();
-    return w;
+    return get();
   }
 
   function setVeil(v) {
-    const w = get();
-    w.veil = U.clamp(Number(v) || 0, 0, 0.85);
-    save(w);
+    const w = read();
+    w.veil = clampVeil(v);
+    persist();
     apply();
     return w.veil;
   }
 
-  /** 把用户选的图片压到可用尺寸并保存；存不下就回滚。 */
+  /**
+   * 把用户选的图片压到可用尺寸并存下来。图片单独写一个 key ——
+   * 只在这一步有写大对象的开销，切预设时不再碰它。
+   */
   function setCustomFromImage(img) {
     const k = Math.min(MAX_W / (img.width || 1), MAX_H / (img.height || 1), 1);
-    const w = Math.max(1, Math.round((img.width || 1) * k));
-    const h = Math.max(1, Math.round((img.height || 1) * k));
+    const cw = Math.max(1, Math.round((img.width || 1) * k));
+    const ch = Math.max(1, Math.round((img.height || 1) * k));
     const c = document.createElement('canvas');
-    c.width = w;
-    c.height = h;
+    c.width = cw;
+    c.height = ch;
     const ctx = c.getContext('2d');
     // 先铺白底：带透明通道的 PNG 转 JPEG 后透明区会变黑，浅色主题下很突兀
     ctx.fillStyle = '#fff';
-    ctx.fillRect(0, 0, w, h);
-    ctx.drawImage(img, 0, 0, w, h);
-    let q = 0.84;
+    ctx.fillRect(0, 0, cw, ch);
+    ctx.drawImage(img, 0, 0, cw, ch);
+    let q = 0.82;
     let url = c.toDataURL('image/jpeg', q);
-    while (url.length > MAX_BYTES && q > 0.45) {
+    while (url.length > MAX_BYTES && q > 0.4) {
       q -= 0.1;
       url = c.toDataURL('image/jpeg', q);
     }
-    const cur = get();
-    const prev = { id: cur.id, custom: cur.custom };
-    cur.id = 'custom';
-    cur.custom = url;
-    if (!save(cur)) {
-      const back = get();
-      back.id = prev.id;
-      back.custom = prev.custom;
-      save(back);
-      return { ok: false, note: '这张图太大了，本机存不下。换一张小一点的试试（或先删掉旧图）。' };
+
+    const w = read();
+    const prevImg = w.custom;
+    const prevId = w.id;
+    w.custom = url;
+    w.id = 'custom';
+    if (!U.store.set(KEY_IMG, url)) {
+      w.custom = prevImg;
+      w.id = prevId;
+      return { ok: false, note: '这张图压缩后仍然存不下（本机存储空间不足）。换一张小一点的，或先点「删掉我的图片」清出空间。' };
     }
+    persist();
     apply();
-    return { ok: true, bytes: url.length };
+    return { ok: true, bytes: url.length, width: cw, height: ch };
   }
 
   /** 读文件 → 解码 → 压缩。任何一步失败都给可执行的提示，不抛到界面上。 */
@@ -3090,20 +3130,16 @@ table.tb input { padding: 5px 8px; }
   }
 
   function clearCustom() {
-    const w = get();
+    const w = read();
     w.custom = '';
     if (w.id === 'custom') w.id = 'none';
-    save(w);
+    U.store.del(KEY_IMG);
+    persist();
     apply();
-    return w;
+    return get();
   }
 
   /* ---------------- 设置页 UI ---------------- */
-
-  /** 提示统一走事件总线：wallpaper 模块不认识 app.js 的 toast，由 app 侧订阅后展示。 */
-  function note(text, kind) {
-    U.bus.emit('wallpaper:note', { text: text, kind: kind || 'ok' });
-  }
 
   function chip(p, cur, onPick) {
     const on = cur.id === p.id;
@@ -3118,7 +3154,13 @@ table.tb input { padding: 5px 8px; }
       'aria-label': '壁纸：' + p.name,
       'aria-pressed': on ? 'true' : 'false',
     }, [sw, U.el('span', { class: 'wall-nm' }, [p.name])]);
-    b.addEventListener('click', () => onPick(p.id));
+    b.addEventListener('click', (e) => {
+      // 这里必须拦住冒泡：壁纸选择器外面包着 <label>，
+      // 冒泡上去会连带触发 label 关联的隐藏 file input（无端弹出选文件对话框）。
+      e.preventDefault();
+      e.stopPropagation();
+      onPick(p.id);
+    });
     return b;
   }
 
@@ -3151,20 +3193,26 @@ table.tb input { padding: 5px 8px; }
     file.addEventListener('change', () => {
       upload(file.files && file.files[0], (r) => {
         if (!r || !r.ok) note(r && r.note ? r.note : '这张图用不了，换一张试试。', 'err');
-        else note('壁纸已换成本机图片（压缩后只存在浏览器里，不会上传）', 'ok');
+        else note('壁纸已换成本机图片（原图 ' + r.width + '×' + r.height + '，压缩后只存在浏览器里，不会上传）', 'ok');
         mount(container);
         U.bus.emit('wallpaper:change', get());
       });
       file.value = '';
     });
     const up = U.el('button', { type: 'button', class: 'btn sm', id: 'btnWallUpload' }, ['上传图片…']);
-    up.addEventListener('click', () => file.click());
+    up.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      file.click();
+    });
     row.appendChild(up);
     row.appendChild(file);
 
     if (w.custom) {
       const rm = U.el('button', { type: 'button', class: 'btn sm', id: 'btnWallClear' }, ['删掉我的图片']);
-      rm.addEventListener('click', () => {
+      rm.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         clearCustom();
         mount(container);
         U.bus.emit('wallpaper:change', get());
@@ -3182,7 +3230,7 @@ table.tb input { padding: 5px 8px; }
       val.textContent = range.value + '%';
       setVeil(Number(range.value) / 100);
     });
-    container.appendChild(U.el('label', { class: 'fld wall-veil' }, [
+    container.appendChild(U.el('label', { class: 'wall-veil' }, [
       U.el('span', {}, ['背景雾化 / 压暗　', val]),
       range,
     ]));

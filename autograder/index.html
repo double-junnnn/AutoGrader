@@ -135,9 +135,11 @@
       <label class="fld"><span>界面主题</span>
         <div class="skin-bar" id="skinBarSettings"></div>
       </label>
-      <label class="fld"><span>背景壁纸<span class="sub" style="margin-left:6px">仅玻璃主题生效</span></span>
+      <!-- 这里刻意用 div 而不是 label：壁纸选择器里有按钮和一个隐藏的 file input，
+           label 会把点击转发给它的关联控件，导致点任何空白处都弹出选文件对话框。 -->
+      <div class="wall-field"><span>背景壁纸<span class="sub" style="margin-left:6px">仅玻璃主题生效</span></span>
         <div id="wallpaperBox"></div>
-      </label>
+      </div>
       <label class="fld"><span>评语语气</span>
         <div id="tonePicker"></div>
       </label>
