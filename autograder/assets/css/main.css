@@ -820,10 +820,13 @@ table.tb input { padding: 5px 8px; }
 }
 .wall-chip:hover { border-color: var(--brand); background: var(--brand-soft); }
 .wall-chip.on { border-color: var(--brand); background: var(--brand-soft); color: var(--brand); box-shadow: var(--shadow-sm); }
+/* 缩略图不描边：彩色色块加一圈黑描边会显脏（浅色壁纸尤其明显）。
+   改用玻璃语言界定边界 —— 外侧一层极淡投影 + 内侧上缘一道白色高光，
+   深色壁纸靠白边、浅色壁纸靠投影，两种底色都分得清。 */
 .wall-sw {
   display: block; width: 100%; height: 44px; border-radius: 7px;
   background-size: cover; background-position: center;
-  border: 1.5px solid rgba(0, 0, 0, .16);
+  box-shadow: 0 1px 2px rgba(10, 16, 32, .10), inset 0 1px 0 rgba(255, 255, 255, .45);
 }
 /* 「无」这一格不铺渐变，改成一道斜杠，表示回到主题自带底色 */
 .wall-sw.is-none {
