@@ -26,7 +26,7 @@
   const KEY_IMG = 'wallpaperImage'; // 压缩后的图片 data URL
   const GLASS = { classic: true, tech: true };
   const VEIL = { classic: [255, 255, 255], tech: [8, 10, 22] };
-  const DEFAULT = { id: 'none', custom: '', veil: 0.34 };
+  const DEFAULT = { id: 'none', custom: '', veil: 0.32 };
 
   const MAX_W = 1600;
   const MAX_H = 1000;
@@ -76,41 +76,52 @@
 
   function P(id, name, css) { return { id: id, name: name, css: css }; }
 
-  /* 预设：每款都是「三团径向光晕 + 一层底色线性渐变」，模拟真实壁纸的光照分布。
-     前四款压暗底（配深玻璃舒服），后两款是浅底（配浅玻璃舒服），用户随意搭。 */
+  /* 四款，色相拉得很开：玫粉 / 橙紫 / 天蓝 / 青绿。
+     每款都是「四五团不同色相的光斑 + 一层底色」——关键是**多色**：
+     单色渐变透到玻璃后面还是同一色，整页会糊成一片（试过，很难看）；
+     参考图那种液态玻璃之所以好看，是因为背景本身有色彩层次与明暗对比。
+     饱和度按"照片的柔光"来给，不做高饱和色块，也不做灰调。 */
   const PRESETS = [
     P('none', '无', ''),
-    P('aurora', '极光',
-      'radial-gradient(105% 78% at 14% 6%, rgba(72, 236, 198, .55), rgba(72, 236, 198, 0) 56%),' +
-      'radial-gradient(96% 72% at 86% 16%, rgba(146, 108, 255, .55), rgba(146, 108, 255, 0) 58%),' +
-      'radial-gradient(120% 92% at 48% 112%, rgba(28, 118, 196, .58), rgba(28, 118, 196, 0) 62%),' +
-      'linear-gradient(166deg, #06192a 0%, #0c2a3f 46%, #071a2c 100%)'),
-    P('dusk', '暮色',
-      'radial-gradient(100% 74% at 18% 88%, rgba(255, 148, 92, .62), rgba(255, 148, 92, 0) 58%),' +
-      'radial-gradient(98% 76% at 82% 12%, rgba(178, 96, 232, .55), rgba(178, 96, 232, 0) 60%),' +
-      'linear-gradient(196deg, #2b1032 0%, #47203c 48%, #150a1c 100%)'),
-    P('ocean', '深海',
-      'radial-gradient(108% 80% at 20% 14%, rgba(56, 208, 232, .48), rgba(56, 208, 232, 0) 56%),' +
-      'radial-gradient(110% 86% at 78% 96%, rgba(24, 78, 168, .55), rgba(24, 78, 168, 0) 60%),' +
-      'linear-gradient(170deg, #041b2c 0%, #0a2c46 50%, #04182a 100%)'),
-    P('graphite', '石墨',
-      'radial-gradient(104% 76% at 26% 10%, rgba(255, 255, 255, .16), rgba(255, 255, 255, 0) 58%),' +
-      'radial-gradient(104% 80% at 82% 92%, rgba(120, 140, 170, .22), rgba(120, 140, 170, 0) 62%),' +
-      'linear-gradient(172deg, #16181d 0%, #22262e 48%, #14161b 100%)'),
-    P('mist', '晨雾',
-      'radial-gradient(102% 78% at 16% 12%, rgba(255, 255, 255, .85), rgba(255, 255, 255, 0) 58%),' +
-      'radial-gradient(104% 82% at 84% 90%, rgba(176, 206, 240, .55), rgba(176, 206, 240, 0) 62%),' +
-      'linear-gradient(168deg, #eef4fc 0%, #dfe9f6 46%, #eaf1fa 100%)'),
-    P('dune', '沙丘',
-      'radial-gradient(104% 78% at 20% 88%, rgba(226, 178, 128, .55), rgba(226, 178, 128, 0) 60%),' +
-      'radial-gradient(102% 74% at 82% 10%, rgba(255, 246, 230, .80), rgba(255, 246, 230, 0) 58%),' +
-      'linear-gradient(172deg, #f7efe4 0%, #eeddc8 48%, #f5ebe0 100%)'),
+    P('bloom', '花影',
+      'radial-gradient(46% 36% at 18% 14%, rgba(255, 252, 246, .90), rgba(255, 252, 246, 0) 58%),' +
+      'radial-gradient(52% 42% at 74% 30%, rgba(228, 120, 166, .60), rgba(228, 120, 166, 0) 62%),' +
+      'radial-gradient(58% 46% at 30% 82%, rgba(98, 146, 226, .56), rgba(98, 146, 226, 0) 66%),' +
+      'radial-gradient(44% 34% at 88% 76%, rgba(246, 178, 120, .42), rgba(246, 178, 120, 0) 62%),' +
+      'linear-gradient(164deg, #9d6a92 0%, #7b6199 48%, #5b5c92 100%)'),
+    P('dusk', '黄昏',
+      'radial-gradient(50% 40% at 22% 78%, rgba(246, 184, 98, .66), rgba(246, 184, 98, 0) 62%),' +
+      'radial-gradient(46% 36% at 80% 24%, rgba(192, 126, 204, .46), rgba(192, 126, 204, 0) 60%),' +
+      'radial-gradient(52% 40% at 62% 92%, rgba(88, 92, 168, .42), rgba(88, 92, 168, 0) 62%),' +
+      'radial-gradient(40% 30% at 8% 18%, rgba(255, 232, 180, .40), rgba(255, 232, 180, 0) 58%),' +
+      'linear-gradient(196deg, #4a3024 0%, #69402f 48%, #2e2350 100%)'),
+    P('sky', '晴空',
+      'radial-gradient(48% 36% at 24% 16%, rgba(255, 255, 255, .84), rgba(255, 255, 255, 0) 58%),' +
+      'radial-gradient(54% 42% at 78% 74%, rgba(126, 172, 236, .50), rgba(126, 172, 236, 0) 64%),' +
+      'radial-gradient(44% 34% at 12% 84%, rgba(206, 226, 246, .44), rgba(206, 226, 246, 0) 60%),' +
+      'radial-gradient(38% 30% at 84% 22%, rgba(250, 240, 192, .32), rgba(250, 240, 192, 0) 58%),' +
+      'linear-gradient(176deg, #8fb4e4 0%, #a8c4e8 48%, #7c9fd6 100%)'),
+    P('forest', '森野',
+      'radial-gradient(48% 38% at 26% 20%, rgba(214, 236, 168, .54), rgba(214, 236, 168, 0) 60%),' +
+      'radial-gradient(54% 42% at 76% 76%, rgba(52, 130, 118, .52), rgba(52, 130, 118, 0) 64%),' +
+      'radial-gradient(46% 36% at 88% 28%, rgba(158, 208, 168, .40), rgba(158, 208, 168, 0) 60%),' +
+      'radial-gradient(42% 32% at 14% 88%, rgba(96, 168, 140, .42), rgba(96, 168, 140, 0) 58%),' +
+      'linear-gradient(170deg, #35604f 0%, #2f7462 48%, #244c44 100%)'),
   ];
 
   function presetOf(id) {
     for (let i = 0; i < PRESETS.length; i++) if (PRESETS[i].id === id) return PRESETS[i];
     return null;
   }
+
+  /* 极淡的颗粒层：纯渐变放大看是"塑料"的，加一层噪点立刻有照片的质感。
+     140×140 的 SVG turbulence，不到 300 字节；stitchTiles 保证平铺无接缝。
+     opacity 压到 0.07 —— 只在近看时觉得"有东西"，远看仍然是干净的背景。 */
+  const NOISE = 'url("data:image/svg+xml,' + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="140" height="140">' +
+    '<filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" stitchTiles="stitch"/></filter>' +
+    '<rect width="140" height="140" filter="url(#n)" opacity="0.07"/></svg>'
+  ) + '")';
 
   /**
    * 拼出 --bg-image 的值。
@@ -124,11 +135,16 @@
       ? (w.custom ? 'url("' + w.custom + '")' : null)
       : (presetOf(w.id) || {}).css;
     if (!layer) return null;
+    const parts = [];
     const veil = clampVeil(w.veil);
-    if (!veil) return layer;
-    const c = VEIL[theme] || VEIL.classic;
-    const rgba = 'rgba(' + c.join(', ') + ', ' + veil + ')';
-    return 'linear-gradient(' + rgba + ', ' + rgba + '), ' + layer;
+    if (veil) {
+      const c = VEIL[theme] || VEIL.classic;
+      const rgba = 'rgba(' + c.join(', ') + ', ' + veil + ')';
+      parts.push('linear-gradient(' + rgba + ', ' + rgba + ')');
+    }
+    parts.push(layer);
+    // 颗粒放最上层：压在雾化层之上，才不会被雾化层冲淡
+    return [NOISE].concat(parts).join(', ');
   }
 
   /** 把壁纸写进 html 的 inline --bg-image（inline 优先于主题选择器里的定义）。
@@ -139,6 +155,9 @@
     const root = document.documentElement;
     if (val) root.style.setProperty('--bg-image', val);
     else root.style.removeProperty('--bg-image');
+    // 有壁纸时才给面板开真模糊（见 main.css 的 .has-wallpaper）：纯渐变底色下
+    // 模糊看不出差别，不值得为它付 20 多个合成层的性能代价。
+    root.classList.toggle('has-wallpaper', !!val);
     return val;
   }
 

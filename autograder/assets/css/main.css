@@ -147,13 +147,13 @@
     radial-gradient(1100px 700px at 90% 2%, rgba(140, 180, 255, .46), transparent 62%),
     radial-gradient(900px 700px at 50% 112%, rgba(196, 220, 255, .55), transparent 60%),
     radial-gradient(1400px 900px at 50% 44%, rgba(255, 255, 255, .6), transparent 72%);
-  --panel: rgba(255, 255, 255, .55);
+  --panel: rgba(255, 255, 255, .34);
   --panel-solid: #f4f8ff;
-  --surface: rgba(255, 255, 255, .70);
+  --surface: rgba(255, 255, 255, .48);
   --surface-solid: #ffffff;
-  --surface-2: rgba(255, 255, 255, .42);
+  --surface-2: rgba(255, 255, 255, .26);
   --surface-2-solid: #eef4fd;
-  --surface-3: rgba(255, 255, 255, .30);
+  --surface-3: rgba(255, 255, 255, .22);
   --ink: #0a1020;                      /* 浅底深字 */
   --ink-2: rgba(10, 16, 32, .78);
   --muted: rgba(10, 16, 32, .52);      /* 说明文字低饱和 */
@@ -205,7 +205,7 @@
                inset 0 0 12px -4px rgba(38, 74, 140, .30),
                inset 0 -24px 36px -30px rgba(52, 104, 200, .50),
                0 48px 90px -32px rgba(24, 56, 120, .50);
-  --glass-blur: blur(18px) saturate(180%);
+  --glass-blur: blur(26px) saturate(190%) brightness(1.04);
   /* 玻璃体积：168° 厚度渐变（顶部厚→中部薄→下缘回亮）+ 右下冷色环境反光。
      左上那团「会动」的镜面高光斑不放在这里 —— CSS 自定义属性的 var()
      是在定义处（:root）解析的，写进 :root 变量里就吃不到元素级的 --lx/--ly。
@@ -216,12 +216,12 @@
     radial-gradient(80% 52% at calc(88% + var(--lx, 0) * 8%) 112%,
       rgba(182, 212, 255, .50), rgba(255, 255, 255, 0) 58%),
     linear-gradient(168deg,
-      rgba(255, 255, 255, .80) 0%,
-      rgba(255, 255, 255, .48) 40%,
-      rgba(255, 255, 255, .32) 66%,
-      rgba(255, 255, 255, .60) 100%);
-  --glass-hl: rgba(255, 255, 255, .78);   /* 动态镜面高光斑的颜色（左上，随 --lx/--ly 移动）*/
-  --glass-fill-sm: linear-gradient(168deg, rgba(255, 255, 255, .88) 0%, rgba(255, 255, 255, .54) 100%);
+      rgba(255, 255, 255, .40) 0%,
+      rgba(255, 255, 255, .22) 40%,
+      rgba(255, 255, 255, .13) 66%,
+      rgba(255, 255, 255, .26) 100%);
+  --glass-hl: rgba(255, 255, 255, .46);   /* 动态镜面高光斑的颜色（左上，随 --lx/--ly 移动）*/
+  --glass-fill-sm: linear-gradient(168deg, rgba(255, 255, 255, .26) 0%, rgba(255, 255, 255, .12) 100%);
   --glass-rim: rgba(255, 252, 246, .98);        /* 上缘：迎光面最亮（微暖白）*/
   --glass-rim-soft: rgba(255, 255, 255, .46);   /* 右侧：掠射光 */
   --glass-rim-b: rgba(168, 205, 255, .85);      /* 下缘：折射亮线（色散·蓝）*/
@@ -250,13 +250,13 @@
     radial-gradient(1000px 680px at 86% 6%, rgba(210, 120, 255, .30), transparent 62%),
     radial-gradient(900px 700px at 50% 108%, rgba(60, 150, 255, .22), transparent 60%),
     radial-gradient(1400px 900px at 50% 42%, rgba(255, 255, 255, .05), transparent 70%);
-  --panel: rgba(18, 13, 40, .52);
+  --panel: rgba(18, 13, 40, .36);
   --panel-solid: #120d28;
-  --surface: rgba(30, 22, 58, .58);
+  --surface: rgba(30, 22, 58, .46);
   --surface-solid: #191133;
-  --surface-2: rgba(13, 9, 30, .46);
+  --surface-2: rgba(13, 9, 30, .26);
   --surface-2-solid: #0d0920;
-  --surface-3: rgba(44, 32, 80, .52);
+  --surface-3: rgba(44, 32, 80, .28);
   --ink: #ffffff;
   --ink-2: rgba(255, 255, 255, .80);
   --muted: rgba(255, 255, 255, .54);
@@ -305,7 +305,7 @@
                inset 0 -24px 36px -28px rgba(120, 90, 255, .45),
                inset 0 26px 40px -34px rgba(255, 255, 255, .22),
                0 52px 96px -32px rgba(2, 0, 18, .92);
-  --glass-blur: blur(18px) saturate(195%) brightness(1.06);
+  --glass-blur: blur(26px) saturate(205%) brightness(1.08);
   /* 深色玻璃的体积更克制：白色只做边缘反射，主体靠紫调明暗拉开厚度。
      动态高光斑同样拆到文件末尾的选择器块（元素作用域），这里只留
      静态的右下蓝紫环境反光 —— 深空间里的"环境"是背景那几团弥散光。 */
@@ -317,7 +317,7 @@
       rgba(255, 255, 255, .07) 40%,
       rgba(255, 255, 255, .03) 66%,
       rgba(186, 166, 255, .15) 100%);
-  --glass-hl: rgba(214, 200, 255, .30);   /* 动态镜面高光斑的颜色（左上，随 --lx/--ly 移动）*/
+  --glass-hl: rgba(214, 200, 255, .38);   /* 动态镜面高光斑的颜色（左上，随 --lx/--ly 移动）*/
   --glass-fill-sm: linear-gradient(168deg, rgba(255, 255, 255, .22) 0%, rgba(190, 170, 255, .10) 100%);
   --glass-rim: rgba(255, 255, 255, .38);
   --glass-rim-soft: rgba(255, 255, 255, .16);
@@ -360,6 +360,16 @@ h1, h2, h3, .brand h1 { font-family: var(--font-title); }
 .topbar, .modal, .mask, .toast, .chat-panel {
   backdrop-filter: var(--glass-blur, none);
   -webkit-backdrop-filter: var(--glass-blur, none);
+}
+
+/* 卡片默认不开模糊（首屏十几张卡片各背一层模糊，滚动会掉帧）。
+   但一旦铺了壁纸，卡片下面就是有内容的背景 —— 只叠半透白会变成"白雾盖着"，
+   而不是玻璃。所以有壁纸时才把模糊打开：既拿到液态玻璃的通透感，
+   又把这份性能开销限定在值得的场景里。
+   22px 是折中：再大滚动会掉帧，再小糊不开背景的色块。 */
+.has-wallpaper .card {
+  backdrop-filter: blur(22px) saturate(175%);
+  -webkit-backdrop-filter: blur(22px) saturate(175%);
 }
 
 /* ---------- 布局 ---------- */
