@@ -2992,11 +2992,12 @@ table.tb input { padding: 5px 8px; }
 
   function P(id, name, css) { return { id: id, name: name, css: css }; }
 
-  /* 四款，色相拉得很开：玫粉 / 晚霞紫橙 / 天蓝 / 青绿。
-     每款都是「四五团不同色相的光斑 + 一层底色」——关键是**多色**：
-     单色渐变透到玻璃后面还是同一色，整页会糊成一片（试过，很难看）；
-     参考图那种液态玻璃之所以好看，是因为背景本身有色彩层次与明暗对比。
-     饱和度按"照片的柔光"来给，不做高饱和色块，也不做灰调。 */
+  /* 两种风格并存：
+     一、多色斑派（花影 / 晚霞）—— 像一张糊掉的照片，色彩层次丰富；
+     二、干净渐变派（青柠 / 潮汐 / 拂晓 / 绯夜）—— 照用户挑的参考图还原，
+         纵向两三色过渡，没有杂色斑。这一派的色值直接取自参考图标注
+         （#2DFFF5→#FFF878、#0172AF→#74FEBD 等）。
+     每款都要能"当得起背景"：不脏、不灰、不用低明度暖色（那会变成褐色）。 */
   const PRESETS = [
     P('none', '无', ''),
     P('bloom', '花影',
@@ -3011,18 +3012,15 @@ table.tb input { padding: 5px 8px; }
       'radial-gradient(54% 42% at 82% 12%, rgba(134, 92, 220, .48), rgba(134, 92, 220, 0) 64%),' +
       'radial-gradient(42% 32% at 10% 18%, rgba(255, 220, 176, .32), rgba(255, 220, 176, 0) 58%),' +
       'linear-gradient(188deg, #2d1c52 0%, #74306e 42%, #e0634d 100%)'),
-    P('sky', '晴空',
-      'radial-gradient(48% 36% at 24% 16%, rgba(255, 255, 255, .84), rgba(255, 255, 255, 0) 58%),' +
-      'radial-gradient(54% 42% at 78% 74%, rgba(126, 172, 236, .50), rgba(126, 172, 236, 0) 64%),' +
-      'radial-gradient(44% 34% at 12% 84%, rgba(206, 226, 246, .44), rgba(206, 226, 246, 0) 60%),' +
-      'radial-gradient(38% 30% at 84% 22%, rgba(250, 240, 192, .32), rgba(250, 240, 192, 0) 58%),' +
-      'linear-gradient(176deg, #8fb4e4 0%, #a8c4e8 48%, #7c9fd6 100%)'),
-    P('forest', '森野',
-      'radial-gradient(48% 38% at 26% 20%, rgba(214, 236, 168, .54), rgba(214, 236, 168, 0) 60%),' +
-      'radial-gradient(54% 42% at 76% 76%, rgba(52, 130, 118, .52), rgba(52, 130, 118, 0) 64%),' +
-      'radial-gradient(46% 36% at 88% 28%, rgba(158, 208, 168, .40), rgba(158, 208, 168, 0) 60%),' +
-      'radial-gradient(42% 32% at 14% 88%, rgba(96, 168, 140, .42), rgba(96, 168, 140, 0) 58%),' +
-      'linear-gradient(170deg, #35604f 0%, #2f7462 48%, #244c44 100%)'),
+    P('mint', '青柠',
+      'linear-gradient(178deg, #2df0e8 0%, #6ef0c4 32%, #b8f49a 64%, #e8f87e 86%, #fff878 100%)'),
+    P('tide', '潮汐',
+      'linear-gradient(180deg, #0172af 0%, #168fbe 30%, #35bfb4 62%, #58e6ba 84%, #74febd 100%)'),
+    P('dawn', '拂晓',
+      'linear-gradient(180deg, #121f57 0%, #1c3a9e 24%, #2f6ad0 50%, #8fc0ee 78%, #f0f6ff 100%)'),
+    P('crimson', '绯夜',
+      'radial-gradient(118% 78% at 10% 6%, rgba(255, 62, 104, .90), rgba(255, 62, 104, 0) 64%),' +
+      'linear-gradient(150deg, #d81f46 0%, #93172f 30%, #3a0d14 64%, #0c0507 100%)'),
   ];
 
   function presetOf(id) {
