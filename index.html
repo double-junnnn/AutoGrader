@@ -155,13 +155,13 @@
     radial-gradient(1100px 700px at 90% 2%, rgba(140, 180, 255, .46), transparent 62%),
     radial-gradient(900px 700px at 50% 112%, rgba(196, 220, 255, .55), transparent 60%),
     radial-gradient(1400px 900px at 50% 44%, rgba(255, 255, 255, .6), transparent 72%);
-  --panel: rgba(255, 255, 255, .55);
+  --panel: rgba(255, 255, 255, .34);
   --panel-solid: #f4f8ff;
-  --surface: rgba(255, 255, 255, .70);
+  --surface: rgba(255, 255, 255, .48);
   --surface-solid: #ffffff;
-  --surface-2: rgba(255, 255, 255, .42);
+  --surface-2: rgba(255, 255, 255, .26);
   --surface-2-solid: #eef4fd;
-  --surface-3: rgba(255, 255, 255, .30);
+  --surface-3: rgba(255, 255, 255, .22);
   --ink: #0a1020;                      /* 浅底深字 */
   --ink-2: rgba(10, 16, 32, .78);
   --muted: rgba(10, 16, 32, .52);      /* 说明文字低饱和 */
@@ -213,7 +213,7 @@
                inset 0 0 12px -4px rgba(38, 74, 140, .30),
                inset 0 -24px 36px -30px rgba(52, 104, 200, .50),
                0 48px 90px -32px rgba(24, 56, 120, .50);
-  --glass-blur: blur(18px) saturate(180%);
+  --glass-blur: blur(26px) saturate(190%) brightness(1.04);
   /* 玻璃体积：168° 厚度渐变（顶部厚→中部薄→下缘回亮）+ 右下冷色环境反光。
      左上那团「会动」的镜面高光斑不放在这里 —— CSS 自定义属性的 var()
      是在定义处（:root）解析的，写进 :root 变量里就吃不到元素级的 --lx/--ly。
@@ -224,12 +224,12 @@
     radial-gradient(80% 52% at calc(88% + var(--lx, 0) * 8%) 112%,
       rgba(182, 212, 255, .50), rgba(255, 255, 255, 0) 58%),
     linear-gradient(168deg,
-      rgba(255, 255, 255, .80) 0%,
-      rgba(255, 255, 255, .48) 40%,
-      rgba(255, 255, 255, .32) 66%,
-      rgba(255, 255, 255, .60) 100%);
-  --glass-hl: rgba(255, 255, 255, .78);   /* 动态镜面高光斑的颜色（左上，随 --lx/--ly 移动）*/
-  --glass-fill-sm: linear-gradient(168deg, rgba(255, 255, 255, .88) 0%, rgba(255, 255, 255, .54) 100%);
+      rgba(255, 255, 255, .40) 0%,
+      rgba(255, 255, 255, .22) 40%,
+      rgba(255, 255, 255, .13) 66%,
+      rgba(255, 255, 255, .26) 100%);
+  --glass-hl: rgba(255, 255, 255, .46);   /* 动态镜面高光斑的颜色（左上，随 --lx/--ly 移动）*/
+  --glass-fill-sm: linear-gradient(168deg, rgba(255, 255, 255, .26) 0%, rgba(255, 255, 255, .12) 100%);
   --glass-rim: rgba(255, 252, 246, .98);        /* 上缘：迎光面最亮（微暖白）*/
   --glass-rim-soft: rgba(255, 255, 255, .46);   /* 右侧：掠射光 */
   --glass-rim-b: rgba(168, 205, 255, .85);      /* 下缘：折射亮线（色散·蓝）*/
@@ -258,13 +258,13 @@
     radial-gradient(1000px 680px at 86% 6%, rgba(210, 120, 255, .30), transparent 62%),
     radial-gradient(900px 700px at 50% 108%, rgba(60, 150, 255, .22), transparent 60%),
     radial-gradient(1400px 900px at 50% 42%, rgba(255, 255, 255, .05), transparent 70%);
-  --panel: rgba(18, 13, 40, .52);
+  --panel: rgba(18, 13, 40, .36);
   --panel-solid: #120d28;
-  --surface: rgba(30, 22, 58, .58);
+  --surface: rgba(30, 22, 58, .46);
   --surface-solid: #191133;
-  --surface-2: rgba(13, 9, 30, .46);
+  --surface-2: rgba(13, 9, 30, .26);
   --surface-2-solid: #0d0920;
-  --surface-3: rgba(44, 32, 80, .52);
+  --surface-3: rgba(44, 32, 80, .28);
   --ink: #ffffff;
   --ink-2: rgba(255, 255, 255, .80);
   --muted: rgba(255, 255, 255, .54);
@@ -313,7 +313,7 @@
                inset 0 -24px 36px -28px rgba(120, 90, 255, .45),
                inset 0 26px 40px -34px rgba(255, 255, 255, .22),
                0 52px 96px -32px rgba(2, 0, 18, .92);
-  --glass-blur: blur(18px) saturate(195%) brightness(1.06);
+  --glass-blur: blur(26px) saturate(205%) brightness(1.08);
   /* 深色玻璃的体积更克制：白色只做边缘反射，主体靠紫调明暗拉开厚度。
      动态高光斑同样拆到文件末尾的选择器块（元素作用域），这里只留
      静态的右下蓝紫环境反光 —— 深空间里的"环境"是背景那几团弥散光。 */
@@ -325,7 +325,7 @@
       rgba(255, 255, 255, .07) 40%,
       rgba(255, 255, 255, .03) 66%,
       rgba(186, 166, 255, .15) 100%);
-  --glass-hl: rgba(214, 200, 255, .30);   /* 动态镜面高光斑的颜色（左上，随 --lx/--ly 移动）*/
+  --glass-hl: rgba(214, 200, 255, .38);   /* 动态镜面高光斑的颜色（左上，随 --lx/--ly 移动）*/
   --glass-fill-sm: linear-gradient(168deg, rgba(255, 255, 255, .22) 0%, rgba(190, 170, 255, .10) 100%);
   --glass-rim: rgba(255, 255, 255, .38);
   --glass-rim-soft: rgba(255, 255, 255, .16);
@@ -346,6 +346,10 @@ body {
   background: var(--bg);
   background-image: var(--bg-image, none);
   background-attachment: fixed;
+  /* 壁纸要铺满、居中、不重复；对多层渐变无副作用（渐变本来就铺满）。 */
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   color: var(--ink);
   font: 14.5px/1.7 var(--font-ui);
   -webkit-font-smoothing: antialiased;
@@ -366,6 +370,16 @@ h1, h2, h3, .brand h1 { font-family: var(--font-title); }
   -webkit-backdrop-filter: var(--glass-blur, none);
 }
 
+/* 卡片默认不开模糊（首屏十几张卡片各背一层模糊，滚动会掉帧）。
+   但一旦铺了壁纸，卡片下面就是有内容的背景 —— 只叠半透白会变成"白雾盖着"，
+   而不是玻璃。所以有壁纸时才把模糊打开：既拿到液态玻璃的通透感，
+   又把这份性能开销限定在值得的场景里。
+   22px 是折中：再大滚动会掉帧，再小糊不开背景的色块。 */
+.has-wallpaper .card {
+  backdrop-filter: blur(22px) saturate(175%);
+  -webkit-backdrop-filter: blur(22px) saturate(175%);
+}
+
 /* ---------- 布局 ---------- */
 .app { max-width: 1280px; margin: 0 auto; padding: 20px 20px 80px; }
 .topbar {
@@ -382,6 +396,35 @@ h1, h2, h3, .brand h1 { font-family: var(--font-title); }
 .logo img { width: 100%; height: 100%; object-fit: contain; display: block; }
 /* 位图吉祥物是暖色调的，压在品牌冷色渐变上会像贴纸 —— 换成它自带的暖奶油底 */
 .logo.is-art { background: #fcf7eb; box-shadow: inset 0 0 0 1.5px rgba(31, 26, 23, .14); }
+
+/* 玻璃主题下把标志的底换成一块「玻璃底座」。
+   位图是抠过底的透明 PNG，直接压在冷色玻璃上会像贴纸；
+   给半透明玻璃面 + 白色上缘高光 + 一圈细 rim，再把位图缩到 86% 让玻璃边露出来，
+   观感就从「贴在玻璃上的贴纸」变成「站在一片玻璃上」。 */
+:root[data-theme="classic"] .logo.is-art {
+  background: linear-gradient(168deg, rgba(255, 255, 255, .74), rgba(255, 255, 255, .36));
+  box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, .95),
+              inset 0 0 0 1px rgba(255, 255, 255, .80),
+              0 2px 10px -3px rgba(10, 16, 32, .30);
+  backdrop-filter: blur(14px) saturate(170%);
+  -webkit-backdrop-filter: blur(14px) saturate(170%);
+}
+:root[data-theme="tech"] .logo.is-art {
+  background: linear-gradient(168deg, rgba(255, 255, 255, .18), rgba(255, 255, 255, .05));
+  box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, .52),
+              inset 0 0 0 1px rgba(255, 255, 255, .22),
+              0 2px 14px -4px rgba(0, 0, 20, .62);
+  backdrop-filter: blur(14px) saturate(180%) brightness(1.05);
+  -webkit-backdrop-filter: blur(14px) saturate(180%) brightness(1.05);
+}
+.logo.is-art img, .logo.is-art svg.mascot { width: 86%; height: 86%; margin: 7%; }
+/* 万一没有位图、退回「AG」字标时，也给它补上玻璃质感的边缘高光 */
+:root[data-theme="classic"] .logo:not(.is-art),
+:root[data-theme="tech"] .logo:not(.is-art) {
+  box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, .55),
+              inset 0 0 0 1px rgba(255, 255, 255, .28),
+              0 2px 10px -3px rgba(10, 16, 32, .28);
+}
 .logo .txt { font-weight: 800; font-size: 18px; letter-spacing: -.5px; }
 .brand h1 { font-size: 18px; margin: 0; font-weight: 750; letter-spacing: -.2px; }
 .brand p { margin: 0; font-size: 12.5px; color: var(--muted); }
@@ -397,17 +440,46 @@ h1, h2, h3, .brand h1 { font-family: var(--font-title); }
 
 /* 设置模块的分区导航（个性化 / 类型 / 模型 / 量表 / 分析 / 关于）。
    与诱导面板里那个 .seg 容器同名，所以全部规则都收在 .segbar 下，避免互相污染。 */
-/* 二级导航要明显「低一级」：去掉与一级 .tabs 同款的底色胶囊，改用下划线指示，
-   字号/字重/对比度同步下压 —— 否则两套导航长得几乎一样，层级读不出来。 */
-.segbar { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 14px; padding: 0 0 6px; border-bottom: 1px solid var(--line); }
-.segbar > .seg {
-  display: inline-flex; align-items: center; padding: 6px 10px;
-  border: 0; background: transparent; border-radius: 0; cursor: pointer;
-  color: var(--muted); font: inherit; font-size: 12.5px; font-weight: 500; transition: .15s;
+/* 二级导航要明显「低一级」：做成一条细胶囊 + 椭圆滑块，而不是一级 .tabs 那种整块底色的卡片。
+   滑块 .seg-pill 是绝对定位的空 span，位置与宽度由 JS 按当前选中项实测写入 —— 不用百分比，
+   是因为三个分区字数不同（通用 / 评阅规则 / 关于），写死 33.3% 会滑歪。 */
+.segbar {
+  position: relative; display: inline-flex; gap: 2px;
+  margin-bottom: 14px; padding: 4px;
+  background: var(--surface-2);
+  border: 1px solid var(--line); border-radius: 999px;
 }
-.segbar > .seg:hover { color: var(--brand); background: transparent; }
-.segbar > .seg.active { background: transparent; color: var(--brand); font-weight: 700; box-shadow: inset 0 -2px 0 var(--brand); }
+.segbar > .seg {
+  position: relative; z-index: 1;
+  display: inline-flex; align-items: center; padding: 7px 15px;
+  border: 0; background: transparent; border-radius: 999px; cursor: pointer;
+  color: var(--muted); font: inherit; font-size: 13px; font-weight: 500; white-space: nowrap;
+  transition: color var(--dur-quick) ease;
+}
+.segbar > .seg:hover { color: var(--ink); background: transparent; }
+.segbar > .seg.active { background: transparent; color: var(--brand); font-weight: 700; box-shadow: none; }
 
+/* 椭圆滑块：只过渡 transform / width，两条一起动才不会「先拉宽再平移」那样分家 */
+.seg-pill {
+  position: absolute; top: 4px; left: 0; width: 0; height: calc(100% - 8px);
+  border-radius: 999px;
+  background: var(--panel-solid, var(--panel));
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-sm);
+  pointer-events: none;
+  transition: transform var(--dur-move) var(--spring-bounce),
+              width var(--dur-move) var(--spring-bounce),
+              background var(--dur-quick) ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .seg-pill { transition: none; }
+}
+/* toon 主题：滑块承担那道粗描边，按钮自己不能加边 —— 否则 active 时按钮变宽 4px，滑块会追着抖 */
+:root[data-theme="toon"] .segbar { border-width: 2px; }
+:root[data-theme="toon"] .segbar > .seg.active { border: 0; }
+:root[data-theme="toon"] .seg-pill { border-width: 2px; box-shadow: 2px 2px 0 var(--ink-line); }
+
+.result-audit { margin-top: 16px; }
 .layout { display: grid; grid-template-columns: 320px 1fr; gap: 16px; align-items: start; }
 @media (max-width: 980px) { .layout { grid-template-columns: 1fr; } }
 
@@ -735,7 +807,7 @@ table.tb input { padding: 5px 8px; }
   body { background: #fff; }
   .topbar, .tabs, .card.side, .btn, .toast-wrap, .dim > .hd .caret, .skin-bar { display: none !important; }
   .layout { grid-template-columns: 1fr; }
-  .card { box-shadow: none; border-color: var(--print-line); break-inside: avoid; }
+  .card, .card-fold { box-shadow: none; border-color: var(--print-line); break-inside: avoid; }
   .dim .bd { display: block !important; }
 }
 
@@ -794,6 +866,48 @@ table.tb input { padding: 5px 8px; }
 .skin i.sw-toon { background: #ffd75c; }
 .skin i.sw-classic { background: #a7c6f7; }
 .skin i.sw-tech { background: #2b2154; }
+
+/* ---------- 玻璃主题壁纸（见 wallpaper.js） ----------
+ * 壁纸本身由 JS 写进 html 的 inline --bg-image（优先于主题选择器里的定义），
+ * 这里只负责选择器本体。缩略图用与真实壁纸同一套渐变，所见即所得。 */
+/* 外壳不用 label（label 会把点击转发给里面的隐藏 file input），
+   样式照着 .fld 来一份，视觉上仍是同一排字段。 */
+.wall-field { display: block; margin-bottom: 12px; }
+.wall-field > span { display: block; font-size: 12.5px; color: var(--muted); margin-bottom: 5px; font-weight: 600; }
+.wall-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(86px, 1fr));
+  gap: 8px; margin-top: 2px;
+}
+.wall-chip {
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  padding: 6px; cursor: pointer; transition: .15s;
+  background: var(--surface); border: var(--bw) solid var(--line-2);
+  border-radius: var(--radius-sm); color: var(--muted);
+}
+.wall-chip:hover { border-color: var(--brand); background: var(--brand-soft); }
+.wall-chip.on { border-color: var(--brand); background: var(--brand-soft); color: var(--brand); box-shadow: var(--shadow-sm); }
+/* 缩略图不描边：彩色色块加一圈黑描边会显脏（浅色壁纸尤其明显）。
+   改用玻璃语言界定边界 —— 外侧一层极淡投影 + 内侧上缘一道白色高光，
+   深色壁纸靠白边、浅色壁纸靠投影，两种底色都分得清。 */
+.wall-sw {
+  display: block; width: 100%; height: 44px; border-radius: 7px;
+  background-size: cover; background-position: center;
+  box-shadow: 0 1px 2px rgba(10, 16, 32, .10), inset 0 1px 0 rgba(255, 255, 255, .45);
+}
+/* 「无」这一格不铺渐变，改成一道斜杠，表示回到主题自带底色 */
+.wall-sw.is-none {
+  background: repeating-linear-gradient(135deg,
+    var(--surface-3) 0 7px, var(--surface) 7px 14px);
+}
+.wall-nm { font-size: 11.5px; line-height: 1.2; }
+.wall-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.wall-veil { display: block; margin-top: 12px; }
+.wall-veil input[type="range"] { width: 100%; accent-color: var(--brand); }
+.wall-veil b { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+
+@media print {
+  .wall-grid, .wall-row, .wall-veil { display: none !important; }
+}
 
 .tone-card { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
 .tone {
@@ -863,7 +977,7 @@ table.tb input { padding: 5px 8px; }
 :root[data-theme="toon"] .btn:not(:disabled):hover { transform: translate(-1px, -1px); box-shadow: 3px 3px 0 var(--ink-line); }
 :root[data-theme="toon"] .btn:not(:disabled):active { transform: translate(3px, 3px); box-shadow: 0 0 0 var(--ink-line); }
 :root[data-theme="toon"] .tab.active { border: 2px solid var(--ink-line); }
-:root[data-theme="toon"] .segbar > .seg.active { border: 2px solid var(--ink-line); font-weight: 800; }
+:root[data-theme="toon"] .segbar > .seg.active { font-weight: 800; }
 :root[data-theme="toon"] .doclist li.active { border-width: 2.5px; }
 :root[data-theme="toon"] .badge { font-weight: 800; }
 :root[data-theme="toon"] .dim .bar { height: 12px; border: 2px solid var(--ink-line); background: var(--surface-3); }
@@ -1101,12 +1215,14 @@ table.tb input { padding: 5px 8px; }
 
 /* 减弱动效：保留必要淡入反馈，关闭位移/缩放与毛玻璃，避免前庭不适 */
 @media (prefers-reduced-motion: reduce) {
-  .mask, .modal, .chat-panel, .toast, .btn, .card, .tab, .view-enter {
+  .mask, .modal, .chat-panel, .toast, .btn, .card, .tab, .view-enter,
+  .chat-dots span, .spin, .toc a, .dim, .dropzone {
     transition: opacity .15s ease !important;
     animation: none !important;
   }
   .modal, .chat-panel { transform: none !important; }
   :root:not([data-theme="toon"]) .btn:active { transform: none !important; }
+  .toc { transition: none !important; }
 }
 
 /* ====================================================================
@@ -1144,6 +1260,231 @@ table.tb input { padding: 5px 8px; }
 .type-detail-grid .lb { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
 @media (max-width: 680px) { .type-detail-grid { grid-template-columns: 1fr; } }
 
+/* ====================================================================
+   教师终评（新增）：老师对 AI 的判断有不同意见时，能直接改分并留下痕迹
+   设计原则是「AI 的判断不做删除，只做对照」——终评分醒目，
+   AI 原判始终在旁边留一行小字，评分可复核这条线不能被人工覆写抹掉。
+   ==================================================================== */
+/* 终评生效后的总分区：用品牌色描边与 AI 的区间条区分开，一眼看出这卷已被人拍板 */
+.final-band {
+  border: var(--bw) solid var(--info-line);
+  background: var(--brand-soft);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px; margin: 14px 0;
+}
+.final-band .fb-main { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.final-band .fb-val {
+  font-size: 30px; font-weight: 800; color: var(--brand);
+  font-family: var(--font-num); font-variant-numeric: tabular-nums; line-height: 1;
+}
+.final-band .rb-note {
+  margin-top: 8px; font-size: 12.5px; color: var(--ink-2); line-height: 1.65;
+}
+.final-band .rb-note .btn { margin-left: 6px; vertical-align: baseline; }
+
+/* 终评徽章：与「示例演示」那类信息徽章区分开，用品牌色而非琥珀色 */
+.badge.final {
+  background: var(--brand-soft); color: var(--brand); border-color: var(--info-line);
+}
+
+/* 维度内的终评输入条 */
+.final-editor {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin: 10px 0 4px; padding: 8px 10px;
+  background: var(--surface-2); border-radius: var(--radius-sm);
+  border: var(--bw) solid var(--line);
+}
+.final-editor label {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12.5px; color: var(--ink-2); font-weight: 600;
+}
+.final-editor input[type="number"] {
+  width: 82px; padding: 5px 8px; font-size: 13px;
+  font-family: var(--font-num); font-variant-numeric: tabular-nums;
+}
+.final-editor .hint { font-size: 12px; }
+/* 被老师改过的维度：左侧加一条品牌色细边，滚动时能一眼扫出改过哪几项 */
+.dim.dim-edited { border-color: var(--info-line); }
+.dim.dim-edited > .hd { background: var(--brand-soft); }
+
+/* 文档列表里已终评的角标：小圆点，不抢分数本身的视觉重量 */
+.doclist .sc { display: flex; align-items: baseline; gap: 4px; justify-content: flex-end; }
+.doclist .sc-teacher {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--brand); display: inline-block; flex: none;
+}
+/* 成绩表里的 AI 对照分 */
+.ai-hint { display: block; font-size: 11px; font-weight: 500; color: var(--muted); }
+
+/* ====================================================================
+   B4/B5 交互与无障碍补全
+   追加在文件末位，靠后覆盖前文 —— 与本项目 .adv-block 的做法保持一致。
+   ==================================================================== */
+
+/* ---------- 维度锚点导航条 ---------- */
+/* sticky 而不是固定定位：固定在顶部的条会盖住报告标题，
+   而且滚动到末尾时还得手动留出空白，sticky 交给浏览器算更省事。 */
+.toc {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px;
+  margin: 0 0 12px;
+  background: var(--panel);
+  border: var(--bw) solid var(--line);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm, 0 1px 2px rgba(0, 0, 0, .06));
+}
+.toc a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-2, var(--muted));
+  text-decoration: none;
+  border: var(--bw) solid transparent;
+  border-radius: 999px;
+  background: var(--surface-2);
+  transition: background .15s, color .15s, border-color .15s;
+}
+.toc a:hover { background: var(--brand-soft); color: var(--brand); }
+.toc a.on { background: var(--brand-soft); border-color: var(--brand-line, var(--line-2)); color: var(--brand); font-weight: 650; }
+.toc a.edited::after {
+  content: "";
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--brand);
+  display: inline-block; flex: none;
+}
+.toc .tn { white-space: nowrap; }
+.toc .tv { font-family: var(--font-num); font-variant-numeric: tabular-nums; font-weight: 700; }
+
+/* ---------- 键盘焦点可见 ---------- */
+/* 全项目此前一条 focus-visible 都没有：键盘用户 Tab 到哪儿完全靠猜。
+   这里做统一兜底，不逐个组件去补，避免漏网。 */
+.btn:focus-visible,
+.tab:focus-visible,
+.seg:focus-visible,
+.doclist li:focus-visible,
+.dim > .hd:focus-visible,
+.toc a:focus-visible,
+.chat-fab:focus-visible,
+.pick:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+/* 鼠标点击不该出现焦点圈，只有键盘导航时才亮 */
+.btn:focus:not(:focus-visible),
+.tab:focus:not(:focus-visible),
+.seg:focus:not(:focus-visible) { outline: none; }
+
+/* 折叠块的标题变成可聚焦的键盘目标 */
+.dim > .hd { cursor: pointer; }
+
+/* ---------- 仅屏幕阅读器可见 ---------- */
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------- 拖拽落区：类型被拒时给红框 ---------- */
+.dropzone.over.bad {
+  border-color: var(--red);
+  background: var(--bad-soft);
+  color: var(--bad-ink);
+}
+.dropzone.over.bad::after { content: "该文件类型无法评阅"; }
+
+/* ---------- 批量选择 ---------- */
+.pick { accent-color: var(--brand); flex: none; margin-right: 6px; cursor: pointer; }
+.doclist li.picked { background: var(--brand-soft); border-color: var(--brand-line, var(--line-2)); }
+.batch-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 10px;
+  margin: 0 0 10px;
+  font-size: 12.5px;
+  background: var(--surface-2);
+  border: var(--bw) dashed var(--line-2);
+  border-radius: var(--radius-sm);
+}
+/* ====================================================================
+   评分结果入场动效：分数沿半圆滚入、五维图自图心向四周展开
+   两条硬约束：
+   1) 纯装饰 —— 不参与取值、不进导出（PDF 走 jsPDF 重绘，跟 CSS/动画无关）；
+   2) prefers-reduced-motion 下全部关闭，只留静态终态。
+   动画只碰 transform / opacity，不动盒模型，不会把版面挤歪。
+   ==================================================================== */
+
+/* 五维图：数据面从图心撑开，顶点与描边跟着一起长出来 */
+@keyframes radar-grow {
+  from { transform: scale(.04); opacity: .25; }
+  to   { transform: scale(1); opacity: 1; }
+}
+.chart-radar .rgrow {
+  transform-box: view-box;
+  transform-origin: 50% 51.5%;
+  animation: radar-grow .78s var(--spring-bounce) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .chart-radar .rgrow { animation: none; }
+}
+
+/* ====================================================================
+   可折叠卡片 .card-fold：让设置页的长卡片可以收起
+   默认展开（open），与已有的 .adv-block 共用 details/summary 行为，
+   但外层补成 .card 的卡片外观，body 区保持 .card 的内边距。
+   ==================================================================== */
+.card-fold {
+  background: var(--panel);
+  border: var(--bw) solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+.card-fold > summary {
+  list-style: none; cursor: pointer;
+  display: flex; align-items: center; gap: 8px;
+  padding: 16px 18px;
+  border: 0; border-radius: 0;
+  background: transparent; box-shadow: none;
+  font-size: 14px; font-weight: 700;
+  font-family: var(--font-title);
+  color: var(--ink);
+  transition: color .16s ease, background .16s ease;
+}
+.card-fold > summary::-webkit-details-marker { display: none; }
+.card-fold > summary::before {
+  content: '\25B8'; color: var(--muted); font-size: 12px;
+  transition: transform .2s var(--spring-smooth);
+}
+.card-fold[open] > summary::before { content: '\25BE'; }
+.card-fold > summary:hover { color: var(--brand); background: var(--surface-2); }
+.card-fold[open] > summary { border-bottom: var(--bw) solid var(--line); }
+.card-fold > summary .sub {
+  font-weight: 500; color: var(--muted); font-size: 12.5px; margin-left: auto;
+}
+.card-fold > .adv-body { padding: 16px 18px; }
+
 </style>
 </head>
 <body>
@@ -1161,7 +1502,7 @@ table.tb input { padding: 5px 8px; }
     <div class="spacer"></div>
     <div class="skin-bar skin-bar--top" id="skinBarTop" title="切换界面主题"></div>
     <span id="engineBadge" class="badge gray"><i class="dot"></i>未配置模型引擎</span>
-    <div class="tabs" role="tablist" aria-label="主视图切换">
+    <div class="tabs" id="tabs" role="tablist" aria-label="主视图切换">
       <button class="tab active" id="tab-work" role="tab" aria-selected="true" aria-controls="view-work" data-view="work">评分工作台</button>
       <button class="tab" id="tab-batch" role="tab" aria-selected="false" aria-controls="view-batch" data-view="batch">成绩汇总</button>
       <button class="tab" id="tab-settings" role="tab" aria-selected="false" aria-controls="view-settings" data-view="settings">设置</button>
@@ -1187,6 +1528,7 @@ table.tb input { padding: 5px 8px; }
 
       <div class="card side">
         <h3>报告列表 <span class="sub" id="docCount">0 份</span></h3>
+        <div class="batch-bar" id="batchBar" style="display:none"></div>
         <ul class="doclist" id="docList"></ul>
         <div class="btn-row" style="margin-top:10px">
           <button class="btn sm" id="btnGradeAll" style="flex:1">全部重新评分</button>
@@ -1198,6 +1540,9 @@ table.tb input { padding: 5px 8px; }
         <h3>文档类型 <span class="sub" id="typeBoxSub">加入文档后自动识别</span></h3>
         <div id="typeBox">
           <p class="hint">还没有文档。加入报告后，系统会先检索<b>内置类型</b>与你在设置里<b>预置的类型</b>；都不像时，再提示你是否新增一个。</p>
+        </div>
+        <div class="btn-row" style="margin-top:10px">
+          <button class="btn sm" id="btnTypeSettings">去设置里管理类型</button>
         </div>
       </div>
 
@@ -1257,23 +1602,27 @@ table.tb input { padding: 5px 8px; }
        「评阅规则」把模型引擎、文档类型、智能量表、评分量表、研究分析（默认折叠）
        平铺为带标题的卡片，避免「八张卡片堆一页没有入口」，也取消嵌套二级 tab 造成的层级混乱。 -->
   <div id="view-settings" role="tabpanel" aria-labelledby="tab-settings" style="display:none">
-    <div class="segbar" id="setSeg">
-      <button class="seg active" data-sec="general">通用</button>
-      <button class="seg" data-sec="rules">评阅规则</button>
-      <button class="seg" data-sec="about">关于</button>
+    <div class="segbar" id="setSeg" role="tablist" aria-label="设置分区切换">
+      <!-- 椭圆滑块：纯装饰，位置/宽度由 JS 按当前选中项实测写入，aria-hidden 让读屏忽略 -->
+      <span class="seg-pill" aria-hidden="true"></span>
+      <button class="seg active" role="tab" aria-selected="true" data-sec="general">通用</button>
+      <button class="seg" role="tab" aria-selected="false" data-sec="rules">评阅规则</button>
+      <button class="seg" role="tab" aria-selected="false" data-sec="about">关于</button>
     </div>
 
     <!-- ---------- 分区一：通用（外观与语气 + 打印偏好） ---------- -->
     <div class="setsec" id="setsec-general">
     <div class="card">
       <h3>外观与语气 <span class="sub">主题 + 评语人格，即时生效</span></h3>
-      <p class="hint" style="margin-bottom:12px">
-        界面主题只影响观感，不影响任何评分结果；切换后导出 PDF 会跟随当前主题配色。
-        评语人格决定维度评语与总评的措辞风格——<b>三档人格共用同一套评分口径</b>，换语气不会让分数变。
-      </p>
+
       <label class="fld"><span>界面主题</span>
         <div class="skin-bar" id="skinBarSettings"></div>
       </label>
+      <!-- 这里刻意用 div 而不是 label：壁纸选择器里有按钮和一个隐藏的 file input，
+           label 会把点击转发给它的关联控件，导致点任何空白处都弹出选文件对话框。 -->
+      <div class="wall-field"><span>背景壁纸<span class="sub" style="margin-left:6px">仅玻璃主题生效</span></span>
+        <div id="wallpaperBox"></div>
+      </div>
       <label class="fld"><span>评语语气</span>
         <div id="tonePicker"></div>
       </label>
@@ -1281,156 +1630,137 @@ table.tb input { padding: 5px 8px; }
         <input type="checkbox" id="optPrintFriendly" style="width:auto">
         <span>导出 PDF 时固定为浅色打印版（省墨、便于纸质归档）</span>
       </label>
-      <p class="hint" style="margin-top:10px">
-        趣味语气仅改措辞、不改分数；正式存档建议用「学院派」。
-      </p>
+
     </div>
     </div>
 
     <!-- ---------- 分区二：评阅规则（模型引擎 / 文档类型 / 量表 / 研究分析） ---------- -->
     <div class="setsec" id="setsec-rules" style="display:none">
 
-      <!-- 模型引擎配置：顶栏徽标、工作台「评阅引擎」卡片、本卡片三处入口共用同一套配置 -->
-      <div class="card" id="card-model">
-        <h3>模型引擎配置 <span class="sub">开源模型优先 · 兼容 OpenAI 风格接口</span></h3>
-        <p class="hint" style="margin:0 0 12px">
-          评阅由<b>开源大模型</b>完成，本地引擎已按需求下线，故为必配项；统一走 OpenAI 兼容协议，API Key 仅保存在本机浏览器。
-        </p>
-        <label class="fld"><span>快速配置 — 选一个服务商，自动填好地址与模型，你只需再填 API Key</span>
-          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:2px">
-            <button type="button" class="btn sm" data-preset="siliconflow">硅基流动（开源·免费）</button>
-            <button type="button" class="btn sm" data-preset="zhipu">智谱 GLM（免费）</button>
-            <button type="button" class="btn sm" data-preset="ollama">本地 Ollama（离线）</button>
-            <button type="button" class="btn sm" data-preset="vllm">自建 vLLM / Xinference</button>
-            <button type="button" class="btn sm" data-preset="modelscope">魔搭 ModelScope</button>
-            <button type="button" class="btn sm" data-preset="groq">Groq</button>
-            <button type="button" class="btn sm" data-preset="openrouter">OpenRouter</button>
-            <button type="button" class="btn sm" data-preset="deepseek">DeepSeek</button>
-            <button type="button" class="btn sm" data-preset="qwen">通义千问</button>
-            <button type="button" class="btn sm" data-preset="moonshot">Moonshot</button>
-            <button type="button" class="btn sm" data-preset="openai">OpenAI</button>
-          </div>
-        </label>
-        <input type="hidden" id="cfgProviderId">
-        <div class="row">
-          <label class="fld"><span>接口地址 Base URL</span>
-            <input type="text" id="cfgBaseUrl" placeholder="https://api.siliconflow.cn/v1"></label>
-          <label class="fld"><span>模型 Model</span>
-            <input type="text" id="cfgModel" placeholder="Qwen/Qwen2.5-7B-Instruct"></label>
-        </div>
-        <label class="fld"><span>API Key（仅保存在本机浏览器，不会上传任何服务器）</span>
-          <input type="password" id="cfgApiKey" placeholder="sk-..."></label>
-        <details class="adv-block">
-          <summary>高级参数<span class="sub">温度 · 输入长度上限</span></summary>
-          <div class="adv-body">
-            <div class="row">
-              <label class="fld"><span>温度 Temperature</span>
-                <input type="number" id="cfgTemp" step="0.1" min="0" max="1" value="0.2"></label>
-              <label class="fld"><span>单篇最大输入字数</span>
-                <input type="number" id="cfgMaxChars" step="1000" min="2000" max="60000" value="12000"></label>
+      <!-- 模型引擎配置：整体可折叠 -->
+      <details class="adv-block card-fold" id="card-model">
+        <summary>模型引擎配置 <span class="sub">开源模型优先 · 兼容 OpenAI 风格接口</span></summary>
+        <div class="adv-body">
+          <label class="fld"><span>快速配置 — 选一个服务商，自动填好地址与模型</span>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:2px">
+              <button type="button" class="btn sm" data-preset="siliconflow">硅基流动（开源·免费）</button>
+              <button type="button" class="btn sm" data-preset="zhipu">智谱 GLM（免费）</button>
+              <button type="button" class="btn sm" data-preset="ollama">本地 Ollama（离线）</button>
+              <button type="button" class="btn sm" data-preset="vllm">自建 vLLM / Xinference</button>
+              <button type="button" class="btn sm" data-preset="modelscope">魔搭 ModelScope</button>
+              <button type="button" class="btn sm" data-preset="groq">Groq</button>
+              <button type="button" class="btn sm" data-preset="openrouter">OpenRouter</button>
+              <button type="button" class="btn sm" data-preset="deepseek">DeepSeek</button>
+              <button type="button" class="btn sm" data-preset="qwen">通义千问</button>
+              <button type="button" class="btn sm" data-preset="moonshot">Moonshot</button>
+              <button type="button" class="btn sm" data-preset="openai">OpenAI</button>
             </div>
+          </label>
+          <input type="hidden" id="cfgProviderId">
+          <div class="row">
+            <label class="fld"><span>接口地址 Base URL</span>
+              <input type="text" id="cfgBaseUrl" placeholder="https://api.siliconflow.cn/v1"></label>
+            <label class="fld"><span>模型 Model</span>
+              <input type="text" id="cfgModel" placeholder="Qwen/Qwen2.5-7B-Instruct"></label>
           </div>
-        </details>
+          <label class="fld"><span>API Key（仅保存在本机浏览器）</span>
+            <input type="password" id="cfgApiKey" placeholder="sk-..."></label>
+          <details class="adv-block">
+            <summary>高级参数<span class="sub">温度 · 输入长度上限</span></summary>
+            <div class="adv-body">
+              <div class="row">
+                <label class="fld"><span>温度 Temperature</span>
+                  <input type="number" id="cfgTemp" step="0.1" min="0" max="1" value="0.2"></label>
+                <label class="fld"><span>单篇最大输入字数</span>
+                  <input type="number" id="cfgMaxChars" step="1000" min="2000" max="60000" value="12000"></label>
+              </div>
+            </div>
+          </details>
 
-        <div class="btn-row" style="margin-top:12px">
-          <button class="btn primary" id="btnSaveCfg">保存配置</button>
-          <button class="btn" id="btnTestCfg">测试连通性</button>
-          <button class="btn danger" id="btnClearCfg">清除 Key</button>
+          <div class="btn-row" style="margin-top:12px">
+            <button class="btn primary" id="btnSaveCfg">保存配置</button>
+            <button class="btn" id="btnTestCfg">测试连通性</button>
+            <button class="btn danger" id="btnClearCfg">清除 Key</button>
+          </div>
         </div>
-        <p class="hint" style="margin-top:10px">
-          <b>API Key 从哪来：</b>去对应服务商开放平台 →「API Keys」→ 新建密钥，复制那串 <code>sk-…</code>（只显示一次）。<br>
-          已验证可用：硅基流动 / 智谱 GLM / 魔搭 / Groq / OpenRouter，以及本地 Ollama（离线）。<br>
-          免费额度用尽会返回 <b>402</b>，换用上述免费服务商即可；若测试连通性报 CORS 错误，需改用服务端代理或本地 Ollama。
-        </p>
-      </div>
+      </details>
 
-      <!-- 文档类型设置：行可折叠，缓解 7 类大表格一次全展开 -->
-      <div class="card" id="card-type">
-        <h3>文档类型设置 <span class="sub" id="typeCount">内置 9 类 · 自定义 0 类</span></h3>
-        <p class="hint" style="margin-bottom:12px">
-          类型决定<b>评分方向</b>：用数据结构的量表去评计算机网络实验会评错方向（那不是分低，是评错了）。内置 9 类，覆盖计算机专业主要方向（通用编程 / 数据结构与算法 / 操作系统与系统编程 / 计算机网络 / 数据库 / 软件工程与课程设计 / 人工智能与机器学习 / 数字电路与计算机组成 / 通用报告），可改名、改特征词、增删评分方向；工作台与这里双向同步，任一处改动另一边立即可见。点每行右侧的 <b>▸</b> 展开特征词与评分方向。
-        </p>
-        <div class="btn-row" style="margin-bottom:10px">
-          <button class="btn sm primary" id="btnAddType">新增类型</button>
-          <button class="btn sm" id="btnTypeFromDoc">从工作台当前文档提取</button>
-          <button class="btn sm danger" id="btnTypeReset">恢复内置默认</button>
-        </div>
-        <div style="overflow-x:auto">
-          <table class="tb" id="typeTable">
-            <thead><tr>
-              <th style="width:52px" class="c">启用</th>
-              <th>类型名称</th>
-              <th style="width:76px" class="c">来源</th>
-              <th style="width:230px" class="r">操作</th>
-            </tr></thead>
-            <tbody></tbody>
-          </table>
-        </div>
-        <p class="hint" style="margin-top:10px">
-          停用内置类型只是从检索池移除、不丢失，随时可再启用；特征词越具体识别越准（「示波器」比「仪器」好）。
-        </p>
-      </div>
+      <!-- 文档类型设置：整体可折叠 -->
+      <details class="adv-block card-fold" id="card-type">
+        <summary>文档类型设置 <span class="sub" id="typeCount">内置 9 类 · 自定义 0 类</span></summary>
+        <div class="adv-body">
 
-      <!-- 智能量表：一句话生成 / 按作业适配 -->
-      <div class="card" id="card-rubric-lab">
-        <h3>智能量表 <span class="sub">一句话生成 · 按作业自动适配</span></h3>
-        <p class="hint" style="margin-bottom:12px">
-          换一次作业就要手动调 8 个分值，没人愿意干第二次。这里提供两条入口：
-          <b>一句话描述</b>你的评分偏好（本地规则引擎离线即可解析，配了 API Key 会自动升级为大模型生成），
-          或者<b>按已上传的这批作业自动适配</b>（无需人工标注范文）。
-          两条入口都只产出<b>建议</b>，点「采纳」才写入下方量表；手动调节始终开放，
-          <b>手动改过或锁定的维度，任何自动调整都不会覆盖</b>。
-        </p>
-        <div class="row">
-          <label class="fld"><span>作业类型（做基底）</span>
-            <select id="tplPicker"></select></label>
-          <label class="fld"><span>一句话评分要求</span>
-            <input type="text" id="promptInput" placeholder="例：数据结构实验，代码正确性和复杂度分析最重要，格式别太较真"></label>
-        </div>
-        <div class="grp" style="margin-top:8px">
-          <div class="lb">示例（点击填入输入框）</div>
-          <div class="chips" id="exampleChips"></div>
-        </div>
-        <div class="btn-row" style="margin-top:12px">
-          <button class="btn primary" id="btnGenRubric">按提示词生成</button>
-          <button class="btn" id="btnFitBatch">按已上传作业适配</button>
-        </div>
-        <div id="labResult" style="margin-top:14px"></div>
-      </div>
+          <div class="btn-row" style="margin-bottom:10px">
+            <button class="btn sm primary" id="btnAddType">新增类型</button>
+            <button class="btn sm" id="btnTypeFromDoc">从工作台当前文档提取</button>
+            <button class="btn sm danger" id="btnTypeReset">恢复内置默认</button>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="tb" id="typeTable">
+              <thead><tr>
+                <th style="width:52px" class="c">启用</th>
+                <th>类型名称</th>
+                <th style="width:76px" class="c">来源</th>
+                <th style="width:230px" class="r">操作</th>
+              </tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
 
-      <!-- 评分量表：即评分准则 -->
-      <div class="card" id="card-rubric">
-        <h3>评分量表 <span class="sub" id="rubricTotal">总分 100</span></h3>
-        <p class="hint" style="margin-bottom:12px">量表即「评分准则」：每个维度的得分要点与扣分情形会作为约束下发给模型，让它逐项覆盖、不漏维度。可调整维度名称与分值，总分需为 100。<b>手动改动分值会自动锁定该维度</b>（解锁后自动策略才可调它），锁定列也可自行勾选。<br>
-          想整体换成另一类作业的评分方向，对相应类型点「套用为评分准则」——类型与这里的维度<b>双向同步</b>。</p>
-        <div style="overflow-x:auto">
-          <table class="tb" id="rubricTable">
-            <thead><tr>
-              <th style="width:52px" class="c">启用</th><th style="width:52px" class="c">锁定</th>
-              <th>维度名称</th><th style="width:90px" class="c">分值</th>
-              <th>考察要点</th><th style="width:60px" class="c">信号</th>
-            </tr></thead>
-            <tbody></tbody>
-          </table>
         </div>
-        <div class="btn-row" style="margin-top:12px">
-          <button class="btn" id="btnAddDim">新增维度</button>
-          <button class="btn" id="btnResetRubric">恢复默认量表</button>
+      </details>
+
+      <!-- 智能量表：整体可折叠 -->
+      <details class="adv-block card-fold" id="card-rubric-lab">
+        <summary>智能量表 <span class="sub">一句话生成 · 按作业自动适配</span></summary>
+        <div class="adv-body">
+
+          <div class="row">
+            <label class="fld"><span>作业类型（做基底）</span>
+              <select id="tplPicker"></select></label>
+            <label class="fld"><span>一句话评分要求</span>
+              <input type="text" id="promptInput" placeholder="例：数据结构实验，代码正确性和复杂度分析最重要，格式别太较真"></label>
+          </div>
+          <div class="grp" style="margin-top:8px">
+            <div class="lb">示例（点击填入输入框）</div>
+            <div class="chips" id="exampleChips"></div>
+          </div>
+          <div class="btn-row" style="margin-top:12px">
+            <button class="btn primary" id="btnGenRubric">按提示词生成</button>
+            <button class="btn" id="btnFitBatch">按已上传作业适配</button>
+          </div>
+          <div id="labResult" style="margin-top:14px"></div>
         </div>
-      </div>
+      </details>
+
+      <!-- 评分量表：整体可折叠 -->
+      <details class="adv-block card-fold" id="card-rubric">
+        <summary>评分量表 <span class="sub" id="rubricTotal">总分 100</span></summary>
+        <div class="adv-body">
+
+          <div style="overflow-x:auto">
+            <table class="tb" id="rubricTable">
+              <thead><tr>
+                <th style="width:52px" class="c">启用</th><th style="width:52px" class="c">锁定</th>
+                <th>维度名称</th><th style="width:90px" class="c">分值</th>
+                <th>考察要点</th><th style="width:60px" class="c">信号</th>
+              </tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="btn-row" style="margin-top:12px">
+            <button class="btn" id="btnAddDim">新增维度</button>
+            <button class="btn" id="btnResetRubric">恢复默认量表</button>
+          </div>
+        </div>
+      </details>
 
       <!-- 研究分析（进阶）：默认折叠，评委向功能收起 -->
       <details class="adv-block" id="card-insight">
         <summary>研究分析（进阶）<span class="sub">量表诱导 · 信度自检</span></summary>
         <div class="adv-body">
-          <p class="hint" style="margin-bottom:12px">以下功能用于教学研究或评分信度验证，日常评分无需展开。展开后可对比范文自动生成量表、检验同一模型多次评分的一致性。</p>
           <div class="card">
             <h3>量表自动诱导 <span class="sub">让好报告自己告诉你要点什么</span></h3>
-            <p class="hint" style="margin-bottom:12px">
-              给已评分的报告标一下「优秀范文」和「对照范文」，点「开始诱导」即可：
-              系统对比两组，把<b>只有好报告才做到的要点</b>挑出来，并按重要程度分配分值。
-              评分参数已按教学场景配好，不需要你调。
-            </p>
             <div id="induceGroups" style="margin-bottom:12px"></div>
             <div class="btn-row">
               <button class="btn primary" id="btnInduce">开始诱导</button>
@@ -1441,12 +1771,6 @@ table.tb input { padding: 5px 8px; }
 
           <div class="card">
             <h3>评分信度自检 <span class="sub">Cronbach's α · Bootstrap CI · Jackknife 敏感度</span></h3>
-            <p class="hint" style="margin-bottom:12px">
-              自动评分必须回答「这个分数有多可信」。α 衡量各维度是否在测同一件事；
-              稳定性检验让同一模型对同一份报告<b>连续评阅多次</b>，给出总分的波动区间——
-              这直接回答「同一份作业明天再评一遍会不会换个分」。
-              Jackknife 逐维度剔除，识别「一权独大」的支配维度。
-            </p>
             <div class="row" style="margin-bottom:10px">
               <label class="fld"><span>自检对象</span><select id="auditDoc"></select></label>
               <label class="fld"><span>采样次数（每次都是一次真实调用）</span>
@@ -1465,13 +1789,61 @@ table.tb input { padding: 5px 8px; }
     <!-- ---------- 分区三：关于 ---------- -->
     <div class="setsec" id="setsec-about" style="display:none">
     <div class="card">
-      <h3>关于</h3>
+      <h3>关于 <span class="sub">零依赖 · 本地优先 · 可解释评分</span></h3>
       <p class="hint">
-        技术栈：原生 HTML / CSS / JavaScript，零构建、零依赖，双击 index.html 即可运行；雷达图、热力图与 PDF 导出全部手写。<br>
-        评分可解释：每一个得分都附带命中的原文证据片段，教师可逐项复核，避免「黑箱打分」。<br>
-        3 套界面主题 + 3 档评语人格（学院派 / 傲娇小天才 / 火力全开）—— 只换表达，不换分数。<br>
-        右下角常驻答疑助手：怎么批量导入、这个分为什么这么低、量表怎么调，本地知识库直接答，不联网也能用；配上 API Key 后，知识库答不上来的会转给大模型，并自动带上当前报告的评分上下文。<br>
-        吉祥物「小评审员」为原创形象，画风借鉴美式动画的通用视觉语言，不使用任何影视剧角色。
+        AutoGrader 面向高校实验报告批改：上传即得逐项核查结果，每一分都附带命中的原文证据，
+        教师可逐项复核，而不是对着一个说不清来源的数字。
+      </p>
+    </div>
+
+    <div class="card">
+      <h3>当前版本要点</h3>
+      <table class="tb">
+        <tbody>
+          <tr>
+            <td style="width:96px;white-space:nowrap">评阅引擎</td>
+            <td>本地启发式引擎已下线，评分统一交给<b>开源大模型</b>（OpenAI 兼容协议，可选云端免费额度，也可接机房内网 Ollama / vLLM）</td>
+          </tr>
+          <tr>
+            <td style="white-space:nowrap">教师终评</td>
+            <td>AI 分只是初判：总分与任一维度都<b>可覆写</b>，改完自动重算总分，可一键撤销回 AI 原判；导出 PDF 与成绩表并列显示「AI 原判 / 最终得分」</td>
+          </tr>
+          <tr>
+            <td style="white-space:nowrap">评分准则</td>
+            <td>8 个维度可改名称与分值；支持<b>一句话生成</b>、或<b>按这批作业自动适配</b>；手动改过或锁定的维度不会被任何自动调整覆盖</td>
+          </tr>
+          <tr>
+            <td style="white-space:nowrap">文档类型</td>
+            <td>内置 9 类覆盖计算机专业主要方向，可改名、增删特征词与评分方向。<b>类型决定评分方向</b>——用数据结构量表评计算机网络实验不是分低，是评错方向</td>
+          </tr>
+          <tr>
+            <td style="white-space:nowrap">相似度查重</td>
+            <td>5-gram Jaccard 两两比对 + 热力图，≥45% 自动预警；比对范围默认「当前批次内」，可在设置里切换</td>
+          </tr>
+          <tr>
+            <td style="white-space:nowrap">可信度自检</td>
+            <td>证据回查（模型引用的原文查无此句会标红）、信度三件套（Cronbach's α / 多次评阅的分数波动区间 / Jackknife 支配维度）</td>
+          </tr>
+          <tr>
+            <td style="white-space:nowrap">离题拦截</td>
+            <td>小说、散文、乱码这类非报告文档<b>不予评阅</b>（而不是判 0 分——那看起来像评过了），逐条列出判定依据，判错可一键申诉</td>
+          </tr>
+          <tr>
+            <td style="white-space:nowrap">答疑助手</td>
+            <td>右下角常驻：本地知识库直接答，不联网也能用；配了 API Key 后，答不上来的转给大模型，并自动带上当前报告的评分上下文</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>技术形态与声明</h3>
+      <p class="hint">
+        原生 HTML / CSS / JavaScript，<b>零构建、零依赖</b>，双击 index.html 即可运行；
+        雷达图、热力图与 PDF 导出全部手写，不引第三方库。<br>
+        报告正文与 API Key 只保存在本机浏览器，仅在主动评阅时才把文本发给所选模型服务商。<br>
+        本项目为「粤港澳大湾区 AI Coding 创新大赛」参赛作品。吉祥物「小评审员」为原创形象，
+        画风借鉴美式动画的通用视觉语言，不使用任何影视剧角色。
       </p>
     </div>
   </div>
@@ -1520,12 +1892,12 @@ table.tb input { padding: 5px 8px; }
 </div>
 
 <!-- ===== 站内答疑助手：悬浮入口 + 抽屉面板 ===== -->
-<button class="chat-fab" id="chatFab" title="答疑助手" aria-label="打开答疑助手">
+<button class="chat-fab" id="chatFab" title="答疑助手" aria-label="打开答疑助手" aria-expanded="false" aria-controls="chatPanel">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8z"/></svg>
   <span class="chat-fab-txt">答疑</span>
 </button>
 
-<div class="chat-panel" id="chatPanel" role="dialog" aria-label="答疑助手">
+<div class="chat-panel" id="chatPanel" role="dialog" aria-label="答疑助手" aria-modal="true" tabindex="-1">
   <div class="chat-head">
     <div class="chat-head-t">
       <b>答疑助手</b>
@@ -1568,7 +1940,7 @@ table.tb input { padding: 5px 8px; }
   </div>
 </div>
 
-<div class="toast-wrap" id="toastWrap"></div>
+<div class="toast-wrap" id="toastWrap" role="status" aria-live="polite" aria-atomic="false"></div>
 
 <script>
 /* ===== utils.js ===== */
@@ -2707,6 +3079,9 @@ table.tb input { padding: 5px 8px; }
     const t = normalize(id);
     document.documentElement.setAttribute('data-theme', t);
     liquidLight(t === 'classic' || t === 'tech');
+    // 壁纸要跟着主题重算：浅玻璃叠白兜底、深玻璃叠黑兜底，换肤后必须换回来；
+    // 切到卡通主题时 wallpaper 会把 inline 变量撤掉，让主题自带底色重新生效。
+    if (AG.wallpaper) AG.wallpaper.apply(t);
     if (t !== id) U.store.set('theme', t);
     return t;
   }
@@ -2847,6 +3222,378 @@ table.tb input { padding: 5px 8px; }
     /* 位图吉祥物是否可用（主题判断用，见 app.js 的 setupAppearance） */
     HAS_MASCOT: !!M.HEAD_SRC,
     get, set, apply, palette, mountSkinBar, liquidLight,
+  };
+})(window);
+
+</script>
+<script>
+/* ===== wallpaper.js ===== */
+/* AutoGrader · 玻璃主题壁纸
+ *
+ * 给玻璃主题铺一层壁纸：半透面板 + backdrop-filter 会把壁纸糊成"材质"，
+ * 这正是 visionOS 那套做法 —— 背景有内容，玻璃才有东西可折射，立体感立刻出来。
+ *
+ * 四个设计决定：
+ *   1. **只服务玻璃主题**。卡通主题是平涂描边风格，铺壁纸只会跟描边打架，所以不生效。
+ *   2. **预设壁纸用纯 CSS 多层渐变，不用位图**。零体积（单文件版不能因为壁纸变大）、
+ *      任意分辨率都不糊，且离线可用。想要照片感就自己上传。
+ *   3. **雾化（veil）是必要的，不是装饰**。浅玻璃是深色字，压在深色照片上会看不清；
+ *      深玻璃是白色字，压在浅色照片上同样糊。所以壁纸上再叠一层半透明兜底色 ——
+ *      浅玻璃叠白、深玻璃叠黑，强度让用户自己调（默认 0.34）。
+ *   4. **配置与图片分开存**（'wallpaper' 几字节 / 'wallpaperImage' 一个 data URL），
+ *      并且**以内存为运行时真相**。教训：早先两者存在同一个 key 里，
+ *      上传图片后那个 key 变成 ~1MB，之后切换预设时 `save` 要连图片一起重写 ——
+ *      超出 localStorage 配额就会静默失败，而 apply() 是从存储重读的，
+ *      于是表现为「点了预设不换背景、切回默认后再也换不回自己的图」。
+ *      现在切换预设只写几字节；图片只在换图时写一次。
+ */
+(function (global) {
+  'use strict';
+  const AG = (global.AG = global.AG || {});
+  const U = AG.utils;
+
+  const KEY = 'wallpaper';        // { id, veil }
+  const KEY_IMG = 'wallpaperImage'; // 压缩后的图片 data URL
+  const GLASS = { classic: true, tech: true };
+  const VEIL = { classic: [255, 255, 255], tech: [8, 10, 22] };
+  const DEFAULT = { id: 'none', custom: '', veil: 0.32 };
+
+  const MAX_W = 1600;
+  const MAX_H = 1000;
+  const MAX_BYTES = 6e5;   // data URL 字符上限；UTF-16 存进 localStorage 约 1.2MB
+
+  let mem = null;          // 运行时真相：持久化失败也不能影响"这一次"
+
+  function clampVeil(v) {
+    const n = Number(v);
+    return U.clamp(n === n ? n : DEFAULT.veil, 0, 0.85);
+  }
+
+  function note(text, kind) {
+    U.bus.emit('wallpaper:note', { text: text, kind: kind || 'ok' });
+  }
+
+  function read() {
+    if (mem) return mem;
+    const raw = U.store.get(KEY, null);
+    const c = raw && typeof raw === 'object' ? raw : {};
+    let img = U.store.get(KEY_IMG, '');
+    if (typeof img !== 'string') img = '';
+    // 兼容早先把图片塞在同一个 key 里的版本：读到就顺手迁移到独立 key，
+    // 并且把老 key 里的图片字段抹掉 —— 否则同一张图占两份配额，正是这次要修的病根。
+    if (!img && typeof c.custom === 'string' && c.custom) {
+      img = c.custom;
+      U.store.set(KEY_IMG, img);
+      U.store.set(KEY, { id: c.id || 'custom', veil: clampVeil(c.veil) });
+    }
+    mem = { id: c.id || 'none', veil: clampVeil(c.veil), custom: img };
+    return mem;
+  }
+
+  /** 取当前壁纸设置（返回副本，外部改不动内部状态）。 */
+  function get() {
+    const w = read();
+    return { id: w.id, veil: w.veil, custom: w.custom };
+  }
+
+  /** 只写配置（几字节）。写不进去时内存里仍然是新的，只是刷新后会回到旧值 —— 如实告知。 */
+  function persist() {
+    const w = read();
+    if (U.store.set(KEY, { id: w.id, veil: w.veil })) return true;
+    note('壁纸已切换，但本机存储写不进去（空间不足），刷新后会回到上一次的选择。', 'err');
+    return false;
+  }
+
+  function P(id, name, css) { return { id: id, name: name, css: css }; }
+
+  /* 两种风格并存：
+     一、多色斑派（花影 / 晚霞）—— 像一张糊掉的照片，色彩层次丰富；
+     二、干净渐变派（青柠 / 潮汐 / 拂晓 / 绯夜）—— 照用户挑的参考图还原，
+         纵向两三色过渡，没有杂色斑。这一派的色值直接取自参考图标注
+         （#2DFFF5→#FFF878、#0172AF→#74FEBD 等）。
+     每款都要能"当得起背景"：不脏、不灰、不用低明度暖色（那会变成褐色）。 */
+  const PRESETS = [
+    P('none', '无', ''),
+    P('bloom', '花影',
+      'radial-gradient(46% 36% at 18% 14%, rgba(255, 252, 246, .90), rgba(255, 252, 246, 0) 58%),' +
+      'radial-gradient(52% 42% at 74% 30%, rgba(228, 120, 166, .60), rgba(228, 120, 166, 0) 62%),' +
+      'radial-gradient(58% 46% at 30% 82%, rgba(98, 146, 226, .56), rgba(98, 146, 226, 0) 66%),' +
+      'radial-gradient(44% 34% at 88% 76%, rgba(246, 178, 120, .42), rgba(246, 178, 120, 0) 62%),' +
+      'linear-gradient(164deg, #9d6a92 0%, #7b6199 48%, #5b5c92 100%)'),
+    P('dusk', '晚霞',
+      'radial-gradient(58% 44% at 22% 86%, rgba(255, 176, 92, .62), rgba(255, 176, 92, 0) 62%),' +
+      'radial-gradient(50% 38% at 76% 74%, rgba(238, 122, 112, .46), rgba(238, 122, 112, 0) 62%),' +
+      'radial-gradient(54% 42% at 82% 12%, rgba(134, 92, 220, .48), rgba(134, 92, 220, 0) 64%),' +
+      'radial-gradient(42% 32% at 10% 18%, rgba(255, 220, 176, .32), rgba(255, 220, 176, 0) 58%),' +
+      'linear-gradient(188deg, #2d1c52 0%, #74306e 42%, #e0634d 100%)'),
+    P('mint', '青柠',
+      'linear-gradient(178deg, #2df0e8 0%, #6ef0c4 32%, #b8f49a 64%, #e8f87e 86%, #fff878 100%)'),
+    P('tide', '潮汐',
+      'linear-gradient(180deg, #0172af 0%, #168fbe 30%, #35bfb4 62%, #58e6ba 84%, #74febd 100%)'),
+    P('dawn', '拂晓',
+      'linear-gradient(180deg, #121f57 0%, #1c3a9e 24%, #2f6ad0 50%, #8fc0ee 78%, #f0f6ff 100%)'),
+    P('crimson', '绯夜',
+      'radial-gradient(118% 78% at 10% 6%, rgba(255, 62, 104, .90), rgba(255, 62, 104, 0) 64%),' +
+      'linear-gradient(150deg, #d81f46 0%, #93172f 30%, #3a0d14 64%, #0c0507 100%)'),
+  ];
+
+  function presetOf(id) {
+    for (let i = 0; i < PRESETS.length; i++) if (PRESETS[i].id === id) return PRESETS[i];
+    return null;
+  }
+
+  /* 极淡的颗粒层：纯渐变放大看是"塑料"的，加一层噪点立刻有照片的质感。
+     140×140 的 SVG turbulence，不到 300 字节；stitchTiles 保证平铺无接缝。
+     opacity 压到 0.07 —— 只在近看时觉得"有东西"，远看仍然是干净的背景。 */
+  const NOISE = 'url("data:image/svg+xml,' + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="140" height="140">' +
+    '<filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" stitchTiles="stitch"/></filter>' +
+    '<rect width="140" height="140" filter="url(#n)" opacity="0.07"/></svg>'
+  ) + '")';
+
+  /**
+   * 拼出 --bg-image 的值。
+   * 返回 null 表示「这一层不该由壁纸接管」—— 此时必须把 inline 变量撤掉，
+   * 让主题自带的渐变重新生效（切换主题、关掉壁纸都走这条路）。
+   */
+  function build(w, theme) {
+    if (!w || !w.id || w.id === 'none') return null;
+    if (!GLASS[theme]) return null;
+    const layer = w.id === 'custom'
+      ? (w.custom ? 'url("' + w.custom + '")' : null)
+      : (presetOf(w.id) || {}).css;
+    if (!layer) return null;
+    const parts = [];
+    const veil = clampVeil(w.veil);
+    if (veil) {
+      const c = VEIL[theme] || VEIL.classic;
+      const rgba = 'rgba(' + c.join(', ') + ', ' + veil + ')';
+      parts.push('linear-gradient(' + rgba + ', ' + rgba + ')');
+    }
+    parts.push(layer);
+    // 颗粒放最上层：压在雾化层之上，才不会被雾化层冲淡
+    return [NOISE].concat(parts).join(', ');
+  }
+
+  /** 把壁纸写进 html 的 inline --bg-image（inline 优先于主题选择器里的定义）。
+   *  由 theme.apply() 调用，保证切换主题后立刻按新主题重算雾化色。 */
+  function apply(theme) {
+    const t = theme || (AG.theme && AG.theme.get()) || 'classic';
+    const val = build(get(), t);
+    const root = document.documentElement;
+    if (val) root.style.setProperty('--bg-image', val);
+    else root.style.removeProperty('--bg-image');
+    // 有壁纸时才给面板开真模糊（见 main.css 的 .has-wallpaper）：纯渐变底色下
+    // 模糊看不出差别，不值得为它付 20 多个合成层的性能代价。
+    root.classList.toggle('has-wallpaper', !!val);
+    return val;
+  }
+
+  function set(id) {
+    const w = read();
+    const ok = (id === 'custom' && !!w.custom) || !!presetOf(id);
+    w.id = ok ? id : 'none';
+    persist();
+    apply();
+    return get();
+  }
+
+  function setVeil(v) {
+    const w = read();
+    w.veil = clampVeil(v);
+    persist();
+    apply();
+    return w.veil;
+  }
+
+  /**
+   * 把用户选的图片压到可用尺寸并存下来。图片单独写一个 key ——
+   * 只在这一步有写大对象的开销，切预设时不再碰它。
+   */
+  function setCustomFromImage(img) {
+    const k = Math.min(MAX_W / (img.width || 1), MAX_H / (img.height || 1), 1);
+    const cw = Math.max(1, Math.round((img.width || 1) * k));
+    const ch = Math.max(1, Math.round((img.height || 1) * k));
+    const c = document.createElement('canvas');
+    c.width = cw;
+    c.height = ch;
+    const ctx = c.getContext('2d');
+    // 先铺白底：带透明通道的 PNG 转 JPEG 后透明区会变黑，浅色主题下很突兀
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, cw, ch);
+    ctx.drawImage(img, 0, 0, cw, ch);
+    let q = 0.82;
+    let url = c.toDataURL('image/jpeg', q);
+    while (url.length > MAX_BYTES && q > 0.4) {
+      q -= 0.1;
+      url = c.toDataURL('image/jpeg', q);
+    }
+
+    const w = read();
+    const prevImg = w.custom;
+    const prevId = w.id;
+    w.custom = url;
+    w.id = 'custom';
+    if (!U.store.set(KEY_IMG, url)) {
+      w.custom = prevImg;
+      w.id = prevId;
+      return { ok: false, note: '这张图压缩后仍然存不下（本机存储空间不足）。换一张小一点的，或先点「删掉我的图片」清出空间。' };
+    }
+    persist();
+    apply();
+    return { ok: true, bytes: url.length, width: cw, height: ch };
+  }
+
+  /** 读文件 → 解码 → 压缩。任何一步失败都给可执行的提示，不抛到界面上。 */
+  function upload(file, done) {
+    const cb = done || function () {};
+    if (!file) return;
+    if (!/^image\//.test(file.type || '')) {
+      cb({ ok: false, note: '这里只吃图片文件（PNG / JPEG / WebP）。' });
+      return;
+    }
+    if (typeof FileReader !== 'function') {
+      cb({ ok: false, note: '当前环境不支持读取本地图片。' });
+      return;
+    }
+    const fr = new FileReader();
+    fr.onerror = () => cb({ ok: false, note: '读取这张图失败了，换一张试试。' });
+    fr.onload = () => {
+      const img = new Image();
+      img.onerror = () => cb({ ok: false, note: '这张图无法解析，换一张试试。' });
+      img.onload = () => {
+        try { cb(setCustomFromImage(img)); }
+        catch (e) { cb({ ok: false, note: '处理这张图时出错：' + e.message }); }
+      };
+      img.src = String(fr.result);
+    };
+    fr.readAsDataURL(file);
+  }
+
+  function clearCustom() {
+    const w = read();
+    w.custom = '';
+    if (w.id === 'custom') w.id = 'none';
+    U.store.del(KEY_IMG);
+    persist();
+    apply();
+    return get();
+  }
+
+  /* ---------------- 设置页 UI ---------------- */
+
+  function chip(p, cur, onPick) {
+    const on = cur.id === p.id;
+    const sw = U.el('span', {
+      class: 'wall-sw' + (p.css ? '' : ' is-none'),
+      style: p.css ? 'background-image:' + p.css : '',
+    });
+    const b = U.el('button', {
+      type: 'button',
+      class: 'wall-chip' + (on ? ' on' : ''),
+      title: p.name,
+      'aria-label': '壁纸：' + p.name,
+      'aria-pressed': on ? 'true' : 'false',
+    }, [sw, U.el('span', { class: 'wall-nm' }, [p.name])]);
+    b.addEventListener('click', (e) => {
+      // 这里必须拦住冒泡：壁纸选择器外面包着 <label>，
+      // 冒泡上去会连带触发 label 关联的隐藏 file input（无端弹出选文件对话框）。
+      e.preventDefault();
+      e.stopPropagation();
+      onPick(p.id);
+    });
+    return b;
+  }
+
+  /**
+   * 渲染壁纸选择器。theme.js 的换肤回调里也要再调一次 ——
+   * 换主题会改变「壁纸是否生效」与雾化兜底色，提示文案跟着变。
+   */
+  function mount(container) {
+    if (!container) return;
+    const w = get();
+    const theme = (AG.theme && AG.theme.get()) || 'classic';
+    const isGlass = !!GLASS[theme];
+    container.innerHTML = '';
+
+    const grid = U.el('div', { class: 'wall-grid' });
+    const list = PRESETS.slice();
+    if (w.custom) list.push(P('custom', '我的图片', 'url("' + w.custom + '")'));
+    list.forEach((p) => {
+      grid.appendChild(chip(p, w, (id) => {
+        set(id);
+        mount(container);
+        U.bus.emit('wallpaper:change', get());
+      }));
+    });
+    container.appendChild(grid);
+
+    const row = U.el('div', { class: 'wall-row' });
+
+    const file = U.el('input', { type: 'file', accept: 'image/*', id: 'wallFile', style: 'display:none' });
+    file.addEventListener('change', () => {
+      upload(file.files && file.files[0], (r) => {
+        if (!r || !r.ok) note(r && r.note ? r.note : '这张图用不了，换一张试试。', 'err');
+        else note('壁纸已换成本机图片（原图 ' + r.width + '×' + r.height + '，压缩后只存在浏览器里，不会上传）', 'ok');
+        mount(container);
+        U.bus.emit('wallpaper:change', get());
+      });
+      file.value = '';
+    });
+    const up = U.el('button', { type: 'button', class: 'btn sm', id: 'btnWallUpload' }, ['上传图片…']);
+    up.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      file.click();
+    });
+    row.appendChild(up);
+    row.appendChild(file);
+
+    if (w.custom) {
+      const rm = U.el('button', { type: 'button', class: 'btn sm', id: 'btnWallClear' }, ['删掉我的图片']);
+      rm.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        clearCustom();
+        mount(container);
+        U.bus.emit('wallpaper:change', get());
+      });
+      row.appendChild(rm);
+    }
+    container.appendChild(row);
+
+    const val = U.el('b', { id: 'wallVeilVal' }, [Math.round(w.veil * 100) + '%']);
+    const range = U.el('input', {
+      type: 'range', id: 'wallVeil', min: '0', max: '80', step: '2',
+      value: String(Math.round(w.veil * 100)),
+    });
+    range.addEventListener('input', () => {
+      val.textContent = range.value + '%';
+      setVeil(Number(range.value) / 100);
+    });
+    container.appendChild(U.el('label', { class: 'wall-veil' }, [
+      U.el('span', {}, ['背景雾化 / 压暗　', val]),
+      range,
+    ]));
+
+    const hint = isGlass
+      ? '壁纸铺在玻璃面板下层，面板会把背景糊成材质。想让文字更清楚就调高雾化。'
+      : '壁纸只在「浅玻璃 / 深玻璃」两套主题下生效——当前是卡通主题，切到玻璃主题即可看到。';
+    container.appendChild(U.el('p', { class: 'hint', style: 'margin:10px 0 0' }, [hint]));
+  }
+
+  AG.wallpaper = {
+    PRESETS: PRESETS,
+    GLASS: GLASS,
+    get: get,
+    apply: apply,
+    set: set,
+    setVeil: setVeil,
+    setCustomFromImage: setCustomFromImage,
+    upload: upload,
+    clearCustom: clearCustom,
+    mount: mount,
+    build: build,
   };
 })(window);
 
@@ -3916,6 +4663,574 @@ table.tb input { padding: 5px 8px; }
     validateRubric,
   };
 })(window);
+
+</script>
+<script>
+/* ===== finalscore.js ===== */
+/* AutoGrader · 教师终评分（Final Score）
+ *
+ * 【为什么单独一个模块】
+ * AI 评出的 doc.result 是「模型输出的快照」：重评分时整个对象被新结果覆盖。
+ * 教师的人工终评如果也写进 doc.result，一次「重新评分」就会把老师的判断冲掉，
+ * 而老师未必记得自己改过哪几个维度。所以终评单独挂在 doc.final 上——
+ * 它与 doc.result 生命周期解耦，重评分不会动它，刷新页面也会随 doc 一起存进本机。
+ *
+ * 【数据形态】
+ *   doc.final = {
+ *     total: 78.5,                 // 教师覆写的总分（可选；不设则由维度分求和得出）
+ *     dims: { code: 20, env: 8 },  // 维度 id → 覆写分（稀疏，只存老师改过的）
+ *     at: 1737000000000,           // 最后修改时间
+ *   }
+ *   doc.final 为 null / undefined 即「未终评」，所有取值回落 AI 原始分。
+ *
+ * 【撤销语义】
+ * 撤销不需要备份：把对应字段删掉即回到 AI 值，全部删净就把 doc.final 置 null。
+ *
+ * 【取值口径唯一性】
+ * 全站（界面 / 成绩汇总 / PDF 导出 / 答疑上下文）一律经由本模块取分，
+ * 不再各自读 doc.result.total，否则「界面显示终评分、导出却是 AI 分」这类
+ * 不一致迟早会出现。唯一的例外是信度自检（reliability.js）——
+ * 它检验的对象本就是 AI 输出的一致性，教师覆写后不该反过来污染 α 与 Jackknife。
+ *
+ * 本模块是纯函数，不碰 DOM，也不持有状态：入参一律是 doc。
+ */
+(function (global) {
+  'use strict';
+  const AG = (global.AG = global.AG || {});
+
+  /** 取工具函数。用取值器而非顶层解构，避免加载顺序变化时拿到 undefined。 */
+  function U() { return AG.utils || {}; }
+  function clamp(v, lo, hi) {
+    const f = U().clamp;
+    if (typeof f === 'function') return f(v, lo, hi);
+    return Math.max(lo, Math.min(hi, v));
+  }
+  function round(v, n) {
+    const f = U().round;
+    if (typeof f === 'function') return f(v, n);
+    const p = Math.pow(10, n || 0);
+    return Math.round(v * p) / p;
+  }
+
+  /** 把输入解析成有限数字；不是数字就返回 null（不把空输入当 0 分） */
+  function num(v) {
+    if (v === null || v === undefined || v === '') return null;
+    const n = Number(v);
+    return isFinite(n) ? n : null;
+  }
+
+  /** 是否已终评（至少要有一个覆写值才算） */
+  function has(doc) {
+    const f = doc && doc.final;
+    if (!f) return false;
+    if (num(f.total) !== null) return true;
+    return !!(f.dims && Object.keys(f.dims).length);
+  }
+
+  /** AI 原始总分 */
+  function aiTotalOf(doc) {
+    return doc && doc.result && typeof doc.result.total === 'number' ? doc.result.total : 0;
+  }
+
+  /** 把 doc.final 收拾干净：空对象不留残渣，避免 has() 误判为已终评 */
+  function tidy(doc) {
+    const f = doc.final;
+    if (!f) return;
+    if (f.dims) {
+      Object.keys(f.dims).forEach((k) => {
+        if (num(f.dims[k]) === null) delete f.dims[k];
+      });
+      if (!Object.keys(f.dims).length) delete f.dims;
+    }
+    if (num(f.total) === null) delete f.total;
+    if (!f.dims && num(f.total) === null) doc.final = null;
+  }
+
+  /** 由各维度当前取值求和。仅当存在维度覆写时才有意义。 */
+  function sumDims(doc) {
+    const r = doc && doc.result;
+    if (!r || !r.dims) return null;
+    const total = r.dims.reduce((acc, d) => acc + (dimScoreOf(doc, d) || 0), 0);
+    return clamp(round(total, 1), 0, 100);
+  }
+
+  /** 按维度重算总分：老师逐个维度改分时，总分自动跟着走 */
+  function recompute(doc) {
+    const t = sumDims(doc);
+    if (t === null) return aiTotalOf(doc);
+    return t;
+  }
+
+  /**
+   * 终评总分。
+   * 优先级：老师显式填的总分 > 维度分求和 > AI 原始分。
+   * 显式总分为先，是为了支持「老师只改总分」这种最省事的用法；
+   * 若老师想改回由维度决定，界面上的「按维度重算」会清掉显式总分。
+   */
+  function totalOf(doc) {
+    if (!doc) return 0;
+    const f = doc.final;
+    if (f) {
+      const t = num(f.total);
+      if (t !== null) return clamp(round(t, 1), 0, 100);
+      if (f.dims && Object.keys(f.dims).length) return recompute(doc);
+    }
+    return aiTotalOf(doc);
+  }
+
+  /** 某个维度当前生效的分数 */
+  function dimScoreOf(doc, dim) {
+    if (!dim) return 0;
+    const f = doc && doc.final;
+    if (f && f.dims) {
+      const v = num(f.dims[dim.id]);
+      if (v !== null) return clamp(round(v, 1), 0, Number(dim.max) || 0);
+    }
+    return Number(dim.score) || 0;
+  }
+
+  /** 某个维度当前生效的达成率（雷达图与进度条都读它，必须与分数同步） */
+  function dimRatioOf(doc, dim) {
+    if (!dim) return 0;
+    const max = Number(dim.max) || 0;
+    if (max <= 0) return 0;
+    return clamp(dimScoreOf(doc, dim) / max, 0, 1);
+  }
+
+  /** 等级（按当前生效总分重算，不读 result 里那份可能已过期的 grade） */
+  function gradeOf(doc) {
+    const g = AG.rubric && AG.rubric.gradeOf;
+    if (typeof g === 'function') return g(totalOf(doc));
+    return { grade: '', label: '', color: 'var(--muted)', min: 0 };
+  }
+
+  function ensureFinal(doc) {
+    if (!doc.final) doc.final = { at: 0 };
+    doc.final.at = Date.now();
+    return doc.final;
+  }
+
+  /** 覆写总分。传 null / 空 表示撤销该覆写。 */
+  function setTotal(doc, val) {
+    if (!doc || !doc.result) return false;
+    const v = num(val);
+    if (v === null) return revertTotal(doc);
+    ensureFinal(doc).total = clamp(round(v, 1), 0, 100);
+    tidy(doc);
+    return true;
+  }
+
+  /** 覆写单个维度分。传 null / 空 表示撤销该维度的覆写。 */
+  function setDim(doc, dimId, val) {
+    const r = doc && doc.result;
+    if (!r || !r.dims) return false;
+    const dim = r.dims.find((d) => d.id === dimId);
+    if (!dim) return false;
+    const v = num(val);
+    if (v === null) return revertDim(doc, dimId);
+    const f = ensureFinal(doc);
+    if (!f.dims) f.dims = {};
+    f.dims[dimId] = clamp(round(v, 1), 0, Number(dim.max) || 0);
+    tidy(doc);
+    return true;
+  }
+
+  function revertTotal(doc) {
+    if (!doc || !doc.final) return false;
+    delete doc.final.total;
+    tidy(doc);
+    return true;
+  }
+
+  function revertDim(doc, dimId) {
+    if (!doc || !doc.final || !doc.final.dims) return false;
+    delete doc.final.dims[dimId];
+    tidy(doc);
+    return true;
+  }
+
+  /** 全部撤销：回到 AI 原始分。不需要任何备份，置 null 即可。 */
+  function revert(doc) {
+    if (!doc) return false;
+    doc.final = null;
+    return true;
+  }
+
+  /** 某维度是否被老师改过 */
+  function isDimOverridden(doc, dimId) {
+    const f = doc && doc.final;
+    return !!(f && f.dims && num(f.dims[dimId]) !== null);
+  }
+
+  /**
+   * 生成「终评口径」的文档浅拷贝，专供 PDF 导出使用。
+   *
+   * 这样做的用意：PDF 绘制层（pdf.js）只需要一份「分数已经是对的」的 result，
+   * 不必知道终评这回事，也就不会在 drawDimTable / renderScoreTable 里
+   * 到处散落取值分支。收敛在导出的入口处投影一次，绘制层保持原样。
+   *
+   * - result.total 保持 AI 原值（PDF 要用它显示「AI 建议 X 分」）
+   * - result._final 是终评分（没有则不带这个字段，绘制层自然退回单值）
+   * - result.dims 换成各维度终评口径的副本，ratio 与 score 同步改写
+   */
+  function finalView(doc) {
+    if (!doc || !doc.result) return doc;
+    const r = doc.result;
+    const dims = (r.dims || []).map((d) => Object.assign({}, d, {
+      score: dimScoreOf(doc, d),
+      ratio: dimRatioOf(doc, d),
+    }));
+    const view = Object.assign({}, r, { dims: dims });
+    if (has(doc)) view._final = totalOf(doc);
+    return Object.assign({}, doc, { result: view });
+  }
+
+  AG.finalscore = {
+    has,
+    aiTotalOf,
+    totalOf,
+    dimScoreOf,
+    dimRatioOf,
+    gradeOf,
+    recompute,
+    setTotal,
+    setDim,
+    revertTotal,
+    revertDim,
+    revert,
+    isDimOverridden,
+    finalView,
+  };
+})(window);
+
+</script>
+<script>
+/* ===== uikit.js ===== */
+/* ============================================================================
+ * uikit.js —— 通用交互套件（锚点路由 / 键盘漫游 / 焦点陷阱 / 实时播报）
+ *
+ * 为什么单独一个文件：
+ *   这些能力要同时服务三个地方——顶部标签页、设置分区条、答疑抽屉。
+ *   散在 app.js 里会让「谁负责键盘」变得模糊，抽出来只有一个约定：
+ *   容器负责声明结构，uikit 负责把结构翻译成键盘行为。
+ *
+ * 与 smoke 测试桩的关系（重要）：
+ *   桩上没有 closest / matches / getBoundingClientRect / scrollIntoView /
+ *   document.activeElement。所以本文件里：
+ *     - 从不使用 document.activeElement，改用事件里的 e.target；
+ *     - closest 一律做存在性判断后再调；
+ *     - scrollIntoView 只在用户点击/按键的回调内触发。
+ *   模块加载期只做一件事：定义一个挂在 window.AG 上的对象。不碰 DOM。
+ * ========================================================================== */
+(function () {
+  'use strict';
+
+  const AG = window.AG || (window.AG = {});
+
+  /* ---------------------------------------------------------------- 小工具 */
+
+  // 桩环境里 querySelectorAll 返回的可能是数组而非 NodeList，统一转成真数组
+  function list(root, sel) {
+    if (!root || !root.querySelectorAll) return [];
+    try { return Array.prototype.slice.call(root.querySelectorAll(sel)); } catch (e) { return []; }
+  }
+
+  /**
+   * 解析「容器」参数：既接受 CSS 选择器（'#chatPanel'），也接受裸 id（'chatPanel'）
+   * 或已拿到的元素。
+   *
+   * 为什么要容错：调用方写 trap('chatPanel') 是很自然的写法（那本来就是元素的 id），
+   * 但 querySelector('chatPanel') 会被当成标签名去匹配，静默返回 null ——
+   * 焦点陷阱就这么无声无息地失效了，页面上看不出任何异常。
+   * 与其让每个调用方都记得带 #，不如在这里一次兜住。
+   */
+  function resolveEl(container) {
+    if (!container) return null;
+    if (typeof container !== 'string') return container;
+    if (typeof document === 'undefined') return null;
+    // 先按选择器解析；失败或没命中时，再按 id 兜一次。
+    // 每一步都做能力判断：smoke 的 DOM 桩上这些方法未必都在。
+    const tryCall = function (fnName, arg) {
+      try {
+        const fn = document[fnName];
+        if (typeof fn !== 'function') return null;
+        return fn.call(document, arg) || null;
+      } catch (e) { return null; }
+    };
+    return tryCall('querySelector', container) || tryCall('getElementById', container);
+  }
+
+  function isFn(v) { return typeof v === 'function'; }
+
+  /* ------------------------------------------------------ roving tabindex */
+
+  /**
+   * 把一组元素变成「单点停留」的键盘组：整组里只有一个 tabindex="0"，
+   * 左右（或上下）箭头在组内移动，Tab 键整组只停一次。
+   *
+   * 这是 WAI-ARIA 对 tablist / toolbar 的标准做法。朴素地给每个按钮都留
+   * tabindex 会让键盘用户按十几次 Tab 才穿得过一个标签栏。
+   *
+   * 注意：这里刻意只绑一个 keydown 在容器上（事件委托），
+   * 因为容器的子元素经常被 innerHTML 整块重建，逐个绑会随重建失效。
+   */
+  function roving(container, itemSel, opts) {
+    const box = resolveEl(container);
+    if (!box) return;
+    const o = opts || {};
+    const vertical = o.orientation === 'vertical';
+    const prevKeys = vertical ? ['ArrowUp'] : ['ArrowLeft'];
+    const nextKeys = vertical ? ['ArrowDown'] : ['ArrowRight'];
+
+    // 把组内元素的 tabindex 收敛成一个：当前项 0，其余 -1
+    function sync(cur) {
+      const items = list(box, itemSel);
+      if (!items.length) return;
+      const active = cur || items.find(function (el) { return el.getAttribute('aria-selected') === 'true'; }) || items[0];
+      items.forEach(function (el) {
+        el.tabIndex = el === active ? 0 : -1;
+      });
+    }
+
+    box.addEventListener('keydown', function (e) {
+      const items = list(box, itemSel);
+      if (!items.length) return;
+      // 用 e.target 定位当前项——桩上没有 document.activeElement
+      let idx = items.indexOf(e.target);
+      if (idx < 0) {
+        // 事件来自组内更深层的元素时，向上找最近的合法项
+        if (e.target && isFn(e.target.closest)) {
+          const hit = e.target.closest(itemSel);
+          if (hit) idx = items.indexOf(hit);
+        }
+      }
+      if (idx < 0) return;
+
+      let to = -1;
+      if (prevKeys.indexOf(e.key) >= 0) to = (idx - 1 + items.length) % items.length;
+      else if (nextKeys.indexOf(e.key) >= 0) to = (idx + 1) % items.length;
+      else if (e.key === 'Home') to = 0;
+      else if (e.key === 'End') to = items.length - 1;
+      if (to < 0) return;
+
+      e.preventDefault();
+      sync(items[to]);
+      if (isFn(items[to].focus)) items[to].focus();
+      // 有的组同时要「选中」（tab 语义），有的只要求「聚焦」（toolbar 语义）
+      if (o.activate && isFn(items[to].click)) items[to].click();
+    });
+
+    sync(null);
+    return { sync: sync };
+  }
+
+  /* ------------------------------------------------------------ 焦点陷阱 */
+
+  const FOCUSABLE = [
+    'a[href]', 'button:not([disabled])', 'input:not([disabled])',
+    'select:not([disabled])', 'textarea:not([disabled])',
+    '[tabindex]:not([tabindex="-1"])',
+  ].join(',');
+
+  const trapped = [];   // 栈式管理：后开的陷阱优先，关闭后自动回落到上一个
+
+  /**
+   * 把 Tab 键关进某个容器里。抽屉/弹窗打开时，Tab 绝不该跑到背后的页面上——
+   * 那是键盘用户最容易「迷失」的场景：焦点在视觉上消失了，但页面还在响应。
+   *
+   * 监听挂在 document 而不是容器上：焦点一旦跑出容器，容器就再也收不到
+   * 那个 keydown 了，兜底必须在更外层。挂 document 才能把「已经溜出去」的
+   * 焦点拉回来。
+   */
+  function trap(container, on) {
+    const box = resolveEl(container);
+    if (!box) return;
+
+    if (on === false) {
+      const i = trapped.indexOf(box);
+      if (i >= 0) trapped.splice(i, 1);
+      return;
+    }
+    if (trapped.indexOf(box) >= 0) return;   // 已在栈里，别重复绑
+
+    trapped.push(box);
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Tab') return;
+      // 只处理最上层陷阱的按键，下层不去抢
+      if (trapped[trapped.length - 1] !== box) return;
+
+      // 计算样式在极老的环境可能没有，取不到就当作可见（宁可多拦，不要漏拦）
+      const styleOf = function (el) {
+        try {
+          if (typeof getComputedStyle !== 'function') return null;
+          return getComputedStyle(el);
+        } catch (err) { return null; }
+      };
+
+      const boxCs = styleOf(box);
+      if (boxCs && (boxCs.display === 'none' || boxCs.visibility === 'hidden')) return;
+
+      const items = list(box, FOCUSABLE).filter(function (el) {
+        // 不用 offsetParent 判可见：position:fixed 的元素 offsetParent 恒为 null，
+        // 抽屉恰好就是 fixed，用它过滤会把整个抽屉的控件全滤掉。
+        // 改判 display / visibility，这两项对 fixed 元素同样有效。
+        const cs = styleOf(el);
+        if (!cs) return true;
+        return cs.display !== 'none' && cs.visibility !== 'hidden';
+      });
+      if (!items.length) { e.preventDefault(); return; }
+
+      const first = items[0];
+      const last = items[items.length - 1];
+      const cur = e.target;
+      // 焦点已经跑到容器外（或落在容器自身）：直接拽回第一个
+      const inside = box.contains ? box.contains(cur) : true;
+      if (!inside) { e.preventDefault(); if (isFn(first.focus)) first.focus(); return; }
+
+      if (e.shiftKey) {
+        if (cur === first || cur === box) { e.preventDefault(); if (isFn(last.focus)) last.focus(); }
+      } else if (cur === last) {
+        e.preventDefault(); if (isFn(first.focus)) first.focus();
+      }
+    });
+  }
+
+  function release(container) {
+    trap(container, false);
+  }
+
+  /* --------------------------------------------------------- hash 路由 */
+
+  /**
+   * 地址栏路由：`#工作台` / `#成绩汇总` / `#设置/评阅规则/card-model`
+   *
+   * 用 hash 而不是 History API，是因为本产品要能从 file:// 直接双击打开——
+   * file:// 下 pushState 会抛 SecurityError。hash 是唯一在本地也安全的选择，
+   * 顺带白送了「刷新后还在原处」和「浏览器后退键」。
+   */
+
+  // 路由段名 → 内部视图名（地址栏里用中文更好认，内部仍用英文标识）
+  const VIEW_TO_SLUG = { work: 'work', batch: 'batch', settings: 'settings' };
+  const SLUG_TO_VIEW = { work: 'work', batch: 'batch', settings: 'settings' };
+
+  /* 自写入计数。
+   * 这是个很容易踩的坑：switchView 会写 hash，而写 hash 会触发 hashchange，
+   * hashchange 又回头调 switchView —— 形成回环，而且回环里读到的
+   * state.setSection 还是上一轮的值，会把刚设好的「卡片直达」路由冲掉。
+   *
+   * 为什么必须是「计数」：
+   *   - 布尔标记撑不住：一次点击常连写两次 hash（先视图名、再分区+卡片），
+   *     浏览器给每次写入各排一个 hashchange，标记只能吞掉第一个。
+   *   - 比对 hash 值也撑不住：两个事件都在两次写入之后才派发，
+   *     此时「最后写入值」已经被第二次写覆盖，第一个事件就对不上了。
+   * 计数是唯一与时序无关的做法：写几次就欠几个事件，来一个销一个。 */
+  let pendingSelf = 0;
+
+  function writeHash(view, sec, card) {
+    if (typeof location === 'undefined') return;
+    const parts = [VIEW_TO_SLUG[view] || view];
+    if (sec) parts.push(sec);
+    if (card) parts.push(card);
+    const next = '#' + parts.join('/');
+    // 同值不写：既省一次无谓的历史记录，也避免 hashchange 空转
+    if (location.hash === next) return;
+    pendingSelf += 1;
+    try { location.hash = next; } catch (e) { pendingSelf = Math.max(0, pendingSelf - 1); /* 极少见环境限制，静默 */ }
+  }
+
+  function readHash(raw) {
+    const s = (typeof raw === 'string' ? raw : (typeof location !== 'undefined' ? location.hash : '')) || '';
+    const body = s.charAt(0) === '#' ? s.slice(1) : s;
+    if (!body) return null;
+    let parts;
+    try { parts = decodeURIComponent(body).split('/'); } catch (e) { parts = body.split('/'); }
+    parts = parts.filter(function (p) { return !!p; });
+    if (!parts.length) return null;
+    return {
+      view: SLUG_TO_VIEW[parts[0]] || parts[0],
+      section: parts[1] || null,
+      card: parts[2] || null,
+    };
+  }
+
+  /* ------------------------------------------------------------ 初始装配 */
+
+  function init(deps) {
+    const d = deps || {};
+    const switchView = d.switchView;
+    const switchSettingsSection = d.switchSettingsSection;
+
+    // 顶部标签页：左右箭头切视图
+    roving('#tabs', '.tab', { orientation: 'horizontal', activate: true });
+
+    // 设置分区条：同上
+    roving('#setSeg', '.seg', { orientation: 'horizontal', activate: true });
+
+    // 地址栏变化 → 切视图。用 hashchange 而不是自己记状态，
+    // 这样浏览器前进/后退键也自然生效。
+    if (typeof window !== 'undefined' && window.addEventListener) {
+      window.addEventListener('hashchange', function () {
+        // 自己写 hash 引发的变化要放行，否则会和 switchView 形成回环。
+        // 写几次就欠几个事件，来一个销一个——与时序无关。
+        if (pendingSelf > 0) { pendingSelf -= 1; return; }
+        // 后退到空 hash（首次进入前的那一档）要落回默认视图，
+        // 不能因为「解析不出路由」就原地不动——那会让后退键看起来失灵。
+        const h = readHash();
+        if (!h) { if (isFn(switchView)) switchView('work'); return; }
+        if (isFn(switchView)) switchView(h.view || 'work');
+        if (h.view === 'settings' && h.section && isFn(switchSettingsSection)) {
+          switchSettingsSection(h.card || h.section);
+        }
+      });
+    }
+
+    // 首次进入：如果地址栏带了路由就直接落上去，否则把当前视图写回地址栏
+    const boot = readHash();
+    if (boot) {
+      if (isFn(switchView)) switchView(boot.view || 'work');
+      if (boot.view === 'settings' && boot.section && isFn(switchSettingsSection)) {
+        // 卡片定位要等 DOM 就位，推到下一帧
+        requestAnimationFrame(function () {
+          switchSettingsSection(boot.card || boot.section);
+        });
+      }
+    }
+  }
+
+  /* --------------------------------------------------------- 屏幕阅读器播报 */
+
+  /**
+   * 往实时区域里塞一句话，供读屏软件播报。
+   * 分数改了、批量完成了这类「画面变了但没有焦点转移」的变化，
+   * 读屏用户是感知不到的——必须显式播报。
+   */
+  function announce(msg) {
+    if (typeof document === 'undefined') return;
+    let box = document.getElementById('srLive');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'srLive';
+      // 视觉上不可见，但读屏可读（不能 display:none，那会连读屏一起藏掉）
+      box.setAttribute('aria-live', 'polite');
+      box.setAttribute('aria-atomic', 'true');
+      box.className = 'sr-only';
+      document.body.appendChild(box);
+    }
+    box.textContent = '';
+    // 清空再写入，保证同一句话重复出现时也会重新播报
+    setTimeout(function () { box.textContent = msg; }, 30);
+  }
+
+  AG.uikit = {
+    init: init,
+    roving: roving,
+    trap: trap,
+    release: release,
+    writeHash: writeHash,
+    readHash: readHash,
+    announce: announce,
+  };
+})();
 
 </script>
 <script>
@@ -6820,15 +8135,19 @@ ${toneHint ? '【语气设定】\n' + toneHint + '\n' : ''}
 
     // 数据多边形
     const dataPts = dims.map((d, i) => pt(i, R * U.clamp(d.ratio, 0.03, 1)));
-    svg.appendChild(svgEl('polygon', {
+    /* 数据面（多边形 + 顶点）装进一个 g：入场时整组从图心向外撑开。
+       多边形和顶点必须一起缩放，只放大其中一个会出现"面先到、点后到"的错位。 */
+    const grow = svgEl('g', { class: 'rgrow' });
+    grow.appendChild(svgEl('polygon', {
       points: dataPts.map((p) => p.join(',')).join(' '),
       fill: 'url(#radarGrad)', stroke: PAL.brand(), 'stroke-width': 2, 'stroke-linejoin': 'round',
     }));
     dataPts.forEach(([x, y], i) => {
       const dot = svgEl('circle', { cx: x, cy: y, r: 3.5, fill: '#fff', stroke: PAL.brand(), 'stroke-width': 2 });
       dot.appendChild(svgEl('title', {})).textContent = `${dims[i].name} ${dims[i].score}/${dims[i].max}`;
-      svg.appendChild(dot);
+      grow.appendChild(dot);
     });
+    svg.appendChild(grow);
 
     // 轴标签
     dims.forEach((d, i) => {
@@ -6861,8 +8180,11 @@ ${toneHint ? '【语气设定】\n' + toneHint + '\n' : ''}
    */
   function gauge(total, opts) {
     opts = opts || {};
-    const w = opts.size || 260, h = (opts.size || 260) * 0.62;
-    const cx = w / 2, cy = h * 0.92, r = w * 0.38;
+    /* 高度按 0.78 而不是 0.62：圆心下方还要摆「等级 / 本档取值 / AI 原判」最多三行小字，
+       而 SVG 默认 overflow:hidden，超出 viewBox 的部分会被直接裁掉 —— 之前那几行小字
+       其实一直画在框外，所以怎么调颜色都看不清。这里把下方文字区实打实留出来。 */
+    const w = opts.size || 260, h = (opts.size || 260) * 0.78;
+    const cx = w / 2, cy = h * 0.75, r = w * 0.38;
     const range = opts.range;              // [lo, hi]，可能为 null
     const lo = range && range.length === 2 ? U.clamp(range[0], 0, 100) : total;
     const hi = range && range.length === 2 ? U.clamp(range[1], 0, 100) : total;
@@ -6882,32 +8204,137 @@ ${toneHint ? '【语气设定】\n' + toneHint + '\n' : ''}
         opacity: opacity == null ? 1 : opacity,
       });
     };
-    svg.appendChild(arc(0, 1, PAL.track(.18), 14));
+    svg.appendChild(arc(0, 1, PAL.track(.18), 14));   // 轨道：常驻，不参与入场
+    // 下面这两条弧入场时要从 0 一路画到得分位，先留个引用
+    const sweeps = [];
     // 区间上限（浅）：先画浅的一层铺满到上界
-    if (hi > lo) svg.appendChild(arc(0, U.clamp(hi / 100, 0.001, 1), g.color, 14, 0.3));
+    if (hi > lo) {
+      const eHi = arc(0, U.clamp(hi / 100, 0.001, 1), g.color, 14, 0.3);
+      svg.appendChild(eHi); sweeps.push({ el: eHi, v: hi });
+    }
     // 区间下界（实）：保底分用实弧
-    svg.appendChild(arc(0, U.clamp(lo / 100, 0.001, 1), g.color, 14, 1));
+    const eLo = arc(0, U.clamp(lo / 100, 0.001, 1), g.color, 14, 1);
+    svg.appendChild(eLo); sweeps.push({ el: eLo, v: lo });
 
     const showRange = hi > lo;
     // 有区间时字号收一档，给「68–74」留出宽度
     const num = svgEl('text', {
+      class: 'g-num',
       x: cx, y: cy - 22, 'text-anchor': 'middle',
       'font-size': showRange ? 36 : 44, 'font-weight': 800, fill: g.color,
     });
     num.textContent = showRange ? `${U.round(lo, 0)}–${U.round(hi, 0)}` : String(total);
     svg.appendChild(num);
-    const lab = svgEl('text', { x: cx, y: cy - 2, 'text-anchor': 'middle', 'font-size': 13, fill: PAL.muted() });
+    /* 等级行原本用 muted（52% 透明度），在浅色主题上灰得发虚；
+       层级靠字号区分就够了（36 / 13 / 12.5），颜色统一提到 ink-2，先把可读性保住。 */
+    const lab = svgEl('text', {
+      x: cx, y: cy - 2, 'text-anchor': 'middle', 'font-size': 13, 'font-weight': 500, fill: PAL.ink2(),
+    });
     // 踩在等级边界上时，两个等级名一起给出，避免"到底算 B 还是 C"的争议
     lab.textContent = opts.gradeStraddle
       ? `${opts.gradeStraddle} 级之间 · 区间跨等级边界`
       : `${g.grade} 级 · ${g.label}`;
     svg.appendChild(lab);
-    if (showRange) {
-      const sub = svgEl('text', { x: cx, y: cy + 16, 'text-anchor': 'middle', 'font-size': 11, fill: PAL.muted() });
-      sub.textContent = `本档取值 ${total} 分 · 老师可在此区间内终评`;
-      svg.appendChild(sub);
+    const fades = [lab];
+    /* 下面这两行小字共用一套排版：字号比原来大 1.5 号、颜色取 ink-2（比 muted 深一档），
+       并且逐行往下错开 —— 之前它们都写在 cy+16 上，有区间又有终评时会整行叠在一起。 */
+    const note = (y, str) => {
+      const t = svgEl('text', {
+        x: cx, y: y, 'text-anchor': 'middle', 'font-size': 12.5,
+        'font-weight': 500, fill: PAL.ink2(),
+      });
+      t.textContent = str;
+      svg.appendChild(t);
+      fades.push(t);
+    };
+    if (showRange) note(cy + 21, `本档取值 ${total} 分 · 老师可在此区间内终评`);
+    // 老师已经终评过：弧画的是老师的分，但 AI 的判断不能就此消失——
+    // 把它压成一行小字留在下面，复核时才有对照物。
+    if (opts.aiTotal != null && Number(opts.aiTotal) !== Number(total)) {
+      note(showRange ? cy + 39 : cy + 21,
+        `AI 原判 ${opts.aiTotal} 分` + (showRange ? `（区间 ${U.round(lo, 0)}–${U.round(hi, 0)}）` : ''));
     }
+    /* 入场：弧从 0 画到得分位，数字在中心位原地放大出现（不再沿弧滚动）。
+       终态在上面已经画好了，popIn 只是把初态盖上去再逐帧逼近。 */
+    popIn(svg, {
+      num: num, numX: cx, numY: cy - 22, numSize: showRange ? 36 : 44, text: num.textContent,
+      fade: fades, arcs: sweeps,
+      cx: cx, cy: cy, r: r, total: total, lo: lo, hi: hi, showRange: showRange,
+    });
     return svg;
+  }
+
+  /**
+   * 入场动效：弧从 0 一路画到得分位，数字在中心位「由中间放大」出现。
+   *
+   * 两个刻意的取舍：
+   * 1) 数字不再沿弧滚动 —— 滚动时数字位数在变（0 → 68.4），宽度跟着跳，
+   *    配合缩放会抖成一团；固定终值只做缩放，出现过程才干净。
+   * 2) 缩放中心取数字的视觉中心（基线上方约 1/3 字高），不是基线本身。
+   *    按基线缩放数字会先"趴"在下面再往上顶，看着像被顶起来，而不是从中心长出来。
+   *
+   * 终态在 gauge() 里已经写死，这里只是把初态盖上去再逐帧逼近，
+   * 所以动画一旦不正常（老浏览器没有 rAF、冒烟测试的 DOM 桩上时间不推进、
+   * 用户开了减弱动效），都只会停在静态终态，不会留下画了一半的弧或缩小的数字。
+   */
+  function popIn(svg, a) {
+    try {
+      const win = svg.ownerDocument && svg.ownerDocument.defaultView;
+      if (!win || typeof win.requestAnimationFrame !== 'function') return;
+      if (win.matchMedia && win.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+      const dur = 820;
+      // 弧长 = r × 扫描角（整条半圆 = π）。解析算出来即可，
+      // 不去调 getTotalLength —— 那个方法在冒烟测试的 DOM 桩上根本不存在。
+      a.arcs.forEach((x) => {
+        x.len = Math.max(1, (a.r * Math.PI * U.clamp(x.v, 0, 100)) / 100);
+        x.el.setAttribute('stroke-dasharray', x.len);
+        x.el.setAttribute('stroke-dashoffset', x.len);
+      });
+      const num = a.num;
+      const oy = a.numY - (a.numSize || 44) * 0.34;
+      // 用 SVG transform 属性而不是 CSS transform：不依赖 transform-box / transform-origin
+      // 的浏览器支持差异，平移到原点再缩放再平移回去，等价于绕 (numX, oy) 缩放。
+      const setScale = (s) => num.setAttribute('transform',
+        `translate(${a.numX} ${oy}) scale(${s}) translate(${-a.numX} ${-oy})`);
+      // easeOutBack：末尾轻微过冲再收回，数字像"弹"出来而不是匀速长出来
+      const back = (p) => 1 + 1.8 * Math.pow(p - 1, 3) + 0.8 * Math.pow(p - 1, 2);
+      setScale(0.35);
+      num.setAttribute('opacity', 0);
+      a.fade.forEach((el) => { if (el) el.setAttribute('opacity', 0); });
+
+      let t0 = 0, frames = 0, done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        a.arcs.forEach((x) => x.el.setAttribute('stroke-dashoffset', 0));
+        num.removeAttribute('transform');
+        num.setAttribute('opacity', 1);
+        num.textContent = a.text;
+        a.fade.forEach((el) => { if (el) el.setAttribute('opacity', 1); });
+      };
+      const step = (ts) => {
+        if (done) return;
+        // DOM 桩上 rAF 不推进时间：用帧数兜底，免得回调空转把测试挂死
+        if (++frames > 90) { finish(); return; }
+        const now = typeof ts === 'number' && isFinite(ts) ? ts : Date.now();
+        const raw = U.clamp((now - t0) / dur, 0, 1);
+        if (raw >= 1) { finish(); return; }
+        const t = 1 - Math.pow(1 - raw, 3);   // 弧：ease-out，起步快、末尾稳稳落位
+        a.arcs.forEach((x) => x.el.setAttribute('stroke-dashoffset', x.len * (1 - t)));
+        // 数字比弧早一点到位：弧还在收尾时数字已经落定，视线先抓住分数再看弧
+        const p = U.clamp(raw / 0.72, 0, 1);
+        setScale(0.35 + 0.65 * back(p));
+        num.setAttribute('opacity', U.clamp(p / 0.45, 0, 1));
+        // 等级、区间说明这些小字等弧画到一半再淡入，不然一上来就糊在一起
+        a.fade.forEach((el) => { if (el) el.setAttribute('opacity', U.clamp((t - 0.5) / 0.5, 0, 1)); });
+        win.requestAnimationFrame(step);
+      };
+      win.requestAnimationFrame((ts) => {
+        t0 = typeof ts === 'number' && isFinite(ts) ? ts : Date.now();
+        step(t0);
+      });
+    } catch (e) { /* 装饰性动画：出任何岔子都保持静态终态 */ }
   }
 
 
@@ -10265,12 +11692,17 @@ def quick_sort(arr):
    * 老师拿这份 PDF 直接就能在区间内定分，不必反过来猜模型为什么给 71.3。
    */
   function drawScore(b, r) {
-    const p = r.total / 100;
-    const color = r.gradeColor || ratioColor(p);
-    const hasRange = Array.isArray(r.range) && r.range.length === 2 && r.range[1] > r.range[0];
-    b.panel(hasRange ? 108 : 92, (ctx, top) => {
+    // 教师终评过：总分区画的是老师定的分。AI 的原判不删，压成一行小字留在下面，
+    // 纸质归档时才有对照物 —— 「AI 建议 / 教师终评」双值并列是这张报告的核心价值。
+    const finalVal = r._final != null ? r._final : null;
+    const graded = finalVal != null;
+    const total = graded ? finalVal : r.total;
+    const p = total / 100;
+    const color = ratioColor(p);
+    const hasRange = !graded && Array.isArray(r.range) && r.range.length === 2 && r.range[1] > r.range[0];
+    b.panel(hasRange ? 108 : (graded ? 116 : 92), (ctx, top) => {
       // 左侧：区间（有）或总分（无）
-      const bigTxt = hasRange ? `${r.range[0]}–${r.range[1]}` : String(r.total);
+      const bigTxt = hasRange ? `${r.range[0]}–${r.range[1]}` : String(total);
       ctx.font = `700 ${hasRange ? 38 : 44}px ${FONT}`;
       ctx.fillStyle = color;
       ctx.fillText(bigTxt, M + 24, top + 60);
@@ -10281,25 +11713,36 @@ def quick_sort(arr):
 
       ctx.font = `600 13px ${FONT}`;
       ctx.fillStyle = C.faint;
-      ctx.fillText(hasRange ? '建议得分区间' : '综合得分', M + 24, top + 79);
+      ctx.fillText(hasRange ? '建议得分区间' : (graded ? '教师终评' : '综合得分'), M + 24, top + 79);
 
       // 右侧：等级 + 达成分条
       const rx = M + 210;
       const rw = CW - 210 - 24;
+      const grade = (AG.rubric && AG.rubric.gradeOf ? AG.rubric.gradeOf(total) : null)
+        || { grade: r.grade, label: r.gradeLabel };
       ctx.font = `700 22px ${FONT}`;
       ctx.fillStyle = color;
-      ctx.fillText(`${r.grade} 级`, rx, top + 40);
-      const wGrade = ctx.measureText(`${r.grade} 级`).width;
+      ctx.fillText(`${grade.grade} 级`, rx, top + 40);
+      const wGrade = ctx.measureText(`${grade.grade} 级`).width;
       ctx.font = `500 14px ${FONT}`;
       ctx.fillStyle = C.body;
-      ctx.fillText(r.gradeLabel, rx + wGrade + 8, top + 40);
+      ctx.fillText(grade.label, rx + wGrade + 8, top + 40);
 
       drawBar(ctx, rx, top + 54, rw, 10, p, color);
       ctx.font = `500 11px ${FONT}`;
       ctx.fillStyle = C.sub;
       ctx.fillText(`达成率 ${Math.round(p * 100)}%`, rx, top + 78);
 
-      if (hasRange) {
+      if (graded) {
+        ctx.font = `500 11px ${FONT}`;
+        ctx.fillStyle = C.faint;
+        const aiLine = `AI 原判 ${r.total} 分`
+          + (Array.isArray(r.range) && r.range.length === 2 && r.range[1] > r.range[0]
+            ? `（建议区间 ${r.range[0]}–${r.range[1]}）` : '')
+          + ' · 最终等级由教师裁定';
+        ctx.fillText(aiLine, M + 24, top + 99);
+        ctx.fillText('本卷分数经教师人工终评，AI 判断仅作参照', M + 24, top + 112);
+      } else if (hasRange) {
         ctx.font = `500 11px ${FONT}`;
         ctx.fillStyle = C.faint;
         const aMode = r.anchorStrength === 'soft'
@@ -10805,7 +12248,10 @@ def quick_sort(arr):
     applyPalette();
     const b = new Builder();
     const n = docs.length;
-    const totals = docs.map((d) => d.result.total);
+    // 成绩表是登分用的，必须以老师定的分为准。docs 已由调用方投影成终评口径
+    // （result._final / dims[].score 都换过了），这里直接读即可。
+    const scoreOf = (r) => (r._final != null ? r._final : r.total);
+    const totals = docs.map((d) => scoreOf(d.result));
     const sum = totals.reduce((a, b2) => a + b2, 0);
     const stats = {
       avg: sum / n,
@@ -10830,18 +12276,24 @@ def quick_sort(arr):
 
     docs.forEach((d, i) => {
       const r = d.result;
+      const score = scoreOf(r);
+      const graded = r._final != null;
+      // 老师终评过的卷，总分单元格带上标记；AI 原判并排放进同一格，
+      // 登分时若有人问「这个分怎么和系统里不一样」，表上就写着原因。
+      const g2 = AG.rubric.gradeOf(score);
       const vals = {
-        name: d.name,
-        total: r.total,
-        range: Array.isArray(r.range) && r.range.length === 2 && r.range[1] > r.range[0]
-          ? `${r.range[0]}–${r.range[1]}` : '—',
-        grade: r.grade + ' · ' + r.gradeLabel,
+        name: d.name + (graded ? '（教师终评）' : ''),
+        total: graded ? `${score}\nAI ${r.total}` : score,
+        range: graded ? '已终评'
+          : (Array.isArray(r.range) && r.range.length === 2 && r.range[1] > r.range[0]
+            ? `${r.range[0]}–${r.range[1]}` : '—'),
+        grade: g2.grade + ' · ' + g2.label,
         words: r.features.words,
         feat: r.features.codeBlockCount + ' / ' + (r.features.figureCount + r.features.tableCount),
       };
       if (hasDims) (r.dims || []).forEach((dm) => { vals['dim:' + dm.name] = dm.score; });
       // 不及格的整行标红，老师一眼扫到
-      const fail = r.total < 60;
+      const fail = score < 60;
       drawScoreRow(b, cols, vals, {
         zebra: i % 2 === 1,
         colorFor: (c) => (fail && (c.key === 'total' || c.key === 'grade') ? C.red : null),
@@ -11339,6 +12791,7 @@ def quick_sort(arr):
     induceGroups: {},   // docId -> 'high' | 'low'
     induced: null,      // 最近一次诱导结果
     labPreview: null,   // 最近一次「一句话生成」的建议量表
+    picked: new Set(),  // 报告列表里勾选的 docId，供批量操作使用
     autoFitKey: '',     // 上次自动适配时的文档集合指纹，用于避免重复跑同一批
     autoFitTimer: null,
     autoFitMuted: U.store.get('autoFitMuted', false), // 用户显式关闭过自动建议
@@ -11395,6 +12848,25 @@ def quick_sort(arr):
   }
 
   /**
+   * 设置分区条上的椭圆滑块：把那个空 span 挪到当前选中项下面、拉成它的宽度。
+   * 宽度和位移都实测 offsetWidth / offsetLeft —— 三个分区字数不同（通用 / 评阅规则 / 关于），
+   * 写死 33.3% 一定滑歪。
+   * 视图还藏着（display:none）时量出来是 0，这时直接不动，
+   * 等 switchSettingsSection 里的 rAF 那一枪再量，不会留下一个 0 宽的残影。
+   */
+  function moveSegPill() {
+    const bar = $('#setSeg');
+    if (!bar) return;
+    const pill = bar.querySelector('.seg-pill');
+    const act = bar.querySelector('.seg.active');
+    if (!pill || !act) return;
+    const w = act.offsetWidth, x = act.offsetLeft;
+    if (!w) return;
+    pill.style.width = w + 'px';
+    pill.style.transform = 'translateX(' + x + 'px)';
+  }
+
+  /**
    * 设置模块内部的（顶级）分区切换。
    * name 可以是顶级分区（general/rules/about），也可以是旧的分区名
    * （model/type/rubric/insight）——后者会落到「评阅规则」并滚动定位到对应卡片。
@@ -11409,6 +12881,9 @@ def quick_sort(arr):
       if (el) el.style.display = s === sec ? 'block' : 'none';
     });
     $$('#setSeg .seg').forEach((b) => b.classList.toggle('active', b.dataset.sec === sec));
+    // 椭圆滑块跟到当前分区：放在 toggle 之后，量的才是加粗后的最终宽度
+    moveSegPill();
+    requestAnimationFrame(moveSegPill);   // 首帧还没排版完，再补一枪
     if (sec === 'rules') {
       loadCfgForm(); renderTypeTable(); renderRubricTable(); renderLabChrome(); renderInsight();
     }
@@ -11418,6 +12893,8 @@ def quick_sort(arr):
       const card = cid && document.getElementById(cid);
       if (card) requestAnimationFrame(() => card.scrollIntoView({ behavior: 'smooth', block: 'start' }));
     }
+    // 地址栏同步：设置里的分区/卡片也进路由，刷新后能回到原处
+    if (AG.uikit) AG.uikit.writeHash('settings', sec, name !== sec ? CARD_OF[name] : '');
   }
 
   function switchView(name) {
@@ -11435,6 +12912,8 @@ def quick_sort(arr):
     if (name === 'batch') renderBatch();
     if (name === 'settings') switchSettingsSection(state.setSection);
     if (name === 'work') renderTypeBox();
+    // switchSettingsSection 自己会写带分区的路由；只有非设置页才在这里落视图名
+    if (AG.uikit && name !== 'settings') AG.uikit.writeHash(name);
   }
 
   function activeRubric() {
@@ -11472,15 +12951,22 @@ def quick_sort(arr):
    * 所以只在「动画卡通」主题下用它，其余主题回到文字标。
    */
   function renderLogo() {
-    const toon = AG.theme.get() === 'toon';
-    $('#logoBox').innerHTML = toon && AG.theme.HAS_MASCOT
+    // 吉祥物是品牌资产，**所有主题都用它当标志**；外观差异交给 CSS
+    // （卡通主题是暖奶油底，玻璃主题换成一块玻璃底座，见 main.css）。
+    // 原先只有卡通主题用它，默认主题改成浅玻璃之后顶栏就只剩「AG」两个字了。
+    const hasArt = !!AG.theme.HAS_MASCOT;
+    $('#logoBox').innerHTML = hasArt
       ? AG.theme.MASCOT_HEAD
       : '<span class="txt">AG</span>';
-    $('#logoBox').classList.toggle('is-art', !!toon && AG.theme.HAS_MASCOT);
+    $('#logoBox').classList.toggle('is-art', hasArt);
     // 顶栏头像是 innerHTML 重建的，重建后重新挂一次互动
     // （44px 太小，眼睛层不参与，只做倾斜 + 点击）
     if (AG.pet) AG.pet.attachAll();
   }
+
+  // 壁纸模块的提示语（上传失败/图片太大等）由这里统一弹出，
+  // 免得 wallpaper.js 反过来依赖 app.js 里的 toast。
+  U.bus.on('wallpaper:note', (m) => toast(m.text, m.kind || 'ok'));
 
   function setupAppearance() {
     AG.theme.apply(AG.theme.get());
@@ -11493,10 +12979,14 @@ def quick_sort(arr):
       renderLogo();
       renderResult();
       if ($('#view-batch').style.display !== 'none') renderBatch();
+      // 换肤会改变「壁纸是否生效」与雾化兜底色，选择器要跟着刷新
+      if (AG.wallpaper) AG.wallpaper.mount($('#wallpaperBox'));
       toast('已切换界面主题：' + (t ? t.name : id), 'ok');
     };
     AG.theme.mountSkinBar($('#skinBarTop'), { compact: true, onChange: onTheme });
     AG.theme.mountSkinBar($('#skinBarSettings'), { onChange: onTheme });
+    // 壁纸选择器：与主题栏同属「外观」，主题栏下面紧跟一行
+    if (AG.wallpaper) AG.wallpaper.mount($('#wallpaperBox'));
 
     AG.voice.mountTonePicker($('#tonePicker'), {
       onChange: (id) => {
@@ -11760,12 +13250,34 @@ def quick_sort(arr):
     const ul = $('#docList');
     ul.innerHTML = '';
     $('#docCount').textContent = state.docs.length + ' 份';
+    if (!state.picked) state.picked = new Set();
+    // 文档被删掉后，选择集里可能残留已不存在的 id，每次渲染顺手清理
+    Array.from(state.picked).forEach((id) => {
+      if (!state.docs.some((d) => d.id === id)) state.picked.delete(id);
+    });
+    renderBatchBar();
     if (!state.docs.length) {
       ul.appendChild(U.el('li', { class: 'hint', style: 'justify-content:center;cursor:default', html: '暂无报告' }));
       return;
     }
     state.docs.forEach((d) => {
-      const li = U.el('li', { class: d.id === state.currentId ? 'active' : '' });
+      const picked = state.picked.has(d.id);
+      const li = U.el('li', {
+        class: (d.id === state.currentId ? 'active' : '') + (picked ? ' picked' : ''),
+      });
+      // 批量的勾选框。click 必须 stopPropagation，否则会连带触发「选中当前文档」，
+      // 用户点一下复选框，右侧报告就跳走了，非常跳脱。
+      const pick = U.el('input', {
+        type: 'checkbox', class: 'pick',
+        'aria-label': '选择「' + d.name + '」以批量操作',
+      });
+      pick.checked = picked;
+      pick.addEventListener('click', (e) => e.stopPropagation());
+      pick.addEventListener('change', () => {
+        if (pick.checked) state.picked.add(d.id); else state.picked.delete(d.id);
+        renderDocList();
+      });
+      li.appendChild(pick);
       const nm = U.el('div', { class: 'nm' });
       nm.appendChild(U.el('b', { html: U.esc(d.name), title: d.name }));
       const r = d.result;
@@ -11774,13 +13286,18 @@ def quick_sort(arr):
       }));
       li.appendChild(nm);
       if (r) {
-        const s = U.el('div', { class: 'sc', style: 'color:' + r.gradeColor, html: String(r.total) });
+        const fs = AG.finalscore;
+        const t = fs ? fs.totalOf(d) : r.total;
+        const gc = fs ? fs.gradeOf(d).color : r.gradeColor;
+        const s = U.el('div', { class: 'sc', style: 'color:' + gc, html: String(t) });
+        if (fs && fs.has(d)) s.appendChild(U.el('i', { class: 'sc-teacher', title: '已有教师终评', html: '' }));
         li.appendChild(s);
       }
       const del = U.el('button', { class: 'del', title: '移除', html: '×' });
       del.addEventListener('click', (e) => {
         e.stopPropagation();
         state.docs = state.docs.filter((x) => x.id !== d.id);
+        state.picked.delete(d.id);
         if (state.currentId === d.id) state.currentId = state.docs[0] ? state.docs[0].id : null;
         persist(); renderDocList(); renderResult();
         maybeAutoFit();
@@ -11789,6 +13306,49 @@ def quick_sort(arr):
       li.addEventListener('click', () => { state.currentId = d.id; renderDocList(); renderResult(); renderTypeBox(); });
       ul.appendChild(li);
     });
+  }
+
+  /** 批量条：只在有选中时才出现，避免平时占着一行空间。 */
+  function renderBatchBar() {
+    const box = $('#batchBar');
+    if (!box) return;
+    const n = state.picked ? state.picked.size : 0;
+    if (!n) { box.style.display = 'none'; box.innerHTML = ''; return; }
+    box.style.display = 'flex';
+    box.innerHTML = '';
+    box.appendChild(U.el('span', { html: '已选中 <b>' + n + '</b> 份' }));
+    const picks = () => state.docs.filter((d) => state.picked.has(d.id));
+
+    const regrade = U.el('button', { class: 'btn sm', html: '批量重评' });
+    regrade.addEventListener('click', () => {
+      const list = picks().filter((d) => d.text);
+      if (!list.length) { toast('选中的文档里没有可重评的内容', 'err'); return; }
+      state.docs.filter((d) => state.picked.has(d.id)).forEach((d) => { d.result = null; });
+      persist(); renderDocList(); renderResult(); renderBatch();
+      toast('已重置 ' + n + ' 份文档，点「开始评分」重跑', 'ok');
+      if (AG.uikit) AG.uikit.announce('已重置 ' + n + ' 份文档的评分');
+    });
+
+    const exportOne = U.el('button', { class: 'btn sm primary', html: '导出选中（PDF）' });
+    exportOne.addEventListener('click', async () => {
+      const list = picks();
+      if (!list.length) return;
+      const graded = list.filter((d) => d.result && !d.result.gate);
+      if (!graded.length) { toast('选中的文档还没有可导出的评阅结果', 'err'); return; }
+      try {
+        await AG.pdf.exportDocs(graded.map((d) => AG.finalscore.finalView(d)), '选中文档汇总.pdf');
+        toast('已导出 ' + graded.length + ' 份', 'ok');
+      } catch (err) {
+        toast('导出失败：' + (err && err.message ? err.message : '未知原因'), 'err');
+      }
+    });
+
+    const clear = U.el('button', { class: 'btn sm', html: '取消选择' });
+    clear.addEventListener('click', () => { state.picked.clear(); renderDocList(); });
+
+    box.appendChild(regrade);
+    box.appendChild(exportOne);
+    box.appendChild(clear);
   }
 
   /* ---------------- 渲染：评阅结果 ---------------- */
@@ -11825,8 +13385,8 @@ def quick_sort(arr):
     const doc = state.docs.find((d) => d.id === state.currentId);
 
     if (!doc) {
-      // 空状态：卡通主题下用原创吉祥物插画，其余主题仍用通用图标
-      // （位图是暖色调的，在冷色主题里降透明度会显脏，不如不给）
+      // 空状态：只有卡通主题用大幅吉祥物插画（位图是暖色调，铺在玻璃主题的大片留白里会突兀）；
+      // 玻璃主题的品牌露出交给顶栏那个小标志（配玻璃底座，有容器框住就不会散）
       const toon = AG.theme.get() === 'toon';
       const art = (toon && AG.theme.HAS_MASCOT && AG.theme.MASCOT_FULL) || ICONS.target;
       card.innerHTML = `<div class="empty">
@@ -11851,12 +13411,20 @@ def quick_sort(arr):
     }
 
     const r = doc.result;
-    const g = AG.rubric.gradeOf(r.total);
+    const FS = AG.finalscore;
+    // 终评口径：老师改过分之后，页面上的每一个数字都要跟着变。
+    // aiTotal 单独留一份，用于「双值并列」时把 AI 原始判断同时摆出来。
+    const aiTotal = FS.aiTotalOf(doc);
+    const finalTotal = FS.totalOf(doc);
+    const edited = FS.has(doc);
+    const g = FS.gradeOf(doc);
     // 溯源自检：模型引用的原文片段，逐条回查在不在报告里
     const trace = AG.reliability.evidenceAudit(r);
 
     const dimsHtml = r.dims.map((d, i) => {
-      const pct = Math.round(d.ratio * 100);
+      const dimScore = FS.dimScoreOf(doc, d);
+      const dimEdited = FS.isDimOverridden(doc, d.id);
+      const pct = Math.round(FS.dimRatioOf(doc, d) * 100);
       const evChips = (d.evidence || []).map((e) => `<span class="chip ok">✓ ${U.esc(e.label)}</span>`).join('');
       const missChips = (d.missing || []).map((m) => `<span class="chip miss">✗ ${U.esc(m.label)}</span>`).join('');
       const penChips = (d.penalties || []).map((p) => `<span class="chip pen">- ${U.esc(p.label)}${p.weight ? ' (' + p.weight + ')' : ''}</span>`).join('');
@@ -11888,16 +13456,27 @@ def quick_sort(arr):
             c.note ? `<small class="nt">${U.esc(c.note)}</small>` : ''}</div>`).join('')}</div>`
         : '<div class="grp" style="margin-top:10px"><div class="lb">判定依据 · 报告原文</div><div class="hint" style="font-size:12px">本维度未给出原文引用，扣分理由无法当场核对，建议人工复核</div></div>';
 
-      return `<div class="dim${i === 0 ? ' open' : ''}" data-i="${i}">
+      return `<div class="dim${dimEdited ? ' dim-edited' : ''}" data-i="${i}" id="dim-${U.esc(d.id)}">
         <div class="hd">
           <span class="caret">▶</span>
           <span class="nm">${U.esc(d.name)}</span>
           ${lv}
+          ${dimEdited ? '<span class="badge final">已终评</span>' : ''}
           <span class="bar"><i style="width:${pct}%"></i></span>
-          <span class="val" style="color:${d.missingOutput ? 'var(--red)' : g.color}">${d.missingOutput ? '—' : d.score}/${d.max}</span>
+          <span class="val" style="color:${d.missingOutput ? 'var(--red)' : g.color}">${d.missingOutput ? '—' : dimScore + '/' + d.max}</span>
         </div>
         <div class="bd">
           <div class="desc">${U.esc(d.desc || '')}</div>
+          <div class="final-editor">
+            <label>教师终评
+              <input type="number" class="dim-final" data-dim="${U.esc(d.id)}"
+                     value="${dimScore}" min="0" max="${d.max}" step="0.5"
+                     aria-label="${U.esc(d.name)}的教师终评分，满分 ${d.max} 分">
+            </label>
+            <span class="hint">满分 ${d.max} 分</span>
+            ${dimEdited ? `<span class="hint">AI 原判 ${d.score} 分</span>
+              <button class="btn sm" data-dim-revert="${U.esc(d.id)}">撤销此项</button>` : ''}
+          </div>
           ${d.missingOutput ? '<div class="chips" style="margin-bottom:8px"><span class="chip pen">⚠ 模型未返回该维度分数，当前按 0 分计入总分，请人工评分</span></div>' : ''}
           ${d.bandRange ? `<div class="chips" style="margin-bottom:8px">${bandTip}${crossChip}</div>` : (crossChip ? `<div class="chips" style="margin-bottom:8px">${crossChip}</div>` : '')}
           ${reason}
@@ -11912,6 +13491,24 @@ def quick_sort(arr):
       </div>`;
     }).join('');
 
+    /* 维度锚点导航条。
+     * 一份报告 8 个维度、每篇动辄上千字，想核对某一维往往得滚半天；
+     * 这一条把「跳过去」变得只需要一次点击。
+     * 分数直接取终评口径，老师改过分之后导航条上的数字也必须是新的。
+     * 用 sticky 而不是定高，是因为定高的导航条会与顶栏打架。 */
+    const tocHtml = r.dims.length > 1 ? '<nav class="toc" aria-label="维度快速定位">' +
+      r.dims.map((d) => {
+        const ds = FS.dimScoreOf(doc, d);
+        const dg = d.missingOutput ? null : FS.gradeOf(Object.assign({}, doc, {
+          final: Object.assign({}, doc.final, { total: Math.round((ds / (d.max || 1)) * 100) }),
+        }));
+        return `<a href="#dim-${U.esc(d.id)}" data-dim-jump="${U.esc(d.id)}"${
+          FS.isDimOverridden(doc, d.id) ? ' class="edited"' : ''}>
+          <span class="tn">${U.esc(d.name)}</span>
+          <b class="tv"${dg ? ` style="color:${dg.color}"` : ''}>${d.missingOutput ? '—' : ds + '/' + d.max}</b>
+        </a>`;
+      }).join('') + '</nav>' : '';
+
     const f = r.features || doc.features;
     const anchorMode = r.anchorStrength === 'soft' ? 'soft' : 'hard';
     const anchorNote = (r.anchorAudit && r.anchorAudit.total)
@@ -11919,6 +13516,22 @@ def quick_sort(arr):
           ? '本报告判定为清晰（模型打分稳定' + (r.clarity != null ? '，适配置信度 ' + Math.round(r.clarity * 100) + '%' : '') + '），已切换为软锚点：档位仅作参照，分数允许在档位附近小幅浮动，以避免把选档的轻微摇摆放大成整档差；请以「建议得分区间」为准。'
           : '采用「先定档、再在档内取分」的硬锚点判定，分数可逐档复核' + (r.anchorAudit.crossBands ? '。其中 ' + r.anchorAudit.crossBands + ' 个维度分数与所选档位不符（' + (r.anchorAudit.crossBandNames || []).map(U.esc).join('、') + '），已自动按档位区间校正，可直接核查。' : '，模型给分与所选档位完全一致。') + '　提示：实测发现硬锚点对模糊/两可的报告降噪显著，但对模型本就笃定的清晰报告，可能把选档的轻微摇摆放大成整档差；可在「信度自检 → 单份报告稳定性」中查看锚点适配建议。')
       : '';
+
+    const auditBlocks = [
+      r.citationAudit && r.citationAudit.total ? `<div class="susp${r.citationAudit.unverified ? ' warn' : ''}" style="margin-bottom:12px">
+        <span class="badge ${r.citationAudit.unverified ? 'red' : 'green'}">原文引用核查</span>
+        <span>模型共给出 <b>${r.citationAudit.total}</b> 条判定依据引用，其中 <b>${r.citationAudit.verified}</b> 条可在报告中逐字查到${
+          r.citationAudit.unverified ? `，<b>${r.citationAudit.unverified}</b> 条查不到（已在下方标红，该维度的扣分理由需您自行判断）` : '，全部可核对'}。${
+          (r.citationAudit.missingDims || []).length ? `另有 ${r.citationAudit.missingDims.length} 个维度未给引用（${r.citationAudit.missingDims.map(U.esc).join('、')}）。` : ''}</span></div>` : '',
+      r.anchorAudit && r.anchorAudit.total ? `<div class="susp" style="margin-bottom:12px">
+        <span class="badge ${r.anchorStrength === 'soft' ? 'blue' : (r.anchorAudit.crossBands ? 'amber' : 'green')}">${r.anchorStrength === 'soft' ? '评分锚点 · 软锚点' : '评分锚点'}</span>
+        <span>${r.anchorAudit.total} 个维度采用「先定档、再在档内取分」判定${anchorNote}</span></div>` : '',
+      trace.ok ? `<div class="susp" style="margin-bottom:12px">
+        <span class="badge ${trace.thin.length || trace.hallucinated.length ? 'amber' : 'green'}">溯源自检</span>
+        <span>${trace.dims.length} 个维度中，<b>${trace.solid.length}</b> 个由直接证据支撑（占得分依据 70% 以上）${trace.thin.length ? `，<b>${trace.thin.length}</b> 个主要靠结构特征得分` : ''}${trace.hallucinated.length ? `，<b>${trace.hallucinated.length}</b> 个存在无法核实的证据` : ''}。
+        全卷证据支撑度 <b>${Math.round(trace.supportRate * 100)}%</b>，共命中 ${trace.evidenceTotal} 项证据、未命中 ${trace.missingTotal} 项。</span></div>` : '',
+    ].filter(Boolean).join('');
+
     card.innerHTML = `
       <div class="result-head">
         <div class="meta">
@@ -11953,17 +13566,27 @@ def quick_sort(arr):
       ${r.langNote ? `<div class="gate warn"><div class="gt"><b>评分可能失真</b></div>
         <div class="hint" style="font-size:13px">${U.esc(r.langNote)}</div></div>` : ''}
 
-      ${r.range ? `<div class="range-band">
+      ${edited ? `<div class="final-band">
+        <div class="fb-main">
+          <span class="rb-label">教师终评</span>
+          <b class="fb-val">${finalTotal}</b>
+          <span class="rb-unit">分</span>
+          <span class="badge final">已终评 · ${U.esc(g.grade)} ${U.esc(g.label)}</span>
+        </div>
+        <div class="rb-note">AI 原判 <b>${aiTotal}</b> 分${r.range ? `（建议区间 ${r.range[0]}–${r.range[1]}）` : ''}。你的终评会覆盖 AI 判断，
+        贯通成绩汇总、PDF 导出与答疑上下文；点「撤销终评」可随时回到 AI 原始分。
+        <button class="btn sm" id="btnRevertFinal">撤销终评</button></div>
+      </div>` : (r.range ? `<div class="range-band">
         <div class="rb-main">
           <span class="rb-label">建议得分区间</span>
           <b class="rb-val">${r.range[0]} – ${r.range[1]}</b>
           <span class="rb-unit">分</span>
-          <span class="rb-cur">本档取值 ${r.total} 分</span>
+          <span class="rb-cur">本档取值 ${finalTotal} 分</span>
         </div>
         <div class="rb-note">${r.straddles
           ? `该区间横跨 <b>${U.esc(r.gradeStraddle || '')}</b> 两个等级，最终等级由老师裁定。`
           : '区间来源于各维度「档位下界之和 ~ 档位上界之和」，代表模型判断的置信范围，老师可在此范围内直接定分。'}</div>
-      </div>` : ''}
+      </div>` : '')}
 
       <div class="score-grid">
         <div class="gauge-box" id="gaugeBox"></div>
@@ -11983,28 +13606,50 @@ def quick_sort(arr):
       <div class="overall" style="margin:16px 0 14px">${U.esc(r.overall || '')}</div>
 
       <h3 style="font-size:14px;margin:0 0 10px">逐项核查 <span class="hint" style="font-weight:500">点击维度展开档位理由与报告原文</span></h3>
-      ${r.citationAudit && r.citationAudit.total ? `<div class="susp${r.citationAudit.unverified ? ' warn' : ''}" style="margin-bottom:12px">
-        <span class="badge ${r.citationAudit.unverified ? 'red' : 'green'}">原文引用核查</span>
-        <span>模型共给出 <b>${r.citationAudit.total}</b> 条判定依据引用，其中 <b>${r.citationAudit.verified}</b> 条可在报告中逐字查到${
-          r.citationAudit.unverified ? `，<b>${r.citationAudit.unverified}</b> 条查不到（已在下方标红，该维度的扣分理由需您自行判断）` : '，全部可核对'}。${
-          (r.citationAudit.missingDims || []).length ? `另有 ${r.citationAudit.missingDims.length} 个维度未给引用（${r.citationAudit.missingDims.map(U.esc).join('、')}）。` : ''}</span></div>` : ''}
-      ${r.anchorAudit && r.anchorAudit.total ? `<div class="susp" style="margin-bottom:12px">
-        <span class="badge ${r.anchorStrength === 'soft' ? 'blue' : (r.anchorAudit.crossBands ? 'amber' : 'green')}">${r.anchorStrength === 'soft' ? '评分锚点 · 软锚点' : '评分锚点'}</span>
-        <span>${r.anchorAudit.total} 个维度采用「先定档、再在档内取分」判定${anchorNote}</span></div>` : ''}
-      ${trace.ok ? `<div class="susp" style="margin-bottom:12px">
-        <span class="badge ${trace.thin.length || trace.hallucinated.length ? 'amber' : 'green'}">溯源自检</span>
-        <span>${trace.dims.length} 个维度中，<b>${trace.solid.length}</b> 个由直接证据支撑（占得分依据 70% 以上）${trace.thin.length ? `，<b>${trace.thin.length}</b> 个主要靠结构特征得分` : ''}${trace.hallucinated.length ? `，<b>${trace.hallucinated.length}</b> 个存在无法核实的证据` : ''}。
-        全卷证据支撑度 <b>${Math.round(trace.supportRate * 100)}%</b>，共命中 ${trace.evidenceTotal} 项证据、未命中 ${trace.missingTotal} 项。</span></div>` : ''}
+      ${tocHtml}
       ${dimsHtml}
-      ${renderFacts(doc)}
+      ${auditBlocks ? `<details class="adv-block card-fold result-audit" id="resultAudit">
+        <summary>评分可信性核查 <span class="sub">原文引用 · 锚点 · 溯源</span></summary>
+        <div class="adv-body">${auditBlocks}</div>
+      </details>` : ''}
     `;
 
-    $('#gaugeBox').appendChild(AG.charts.gauge(r.total, { size: 250, range: r.range, gradeStraddle: r.gradeStraddle }));
-    $('#radarBox').appendChild(AG.charts.radar(r.dims, { size: 400 }));
+    $('#gaugeBox').appendChild(AG.charts.gauge(finalTotal, {
+      size: 250,
+      // 已终评时不再画「建议区间」——区间是 AI 的置信范围，
+      // 老师已经拍板的时候还摆一个区间在外圈，会让终评分看起来像个没落地的建议。
+      range: edited ? null : r.range,
+      gradeStraddle: edited ? '' : r.gradeStraddle,
+      aiTotal: aiTotal,
+    }));
+    // 雷达图必须吃「终评口径」的 dims：它读的是每个维度的 ratio，
+    // 只改总分不改 ratio，图会原地不动，跟数字对不上。
+    $('#radarBox').appendChild(AG.charts.radar(r.dims.map((d) => Object.assign({}, d, {
+      score: FS.dimScoreOf(doc, d),
+      ratio: FS.dimRatioOf(doc, d),
+    })), { size: 400 }));
 
     $$('.dim .hd', card).forEach((hd) => {
       hd.addEventListener('click', () => hd.parentElement.classList.toggle('open'));
     });
+
+    /* 锚点跳转。
+     * scrollIntoView 只在点击回调里调用——smoke 的 DOM 桩上没有这个方法，
+     * 写在加载路径上会直接抛异常。跳转后顺手把目标维度展开：
+     * 点了导航却停在一个折叠的标题上，等于没跳。 */
+    $$('.toc a[data-dim-jump]', card).forEach((a) => {
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        const id = a.dataset.dimJump;
+        const target = document.getElementById('dim-' + id);
+        if (!target) return;
+        target.classList.add('open');
+        if (target.scrollIntoView) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        // 高亮当前项，给出「我在看哪一维」的即时反馈
+        $$('.toc a', card).forEach((x) => x.classList.toggle('on', x === a));
+      });
+    });
+
     bindResultButtons();
   }
 
@@ -12058,6 +13703,79 @@ def quick_sort(arr):
       renderDocList();
       toast('已忽略文体校验，按正常评分重算', 'ok');
     });
+
+    bindFinalScore();
+  }
+
+  /**
+   * 教师终评的交互绑定。
+   * 全部监听都挂在「结果卡片重建之后」调用，因为卡片是 innerHTML 整块换掉的，
+   * 旧节点上的监听会随之消失，每轮重绘都得重新挂一次。
+   */
+  function bindFinalScore() {
+    const card = $('#resultCard');
+    if (!card) return;
+
+    // 逐维度改分：用 change 而不是 input —— 老师在输入框里敲「8」的时候，
+    // 中途会经过空值、单个数字这些中间态，边敲边重算会让总分不停跳动。
+    $$('.dim-final', card).forEach((inp) => {
+      inp.addEventListener('change', () => {
+        const d = state.docs.find((x) => x.id === state.currentId);
+        if (!d) return;
+        const raw = inp.value;
+        if (raw === '' || raw === null) {
+          AG.finalscore.revertDim(d, inp.dataset.dim);
+        } else {
+          const v = Number(raw);
+          if (!isFinite(v)) { toast('请输入一个数字', 'err'); return; }
+          AG.finalscore.setDim(d, inp.dataset.dim, v);
+        }
+        persist();
+        renderResult();
+        renderDocList();
+        renderBatch();
+        const msg = AG.finalscore.has(d)
+          ? '已记录你的终评：' + AG.finalscore.totalOf(d) + ' 分'
+          : '已撤销该维度的终评';
+        toast(msg, 'ok');
+        // 分数是画面上的数字变了、焦点却没动，读屏用户察觉不到，必须显式播报
+        if (AG.uikit) AG.uikit.announce(msg);
+      });
+    });
+
+    // 撤销单个维度
+    $$('[data-dim-revert]', card).forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const d = state.docs.find((x) => x.id === state.currentId);
+        if (!d) return;
+        AG.finalscore.revertDim(d, btn.dataset.dimRevert);
+        persist();
+        renderResult();
+        renderDocList();
+        renderBatch();
+        toast('已撤销该维度的终评', 'ok');
+      });
+    });
+
+    // 撤销全部终评
+    const all = $('#btnRevertFinal');
+    if (all) all.addEventListener('click', async () => {
+      const d = state.docs.find((x) => x.id === state.currentId);
+      if (!d) return;
+      const ok = await AG.confirm({
+        title: '撤销本次终评',
+        message: '将放弃你在这份报告上做过的全部人工评分，回到 AI 原始分数。此操作可随时重做，确定撤销？',
+        okText: '撤销终评',
+      });
+      if (!ok) return;
+      AG.finalscore.revert(d);
+      persist();
+      renderResult();
+      renderBatch();
+      renderDocList();
+      toast('已撤销终评，回到 AI 原始分', 'ok');
+    });
   }
 
   /* ---------------- 渲染：成绩汇总 ---------------- */
@@ -12079,7 +13797,9 @@ def quick_sort(arr):
     const box = $('#batchStats');
     if (!box) return;
     if (!graded.length) { box.innerHTML = ''; const d = $('#batchDist'); if (d) d.innerHTML = ''; return; }
-    const totals = graded.map((d) => d.result.total);
+    // 统一走终评口径：老师改过分之后，汇总表与分布图必须跟着变，
+    // 否则会出现「明细页显示 82、汇总表还是 AI 的 71」这种自相矛盾。
+    const totals = graded.map((d) => AG.finalscore.totalOf(d));
     const n = totals.length;
     const sum = totals.reduce((a, b) => a + b, 0);
     const avg = sum / n;
@@ -12091,10 +13811,11 @@ def quick_sort(arr):
     // 各等级人数：按分数从高到低
     const order = ['A', 'B', 'C', 'D', 'F'];
     const tally = {};
-    graded.forEach((d) => { const g = d.result.grade || 'F'; tally[g] = (tally[g] || 0) + 1; });
+    const gradeOfDoc = (d) => AG.finalscore.gradeOf(d);
+    graded.forEach((d) => { const g = gradeOfDoc(d).grade || 'F'; tally[g] = (tally[g] || 0) + 1; });
     const grades = order.filter((g) => tally[g]).map((g) => {
-      const sample = graded.find((d) => (d.result.grade || 'F') === g).result;
-      return { g: g, label: sample.gradeLabel, color: sample.gradeColor, n: tally[g] };
+      const sample = gradeOfDoc(graded.find((d) => (gradeOfDoc(d).grade || 'F') === g));
+      return { g: g, label: sample.label, color: sample.color, n: tally[g] };
     });
 
     const stat = (label, value, sub, color) =>
@@ -12148,11 +13869,16 @@ def quick_sort(arr):
     }
     graded.forEach((d) => {
       const r = d.result;
+      const fs = AG.finalscore;
+      const t = fs.totalOf(d);
+      const g = fs.gradeOf(d);
+      const edited = fs.has(d);
       const tr = U.el('tr', {});
       tr.innerHTML =
-        '<td>' + U.esc(d.name) + '</td>' +
-        '<td class="c" style="font-weight:800;color:' + r.gradeColor + '">' + r.total + '</td>' +
-        '<td class="c"><span class="badge" style="background:' + r.gradeColor + '18;color:' + r.gradeColor + '">' + r.grade + ' · ' + r.gradeLabel + '</span></td>' +
+        '<td>' + U.esc(d.name) + (edited ? ' <span class="badge final">已终评</span>' : '') + '</td>' +
+        '<td class="c" style="font-weight:800;color:' + g.color + '">' + t +
+          (edited ? '<small class="ai-hint">AI ' + r.total + '</small>' : '') + '</td>' +
+        '<td class="c"><span class="badge" style="background:' + g.color + '18;color:' + g.color + '">' + g.grade + ' · ' + g.label + '</span></td>' +
         '<td class="c">' + r.features.words + '</td>' +
         '<td class="c">' + r.features.codeBlockCount + '</td>' +
         '<td class="c">' + (r.features.figureCount + r.features.tableCount) + '</td>' +
@@ -13279,7 +15005,9 @@ def quick_sort(arr):
     const btn = $('#btnExportOnePdf');
     if (btn) { btn.disabled = true; btn.textContent = '生成中…'; }
     try {
-      await AG.pdf.exportDocs([doc], `评阅报告-${doc.name.replace(/\.[^.]+$/, '')}.pdf`);
+      // 导出前投影成「终评口径」：绘制层只认分数字段，不该知道人工终评这回事。
+      // 收口在这一行，pdf.js 里就不必处处判分支。
+      await AG.pdf.exportDocs([AG.finalscore.finalView(doc)], `评阅报告-${doc.name.replace(/\.[^.]+$/, '')}.pdf`);
       toast(U.downloadRisky()
         ? '已生成 PDF。若浏览器没有开始下载，请看导出按钮下方的提示'
         : '已导出 PDF 评阅报告', 'ok');
@@ -13297,7 +15025,7 @@ def quick_sort(arr):
     const btn = $('#btnExportAllPdf');
     if (btn) { btn.disabled = true; btn.textContent = `生成中… (${graded.length} 份)`; }
     try {
-      await AG.pdf.exportDocs(graded, '评阅报告汇总.pdf');
+      await AG.pdf.exportDocs(graded.map((d) => AG.finalscore.finalView(d)), '评阅报告汇总.pdf');
       toast(U.downloadRisky()
         ? `已生成 ${graded.length} 份报告的 PDF。若浏览器没有开始下载，请看导出按钮下方的提示`
         : `已导出 ${graded.length} 份评阅报告 PDF`, 'ok');
@@ -13317,7 +15045,7 @@ def quick_sort(arr):
     const btn = $('#btnExportScorePdf');
     if (btn) { btn.disabled = true; btn.textContent = `生成中… (${graded.length} 份)`; }
     try {
-      await AG.pdf.exportScoreTable(graded, '成绩表.pdf');
+      await AG.pdf.exportScoreTable(graded.map((d) => AG.finalscore.finalView(d)), '成绩表.pdf');
       toast(U.downloadRisky()
         ? `已生成成绩表 PDF（${graded.length} 份）。若浏览器没有开始下载，请看导出按钮下方的提示`
         : `已导出成绩表 PDF（${graded.length} 份）`, 'ok');
@@ -13457,7 +15185,19 @@ def quick_sort(arr):
     const show = open === undefined ? !p.classList.contains('on') : !!open;
     p.classList.toggle('on', show);
     fab.classList.toggle('on', show);
-    if (show) { updateChatMode(); renderChatChips(); renderChat(); $('#chatInput').focus(); }
+    // 抽屉开合要同步到 ARIA：读屏用户靠 aria-expanded 判断当前状态，
+    // 光靠视觉上的位移他们是感知不到的
+    fab.setAttribute('aria-expanded', show ? 'true' : 'false');
+    if (show) {
+      updateChatMode(); renderChatChips(); renderChat();
+      // 打开时把 Tab 关在抽屉里，避免焦点跑到背后的页面上「消失」
+      if (AG.uikit) AG.uikit.trap('chatPanel', true);
+      $('#chatInput').focus();
+    } else {
+      if (AG.uikit) AG.uikit.release('chatPanel');
+      // 关闭后把焦点还给触发它的 FAB，键盘用户才能接着往下走
+      fab.focus();
+    }
   }
 
   /* ---------------- 事件绑定 ---------------- */
@@ -13582,11 +15322,35 @@ def quick_sort(arr):
     // 上传
     $('#dropzone').addEventListener('click', () => $('#fileInput').click());
     $('#fileInput').addEventListener('change', (e) => { handleFiles(e.target.files); e.target.value = ''; });
+
+    /* 拖拽落区：拖进来的东西能不能评，要在**松手之前**就告诉用户。
+     * 一律显示「可放下」、等松手才报错，是最让人恼火的一种交互——
+     * 用户白拖一场，还得自己猜是哪儿不对。 */
+    const ACCEPT_EXT = /\.(md|markdown|txt|docx|pdf|html?|tex)$/i;
+    const draggedOk = (e) => {
+      const dt = e.dataTransfer;
+      if (!dt) return true;
+      // 拖文件时拿 files；拖文本/链接时 files 为空，那种一律放行交给后续处理
+      const items = dt.items ? Array.prototype.slice.call(dt.items) : [];
+      const files = dt.files ? Array.prototype.slice.call(dt.files) : [];
+      if (items.length && !files.length) return true;
+      if (!files.length) return true;
+      return files.every((f) => ACCEPT_EXT.test(f.name || ''));
+    };
     ['dragenter', 'dragover'].forEach((ev) => $('#dropzone').addEventListener(ev, (e) => {
-      e.preventDefault(); $('#dropzone').classList.add('over');
+      e.preventDefault();
+      const ok = draggedOk(e);
+      const dz = $('#dropzone');
+      dz.classList.add('over');
+      // bad 类由 CSS 渲染成红框 + 「该文件类型无法评阅」
+      dz.classList.toggle('bad', !ok);
+      if (e.dataTransfer) e.dataTransfer.dropEffect = ok ? 'copy' : 'none';
     }));
     ['dragleave', 'drop'].forEach((ev) => $('#dropzone').addEventListener(ev, (e) => {
-      e.preventDefault(); $('#dropzone').classList.remove('over');
+      e.preventDefault();
+      const dz = $('#dropzone');
+      dz.classList.remove('over');
+      dz.classList.remove('bad');
     }));
     $('#dropzone').addEventListener('drop', (e) => handleFiles(e.dataTransfer.files));
 
@@ -13654,6 +15418,16 @@ def quick_sort(arr):
           toast('请选择一个开源服务商，填入 API Key 后保存', 'err');
           const el = $('#cfgApiKey'); if (el) el.focus();
         }
+      });
+    }
+
+    // 文档类型卡片：类型是在设置里统一维护的，工作台这侧给一个直达入口，
+    // 免得老师在一堆卡片里翻找「到底在哪儿加类型」
+    const goTypes = $('#btnTypeSettings');
+    if (goTypes) {
+      goTypes.addEventListener('click', () => {
+        switchView('settings');
+        switchSettingsSection('type');
       });
     }
 
@@ -13778,6 +15552,27 @@ def quick_sort(arr):
   /* ---------------- 启动 ---------------- */
   function init() {
     bind();
+    // 记录设置页所有 <details> 的初始 open 状态。浏览器在 pageshow/bfcache 恢复时会保留
+    // 用户上一次的折叠状态，导致「更新网页后夹子要关闭」的期望落空；这里记下来后面恢复。
+    $$('#view-settings details').forEach((d) => {
+      d.dataset.initialOpen = d.hasAttribute('open') ? 'true' : 'false';
+    });
+    window.addEventListener('pageshow', () => {
+      $$('#view-settings details').forEach((d) => {
+        if (d.dataset.initialOpen === 'true') d.setAttribute('open', '');
+        else d.removeAttribute('open');
+      });
+      moveSegPill();
+    });
+    // 椭圆滑块：窗口变窄时分区条会重排，位置得重算；
+    // 字体异步就位后按钮宽度也会变，同样补一次。
+    window.addEventListener('resize', moveSegPill);
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(moveSegPill).catch(() => {});
+    }
+    // 通用交互套件：顶部标签与设置分区条的左右键漫游、地址栏路由恢复。
+    // 放在 bind() 之后，保证各视图的首帧已经渲染好，路由落上去不会白屏。
+    if (AG.uikit) AG.uikit.init({ switchView, switchSettingsSection, CARD_OF });
     // 应用内对话框：绑定自身按钮/键盘（替代原生 confirm / prompt，见 confirm.js）
     if (AG.dialogInit) AG.dialogInit();
     // 提前把吉祥物解码成 Image，供 PDF 导出的 Canvas 同步绘制用
@@ -13798,11 +15593,14 @@ def quick_sort(arr):
     renderResult();
     renderTypeBox();
 
-    // 无障碍：Esc 关闭当前打开的模态框（粘贴 / 类型编辑）
+    // 无障碍：Esc 关闭当前打开的模态框（粘贴 / 类型编辑 / 答疑抽屉）
     document.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape') return;
       if ($('#typeMask').classList.contains('on')) closeTypeModal();
       else if ($('#pasteMask').classList.contains('on')) { $('#pasteMask').classList.remove('on'); restoreModalFocus(); }
+      // 抽屉也归 Esc 管：键盘用户不该被迫去够鼠标才能关掉它。
+      // 由最外层弹窗优先，所以放在最后判断。
+      else if ($('#chatPanel').classList.contains('on')) toggleChat(false);
     });
 
     /* 类型库的变更订阅——「双向同步」的另一半。

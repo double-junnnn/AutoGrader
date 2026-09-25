@@ -432,17 +432,46 @@ h1, h2, h3, .brand h1 { font-family: var(--font-title); }
 
 /* 设置模块的分区导航（个性化 / 类型 / 模型 / 量表 / 分析 / 关于）。
    与诱导面板里那个 .seg 容器同名，所以全部规则都收在 .segbar 下，避免互相污染。 */
-/* 二级导航要明显「低一级」：去掉与一级 .tabs 同款的底色胶囊，改用下划线指示，
-   字号/字重/对比度同步下压 —— 否则两套导航长得几乎一样，层级读不出来。 */
-.segbar { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 14px; padding: 0 0 6px; border-bottom: 1px solid var(--line); }
-.segbar > .seg {
-  display: inline-flex; align-items: center; padding: 6px 10px;
-  border: 0; background: transparent; border-radius: 0; cursor: pointer;
-  color: var(--muted); font: inherit; font-size: 12.5px; font-weight: 500; transition: .15s;
+/* 二级导航要明显「低一级」：做成一条细胶囊 + 椭圆滑块，而不是一级 .tabs 那种整块底色的卡片。
+   滑块 .seg-pill 是绝对定位的空 span，位置与宽度由 JS 按当前选中项实测写入 —— 不用百分比，
+   是因为三个分区字数不同（通用 / 评阅规则 / 关于），写死 33.3% 会滑歪。 */
+.segbar {
+  position: relative; display: inline-flex; gap: 2px;
+  margin-bottom: 14px; padding: 4px;
+  background: var(--surface-2);
+  border: 1px solid var(--line); border-radius: 999px;
 }
-.segbar > .seg:hover { color: var(--brand); background: transparent; }
-.segbar > .seg.active { background: transparent; color: var(--brand); font-weight: 700; box-shadow: inset 0 -2px 0 var(--brand); }
+.segbar > .seg {
+  position: relative; z-index: 1;
+  display: inline-flex; align-items: center; padding: 7px 15px;
+  border: 0; background: transparent; border-radius: 999px; cursor: pointer;
+  color: var(--muted); font: inherit; font-size: 13px; font-weight: 500; white-space: nowrap;
+  transition: color var(--dur-quick) ease;
+}
+.segbar > .seg:hover { color: var(--ink); background: transparent; }
+.segbar > .seg.active { background: transparent; color: var(--brand); font-weight: 700; box-shadow: none; }
 
+/* 椭圆滑块：只过渡 transform / width，两条一起动才不会「先拉宽再平移」那样分家 */
+.seg-pill {
+  position: absolute; top: 4px; left: 0; width: 0; height: calc(100% - 8px);
+  border-radius: 999px;
+  background: var(--panel-solid, var(--panel));
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-sm);
+  pointer-events: none;
+  transition: transform var(--dur-move) var(--spring-bounce),
+              width var(--dur-move) var(--spring-bounce),
+              background var(--dur-quick) ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .seg-pill { transition: none; }
+}
+/* toon 主题：滑块承担那道粗描边，按钮自己不能加边 —— 否则 active 时按钮变宽 4px，滑块会追着抖 */
+:root[data-theme="toon"] .segbar { border-width: 2px; }
+:root[data-theme="toon"] .segbar > .seg.active { border: 0; }
+:root[data-theme="toon"] .seg-pill { border-width: 2px; box-shadow: 2px 2px 0 var(--ink-line); }
+
+.result-audit { margin-top: 16px; }
 .layout { display: grid; grid-template-columns: 320px 1fr; gap: 16px; align-items: start; }
 @media (max-width: 980px) { .layout { grid-template-columns: 1fr; } }
 
@@ -770,7 +799,7 @@ table.tb input { padding: 5px 8px; }
   body { background: #fff; }
   .topbar, .tabs, .card.side, .btn, .toast-wrap, .dim > .hd .caret, .skin-bar { display: none !important; }
   .layout { grid-template-columns: 1fr; }
-  .card { box-shadow: none; border-color: var(--print-line); break-inside: avoid; }
+  .card, .card-fold { box-shadow: none; border-color: var(--print-line); break-inside: avoid; }
   .dim .bd { display: block !important; }
 }
 
@@ -940,7 +969,7 @@ table.tb input { padding: 5px 8px; }
 :root[data-theme="toon"] .btn:not(:disabled):hover { transform: translate(-1px, -1px); box-shadow: 3px 3px 0 var(--ink-line); }
 :root[data-theme="toon"] .btn:not(:disabled):active { transform: translate(3px, 3px); box-shadow: 0 0 0 var(--ink-line); }
 :root[data-theme="toon"] .tab.active { border: 2px solid var(--ink-line); }
-:root[data-theme="toon"] .segbar > .seg.active { border: 2px solid var(--ink-line); font-weight: 800; }
+:root[data-theme="toon"] .segbar > .seg.active { font-weight: 800; }
 :root[data-theme="toon"] .doclist li.active { border-width: 2.5px; }
 :root[data-theme="toon"] .badge { font-weight: 800; }
 :root[data-theme="toon"] .dim .bar { height: 12px; border: 2px solid var(--ink-line); background: var(--surface-3); }
@@ -1178,12 +1207,14 @@ table.tb input { padding: 5px 8px; }
 
 /* 减弱动效：保留必要淡入反馈，关闭位移/缩放与毛玻璃，避免前庭不适 */
 @media (prefers-reduced-motion: reduce) {
-  .mask, .modal, .chat-panel, .toast, .btn, .card, .tab, .view-enter {
+  .mask, .modal, .chat-panel, .toast, .btn, .card, .tab, .view-enter,
+  .chat-dots span, .spin, .toc a, .dim, .dropzone {
     transition: opacity .15s ease !important;
     animation: none !important;
   }
   .modal, .chat-panel { transform: none !important; }
   :root:not([data-theme="toon"]) .btn:active { transform: none !important; }
+  .toc { transition: none !important; }
 }
 
 /* ====================================================================
@@ -1220,3 +1251,228 @@ table.tb input { padding: 5px 8px; }
 .type-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 6px 2px 10px; }
 .type-detail-grid .lb { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
 @media (max-width: 680px) { .type-detail-grid { grid-template-columns: 1fr; } }
+
+/* ====================================================================
+   教师终评（新增）：老师对 AI 的判断有不同意见时，能直接改分并留下痕迹
+   设计原则是「AI 的判断不做删除，只做对照」——终评分醒目，
+   AI 原判始终在旁边留一行小字，评分可复核这条线不能被人工覆写抹掉。
+   ==================================================================== */
+/* 终评生效后的总分区：用品牌色描边与 AI 的区间条区分开，一眼看出这卷已被人拍板 */
+.final-band {
+  border: var(--bw) solid var(--info-line);
+  background: var(--brand-soft);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px; margin: 14px 0;
+}
+.final-band .fb-main { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.final-band .fb-val {
+  font-size: 30px; font-weight: 800; color: var(--brand);
+  font-family: var(--font-num); font-variant-numeric: tabular-nums; line-height: 1;
+}
+.final-band .rb-note {
+  margin-top: 8px; font-size: 12.5px; color: var(--ink-2); line-height: 1.65;
+}
+.final-band .rb-note .btn { margin-left: 6px; vertical-align: baseline; }
+
+/* 终评徽章：与「示例演示」那类信息徽章区分开，用品牌色而非琥珀色 */
+.badge.final {
+  background: var(--brand-soft); color: var(--brand); border-color: var(--info-line);
+}
+
+/* 维度内的终评输入条 */
+.final-editor {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin: 10px 0 4px; padding: 8px 10px;
+  background: var(--surface-2); border-radius: var(--radius-sm);
+  border: var(--bw) solid var(--line);
+}
+.final-editor label {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12.5px; color: var(--ink-2); font-weight: 600;
+}
+.final-editor input[type="number"] {
+  width: 82px; padding: 5px 8px; font-size: 13px;
+  font-family: var(--font-num); font-variant-numeric: tabular-nums;
+}
+.final-editor .hint { font-size: 12px; }
+/* 被老师改过的维度：左侧加一条品牌色细边，滚动时能一眼扫出改过哪几项 */
+.dim.dim-edited { border-color: var(--info-line); }
+.dim.dim-edited > .hd { background: var(--brand-soft); }
+
+/* 文档列表里已终评的角标：小圆点，不抢分数本身的视觉重量 */
+.doclist .sc { display: flex; align-items: baseline; gap: 4px; justify-content: flex-end; }
+.doclist .sc-teacher {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--brand); display: inline-block; flex: none;
+}
+/* 成绩表里的 AI 对照分 */
+.ai-hint { display: block; font-size: 11px; font-weight: 500; color: var(--muted); }
+
+/* ====================================================================
+   B4/B5 交互与无障碍补全
+   追加在文件末位，靠后覆盖前文 —— 与本项目 .adv-block 的做法保持一致。
+   ==================================================================== */
+
+/* ---------- 维度锚点导航条 ---------- */
+/* sticky 而不是固定定位：固定在顶部的条会盖住报告标题，
+   而且滚动到末尾时还得手动留出空白，sticky 交给浏览器算更省事。 */
+.toc {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px;
+  margin: 0 0 12px;
+  background: var(--panel);
+  border: var(--bw) solid var(--line);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm, 0 1px 2px rgba(0, 0, 0, .06));
+}
+.toc a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-2, var(--muted));
+  text-decoration: none;
+  border: var(--bw) solid transparent;
+  border-radius: 999px;
+  background: var(--surface-2);
+  transition: background .15s, color .15s, border-color .15s;
+}
+.toc a:hover { background: var(--brand-soft); color: var(--brand); }
+.toc a.on { background: var(--brand-soft); border-color: var(--brand-line, var(--line-2)); color: var(--brand); font-weight: 650; }
+.toc a.edited::after {
+  content: "";
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--brand);
+  display: inline-block; flex: none;
+}
+.toc .tn { white-space: nowrap; }
+.toc .tv { font-family: var(--font-num); font-variant-numeric: tabular-nums; font-weight: 700; }
+
+/* ---------- 键盘焦点可见 ---------- */
+/* 全项目此前一条 focus-visible 都没有：键盘用户 Tab 到哪儿完全靠猜。
+   这里做统一兜底，不逐个组件去补，避免漏网。 */
+.btn:focus-visible,
+.tab:focus-visible,
+.seg:focus-visible,
+.doclist li:focus-visible,
+.dim > .hd:focus-visible,
+.toc a:focus-visible,
+.chat-fab:focus-visible,
+.pick:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+/* 鼠标点击不该出现焦点圈，只有键盘导航时才亮 */
+.btn:focus:not(:focus-visible),
+.tab:focus:not(:focus-visible),
+.seg:focus:not(:focus-visible) { outline: none; }
+
+/* 折叠块的标题变成可聚焦的键盘目标 */
+.dim > .hd { cursor: pointer; }
+
+/* ---------- 仅屏幕阅读器可见 ---------- */
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------- 拖拽落区：类型被拒时给红框 ---------- */
+.dropzone.over.bad {
+  border-color: var(--red);
+  background: var(--bad-soft);
+  color: var(--bad-ink);
+}
+.dropzone.over.bad::after { content: "该文件类型无法评阅"; }
+
+/* ---------- 批量选择 ---------- */
+.pick { accent-color: var(--brand); flex: none; margin-right: 6px; cursor: pointer; }
+.doclist li.picked { background: var(--brand-soft); border-color: var(--brand-line, var(--line-2)); }
+.batch-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 10px;
+  margin: 0 0 10px;
+  font-size: 12.5px;
+  background: var(--surface-2);
+  border: var(--bw) dashed var(--line-2);
+  border-radius: var(--radius-sm);
+}
+/* ====================================================================
+   评分结果入场动效：分数沿半圆滚入、五维图自图心向四周展开
+   两条硬约束：
+   1) 纯装饰 —— 不参与取值、不进导出（PDF 走 jsPDF 重绘，跟 CSS/动画无关）；
+   2) prefers-reduced-motion 下全部关闭，只留静态终态。
+   动画只碰 transform / opacity，不动盒模型，不会把版面挤歪。
+   ==================================================================== */
+
+/* 五维图：数据面从图心撑开，顶点与描边跟着一起长出来 */
+@keyframes radar-grow {
+  from { transform: scale(.04); opacity: .25; }
+  to   { transform: scale(1); opacity: 1; }
+}
+.chart-radar .rgrow {
+  transform-box: view-box;
+  transform-origin: 50% 51.5%;
+  animation: radar-grow .78s var(--spring-bounce) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .chart-radar .rgrow { animation: none; }
+}
+
+/* ====================================================================
+   可折叠卡片 .card-fold：让设置页的长卡片可以收起
+   默认展开（open），与已有的 .adv-block 共用 details/summary 行为，
+   但外层补成 .card 的卡片外观，body 区保持 .card 的内边距。
+   ==================================================================== */
+.card-fold {
+  background: var(--panel);
+  border: var(--bw) solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+.card-fold > summary {
+  list-style: none; cursor: pointer;
+  display: flex; align-items: center; gap: 8px;
+  padding: 16px 18px;
+  border: 0; border-radius: 0;
+  background: transparent; box-shadow: none;
+  font-size: 14px; font-weight: 700;
+  font-family: var(--font-title);
+  color: var(--ink);
+  transition: color .16s ease, background .16s ease;
+}
+.card-fold > summary::-webkit-details-marker { display: none; }
+.card-fold > summary::before {
+  content: '\25B8'; color: var(--muted); font-size: 12px;
+  transition: transform .2s var(--spring-smooth);
+}
+.card-fold[open] > summary::before { content: '\25BE'; }
+.card-fold > summary:hover { color: var(--brand); background: var(--surface-2); }
+.card-fold[open] > summary { border-bottom: var(--bw) solid var(--line); }
+.card-fold > summary .sub {
+  font-weight: 500; color: var(--muted); font-size: 12.5px; margin-left: auto;
+}
+.card-fold > .adv-body { padding: 16px 18px; }

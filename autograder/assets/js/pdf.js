@@ -338,12 +338,17 @@
    * 老师拿这份 PDF 直接就能在区间内定分，不必反过来猜模型为什么给 71.3。
    */
   function drawScore(b, r) {
-    const p = r.total / 100;
-    const color = r.gradeColor || ratioColor(p);
-    const hasRange = Array.isArray(r.range) && r.range.length === 2 && r.range[1] > r.range[0];
-    b.panel(hasRange ? 108 : 92, (ctx, top) => {
+    // 教师终评过：总分区画的是老师定的分。AI 的原判不删，压成一行小字留在下面，
+    // 纸质归档时才有对照物 —— 「AI 建议 / 教师终评」双值并列是这张报告的核心价值。
+    const finalVal = r._final != null ? r._final : null;
+    const graded = finalVal != null;
+    const total = graded ? finalVal : r.total;
+    const p = total / 100;
+    const color = ratioColor(p);
+    const hasRange = !graded && Array.isArray(r.range) && r.range.length === 2 && r.range[1] > r.range[0];
+    b.panel(hasRange ? 108 : (graded ? 116 : 92), (ctx, top) => {
       // 左侧：区间（有）或总分（无）
-      const bigTxt = hasRange ? `${r.range[0]}–${r.range[1]}` : String(r.total);
+      const bigTxt = hasRange ? `${r.range[0]}–${r.range[1]}` : String(total);
       ctx.font = `700 ${hasRange ? 38 : 44}px ${FONT}`;
       ctx.fillStyle = color;
       ctx.fillText(bigTxt, M + 24, top + 60);
@@ -354,25 +359,36 @@
 
       ctx.font = `600 13px ${FONT}`;
       ctx.fillStyle = C.faint;
-      ctx.fillText(hasRange ? '建议得分区间' : '综合得分', M + 24, top + 79);
+      ctx.fillText(hasRange ? '建议得分区间' : (graded ? '教师终评' : '综合得分'), M + 24, top + 79);
 
       // 右侧：等级 + 达成分条
       const rx = M + 210;
       const rw = CW - 210 - 24;
+      const grade = (AG.rubric && AG.rubric.gradeOf ? AG.rubric.gradeOf(total) : null)
+        || { grade: r.grade, label: r.gradeLabel };
       ctx.font = `700 22px ${FONT}`;
       ctx.fillStyle = color;
-      ctx.fillText(`${r.grade} 级`, rx, top + 40);
-      const wGrade = ctx.measureText(`${r.grade} 级`).width;
+      ctx.fillText(`${grade.grade} 级`, rx, top + 40);
+      const wGrade = ctx.measureText(`${grade.grade} 级`).width;
       ctx.font = `500 14px ${FONT}`;
       ctx.fillStyle = C.body;
-      ctx.fillText(r.gradeLabel, rx + wGrade + 8, top + 40);
+      ctx.fillText(grade.label, rx + wGrade + 8, top + 40);
 
       drawBar(ctx, rx, top + 54, rw, 10, p, color);
       ctx.font = `500 11px ${FONT}`;
       ctx.fillStyle = C.sub;
       ctx.fillText(`达成率 ${Math.round(p * 100)}%`, rx, top + 78);
 
-      if (hasRange) {
+      if (graded) {
+        ctx.font = `500 11px ${FONT}`;
+        ctx.fillStyle = C.faint;
+        const aiLine = `AI 原判 ${r.total} 分`
+          + (Array.isArray(r.range) && r.range.length === 2 && r.range[1] > r.range[0]
+            ? `（建议区间 ${r.range[0]}–${r.range[1]}）` : '')
+          + ' · 最终等级由教师裁定';
+        ctx.fillText(aiLine, M + 24, top + 99);
+        ctx.fillText('本卷分数经教师人工终评，AI 判断仅作参照', M + 24, top + 112);
+      } else if (hasRange) {
         ctx.font = `500 11px ${FONT}`;
         ctx.fillStyle = C.faint;
         const aMode = r.anchorStrength === 'soft'
@@ -878,7 +894,10 @@
     applyPalette();
     const b = new Builder();
     const n = docs.length;
-    const totals = docs.map((d) => d.result.total);
+    // 成绩表是登分用的，必须以老师定的分为准。docs 已由调用方投影成终评口径
+    // （result._final / dims[].score 都换过了），这里直接读即可。
+    const scoreOf = (r) => (r._final != null ? r._final : r.total);
+    const totals = docs.map((d) => scoreOf(d.result));
     const sum = totals.reduce((a, b2) => a + b2, 0);
     const stats = {
       avg: sum / n,
@@ -903,18 +922,24 @@
 
     docs.forEach((d, i) => {
       const r = d.result;
+      const score = scoreOf(r);
+      const graded = r._final != null;
+      // 老师终评过的卷，总分单元格带上标记；AI 原判并排放进同一格，
+      // 登分时若有人问「这个分怎么和系统里不一样」，表上就写着原因。
+      const g2 = AG.rubric.gradeOf(score);
       const vals = {
-        name: d.name,
-        total: r.total,
-        range: Array.isArray(r.range) && r.range.length === 2 && r.range[1] > r.range[0]
-          ? `${r.range[0]}–${r.range[1]}` : '—',
-        grade: r.grade + ' · ' + r.gradeLabel,
+        name: d.name + (graded ? '（教师终评）' : ''),
+        total: graded ? `${score}\nAI ${r.total}` : score,
+        range: graded ? '已终评'
+          : (Array.isArray(r.range) && r.range.length === 2 && r.range[1] > r.range[0]
+            ? `${r.range[0]}–${r.range[1]}` : '—'),
+        grade: g2.grade + ' · ' + g2.label,
         words: r.features.words,
         feat: r.features.codeBlockCount + ' / ' + (r.features.figureCount + r.features.tableCount),
       };
       if (hasDims) (r.dims || []).forEach((dm) => { vals['dim:' + dm.name] = dm.score; });
       // 不及格的整行标红，老师一眼扫到
-      const fail = r.total < 60;
+      const fail = score < 60;
       drawScoreRow(b, cols, vals, {
         zebra: i % 2 === 1,
         colorFor: (c) => (fail && (c.key === 'total' || c.key === 'grade') ? C.red : null),

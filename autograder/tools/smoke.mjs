@@ -80,6 +80,8 @@ for (const f of order) {
 const AG = sandbox.AG || {};
 const need = [
   ['utils', 'clamp'], ['rubric', 'DEFAULT_RUBRIC'], ['rubric', 'gradeOf'],
+  ['finalscore', 'totalOf'], ['finalscore', 'dimScoreOf'], ['finalscore', 'finalView'],
+  ['uikit', 'readHash'], ['uikit', 'writeHash'], ['uikit', 'roving'], ['uikit', 'trap'],
   ['parser', 'extractFeatures'],
   ['analyzer', 'genreCheck'], ['analyzer', 'verifyEvidence'],
   ['providers', 'PRESETS'], ['providers', 'recommend'],
@@ -400,6 +402,213 @@ await ok('doctypes 变更会广播给订阅者（双向同步的基础）', () =
   AG.doctypes.resetAll();
   AG.doctypes.resetAll();
   return hits >= 2 ? true : `触发 ${hits} 次`;
+});
+
+/* ---- 教师终评：终评分与 AI 分必须能各归各，撤销要真的归零 ---- */
+/** 造一份带 result 的文档，避免每个用例重复铺陈 */
+function mkDoc() {
+  return {
+    id: 'd1', name: '实验一.md',
+    result: {
+      total: 71, grade: 'C', gradeLabel: '中等', gradeColor: '#0891b2',
+      dims: [
+        { id: 'a', name: '维度甲', max: 20, score: 10, ratio: 0.5 },
+        { id: 'b', name: '维度乙', max: 80, score: 61, ratio: 0.7625 },
+      ],
+    },
+  };
+}
+
+await ok('finalscore 未终评时按 AI 原始分取值', () => {
+  const d = mkDoc();
+  if (AG.finalscore.has(d)) return '未改过却报告已终评';
+  if (AG.finalscore.totalOf(d) !== 71) return '总分 ' + AG.finalscore.totalOf(d);
+  if (AG.finalscore.dimScoreOf(d, d.result.dims[0]) !== 10) return '维度分未回落 AI 值';
+  return true;
+});
+
+await ok('finalscore 覆写维度分后总分自动重算', () => {
+  const d = mkDoc();
+  AG.finalscore.setDim(d, 'a', 5);
+  // 维度甲 20→5（-5），维度乙不动，总分应为 66
+  const t = AG.finalscore.totalOf(d);
+  if (t !== 66) return '重算后总分 ' + t + '，应为 66';
+  const r = AG.finalscore.dimRatioOf(d, d.result.dims[0]);
+  if (Math.abs(r - 0.25) > 1e-9) return 'ratio 未同步，实为 ' + r;
+  return true;
+});
+
+await ok('finalscore 单维度覆写不会串到另一个维度', () => {
+  const d = mkDoc();
+  AG.finalscore.setDim(d, 'a', 5);
+  const other = AG.finalscore.dimScoreOf(d, d.result.dims[1]);
+  return other === 61 ? true : '另一维度被改动为 ' + other;
+});
+
+await ok('finalscore 撤销后回到 AI 原始分且 doc.final 归零', () => {
+  const d = mkDoc();
+  AG.finalscore.setDim(d, 'a', 5);
+  AG.finalscore.revert(d);
+  if (d.final !== null) return 'doc.final 未清空：' + JSON.stringify(d.final);
+  if (AG.finalscore.has(d)) return 'revert 后仍报告已终评';
+  return AG.finalscore.totalOf(d) === 71 ? true : '总分未回到 71，实为 ' + AG.finalscore.totalOf(d);
+});
+
+await ok('finalscore 撤销单个维度后其余覆写保留', () => {
+  const d = mkDoc();
+  AG.finalscore.setDim(d, 'a', 5);
+  AG.finalscore.setDim(d, 'b', 30);
+  AG.finalscore.revertDim(d, 'a');
+  if (AG.finalscore.dimScoreOf(d, d.result.dims[0]) !== 10) return '甲未回到 AI 值';
+  if (AG.finalscore.dimScoreOf(d, d.result.dims[1]) !== 30) return '乙的覆写丢失';
+  return AG.finalscore.totalOf(d) === 40 ? true : '总分 ' + AG.finalscore.totalOf(d);
+});
+
+await ok('finalscore 维度覆写分被夹到该维度满分内', () => {
+  const d = mkDoc();
+  AG.finalscore.setDim(d, 'a', 999);
+  if (AG.finalscore.dimScoreOf(d, d.result.dims[0]) !== 20) {
+    return '上溢未夹取：' + AG.finalscore.dimScoreOf(d, d.result.dims[0]);
+  }
+  AG.finalscore.setDim(d, 'a', -50);
+  return AG.finalscore.dimScoreOf(d, d.result.dims[0]) === 0 ? true : '下溢未夹取';
+});
+
+await ok('finalscore 空输入按撤销处理，不当作 0 分', () => {
+  const d = mkDoc();
+  AG.finalscore.setDim(d, 'a', 5);
+  AG.finalscore.setDim(d, 'a', '');
+  return AG.finalscore.dimScoreOf(d, d.result.dims[0]) === 10
+    ? true : '空输入被当成了 0 分';
+});
+
+await ok('finalscore 显式总分优先于维度求和', () => {
+  const d = mkDoc();
+  AG.finalscore.setDim(d, 'a', 5);          // 维度求和应为 66
+  AG.finalscore.setTotal(d, 80);
+  if (AG.finalscore.totalOf(d) !== 80) return '显式总分未生效';
+  AG.finalscore.revertTotal(d);
+  return AG.finalscore.totalOf(d) === 66 ? true : '撤销显式总分后未回落到维度求和';
+});
+
+await ok('finalscore 终评分可 JSON 往返（不得混入正则或函数）', () => {
+  const d = mkDoc();
+  AG.finalscore.setDim(d, 'a', 12.5);
+  AG.finalscore.setTotal(d, 77);
+  const back = JSON.parse(JSON.stringify(d.final));
+  if (back.total !== 77) return 'total 往返失真';
+  if (back.dims.a !== 12.5) return 'dims 往返失真';
+  return typeof d.final.at === 'number' ? true : '缺少时间戳';
+});
+
+await ok('finalscore.finalView 投影出终评口径且不改原对象', () => {
+  const d = mkDoc();
+  AG.finalscore.setDim(d, 'a', 4);
+  const v = AG.finalscore.finalView(d);
+  if (v.result._final !== 65) return '_final 应为 65，实为 ' + v.result._final;
+  if (v.result.total !== 71) return 'AI 原始总分被覆盖了，应为 71';
+  if (v.result.dims[0].score !== 4) return '投影后维度分未替换';
+  if (v.result.dims[0].ratio !== 0.2) return '投影后 ratio 未同步';
+  // 原对象不能被投影污染，否则界面会跟着变
+  if (d.result.dims[0].score !== 10) return '投影污染了原文档';
+  return d.result._final === undefined ? true : '原对象被写入 _final';
+});
+
+await ok('finalscore 未终评时 finalView 不产生 _final', () => {
+  const v = AG.finalscore.finalView(mkDoc());
+  return v.result._final === undefined ? true : '未终评却写了 _final';
+});
+
+/* ---------------- uikit：地址栏路由解析 ----------------
+ * 路由是「刷新后还在原处」和「浏览器后退键」的唯一实现依据，
+ * 而它又完全依赖字符串解析——解析错了页面就会跳到莫名其妙的视图，
+ * 所以这一段值得用单测钉死，而不是靠手点。 */
+await ok('uikit.readHash 解析纯视图路由', () => {
+  const h = AG.uikit.readHash('#batch');
+  return h && h.view === 'batch' && h.section === null ? true : '解析结果：' + JSON.stringify(h);
+});
+
+await ok('uikit.readHash 解析三段式路由', () => {
+  const h = AG.uikit.readHash('#settings/rules/card-model');
+  if (!h) return '返回了 null';
+  if (h.view !== 'settings') return '视图段错了：' + h.view;
+  if (h.section !== 'rules') return '分区段错了：' + h.section;
+  if (h.card !== 'card-model') return '卡片段错了：' + h.card;
+  return true;
+});
+
+await ok('uikit.readHash 空 hash 返回 null', () => {
+  return AG.uikit.readHash('#') === null ? true : '空 hash 应返回 null';
+});
+
+await ok('uikit.readHash 容忍多余斜杠与空段', () => {
+  const h = AG.uikit.readHash('#settings//rules/');
+  return h && h.view === 'settings' && h.section === 'rules' ? true : '解析结果：' + JSON.stringify(h);
+});
+
+await ok('uikit.writeHash 同值时不自触发', () => {
+  // 写同一个值是幂等的——否则 hashchange 会自己触发自己，形成回环
+  AG.uikit.writeHash('batch');
+  const first = AG.uikit.readHash();
+  const hashAfterFirst = sandbox.location.hash;
+  AG.uikit.writeHash('batch');
+  const second = AG.uikit.readHash();
+  if (JSON.stringify(first) !== JSON.stringify(second)) return '两次写入结果不一致';
+  // 第二次是空操作，地址栏必须一动不动
+  if (sandbox.location.hash !== hashAfterFirst) return '同值写入却改了地址栏';
+  return true;
+});
+
+await ok('uikit 不在加载期触碰 DOM（桩上无 closest 也不崩）', () => {
+  // roving / trap 用字符串选择器时走 document.querySelector，
+  // 桩上拿了不存在的元素必须安静返回，而不是抛异常
+  AG.uikit.roving('#__not_exist__', '.x');
+  AG.uikit.trap('#__not_exist__', true);
+  AG.uikit.release('#__not_exist__');
+  return true;
+});
+
+await ok('uikit 自己写 hash 不会被路由回流覆盖', () => {
+  // 回归：一次点击常常连写两次 hash（先视图名、再分区+卡片），
+  // 浏览器给每次写入各排一个 hashchange。若防护不当，第二个事件会把
+  // 刚设好的「卡片直达」路由冲回默认分区——真机上实测到过这个回环。
+  //
+  // 桩里 location 是个普通对象（无 hash、不派发事件），所以这里手动
+  // 把事件喂给监听器，模拟浏览器的异步 hashchange。
+  let seen = 0;
+  const handlers = [];
+  sandbox.window.addEventListener = (t, fn) => { if (t === 'hashchange') handlers.push(fn); };
+  AG.uikit.init({ switchView: () => { seen += 1; }, switchSettingsSection: () => { seen += 1; } });
+
+  /* 先把配额排空再开始量。
+   * 前面的用例（writeHash 同值幂等那条）也写过 hash，会留下未销的自写配额；
+   * 不清零的话，下面喂事件时会把「外部事件」当成自写给吞掉，
+   * 测出来的是假失败。多喂几轮直到不再有回流即可。 */
+  let guard = 0;
+  while (guard++ < 8) {
+    seen = 0;
+    handlers.forEach((fn) => fn());
+    if (seen > 0) break;
+  }
+
+  AG.uikit.writeHash('settings', 'general', '');
+  AG.uikit.writeHash('settings', 'rules', 'card-type');
+  const landed = AG.uikit.readHash();
+  if (!landed || landed.section !== 'rules' || landed.card !== 'card-type') {
+    return '最终路由被冲掉了：' + JSON.stringify(landed);
+  }
+
+  // 自己写了 2 次，就把这 2 个事件喂进去，一个都不该引发回流
+  seen = 0;
+  handlers.forEach((fn) => fn()); handlers.forEach((fn) => fn());
+  if (seen !== 0) return '自己写 hash 却触发了 ' + seen + ' 次路由回流';
+
+  // 反向确认：外来的 hashchange（浏览器前进/后退）必须真的切视图，
+  // 否则「防回流」把正常功能一起防死了。
+  sandbox.location.hash = '#batch';
+  seen = 0;
+  handlers.forEach((fn) => fn());
+  return seen === 1 ? true : '外部 hashchange 未被响应，seen=' + seen;
 });
 
 /* ---- 输出 ---- */

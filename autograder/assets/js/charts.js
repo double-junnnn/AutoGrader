@@ -96,15 +96,19 @@
 
     // 数据多边形
     const dataPts = dims.map((d, i) => pt(i, R * U.clamp(d.ratio, 0.03, 1)));
-    svg.appendChild(svgEl('polygon', {
+    /* 数据面（多边形 + 顶点）装进一个 g：入场时整组从图心向外撑开。
+       多边形和顶点必须一起缩放，只放大其中一个会出现"面先到、点后到"的错位。 */
+    const grow = svgEl('g', { class: 'rgrow' });
+    grow.appendChild(svgEl('polygon', {
       points: dataPts.map((p) => p.join(',')).join(' '),
       fill: 'url(#radarGrad)', stroke: PAL.brand(), 'stroke-width': 2, 'stroke-linejoin': 'round',
     }));
     dataPts.forEach(([x, y], i) => {
       const dot = svgEl('circle', { cx: x, cy: y, r: 3.5, fill: '#fff', stroke: PAL.brand(), 'stroke-width': 2 });
       dot.appendChild(svgEl('title', {})).textContent = `${dims[i].name} ${dims[i].score}/${dims[i].max}`;
-      svg.appendChild(dot);
+      grow.appendChild(dot);
     });
+    svg.appendChild(grow);
 
     // 轴标签
     dims.forEach((d, i) => {
@@ -137,8 +141,11 @@
    */
   function gauge(total, opts) {
     opts = opts || {};
-    const w = opts.size || 260, h = (opts.size || 260) * 0.62;
-    const cx = w / 2, cy = h * 0.92, r = w * 0.38;
+    /* 高度按 0.78 而不是 0.62：圆心下方还要摆「等级 / 本档取值 / AI 原判」最多三行小字，
+       而 SVG 默认 overflow:hidden，超出 viewBox 的部分会被直接裁掉 —— 之前那几行小字
+       其实一直画在框外，所以怎么调颜色都看不清。这里把下方文字区实打实留出来。 */
+    const w = opts.size || 260, h = (opts.size || 260) * 0.78;
+    const cx = w / 2, cy = h * 0.75, r = w * 0.38;
     const range = opts.range;              // [lo, hi]，可能为 null
     const lo = range && range.length === 2 ? U.clamp(range[0], 0, 100) : total;
     const hi = range && range.length === 2 ? U.clamp(range[1], 0, 100) : total;
@@ -158,32 +165,137 @@
         opacity: opacity == null ? 1 : opacity,
       });
     };
-    svg.appendChild(arc(0, 1, PAL.track(.18), 14));
+    svg.appendChild(arc(0, 1, PAL.track(.18), 14));   // 轨道：常驻，不参与入场
+    // 下面这两条弧入场时要从 0 一路画到得分位，先留个引用
+    const sweeps = [];
     // 区间上限（浅）：先画浅的一层铺满到上界
-    if (hi > lo) svg.appendChild(arc(0, U.clamp(hi / 100, 0.001, 1), g.color, 14, 0.3));
+    if (hi > lo) {
+      const eHi = arc(0, U.clamp(hi / 100, 0.001, 1), g.color, 14, 0.3);
+      svg.appendChild(eHi); sweeps.push({ el: eHi, v: hi });
+    }
     // 区间下界（实）：保底分用实弧
-    svg.appendChild(arc(0, U.clamp(lo / 100, 0.001, 1), g.color, 14, 1));
+    const eLo = arc(0, U.clamp(lo / 100, 0.001, 1), g.color, 14, 1);
+    svg.appendChild(eLo); sweeps.push({ el: eLo, v: lo });
 
     const showRange = hi > lo;
     // 有区间时字号收一档，给「68–74」留出宽度
     const num = svgEl('text', {
+      class: 'g-num',
       x: cx, y: cy - 22, 'text-anchor': 'middle',
       'font-size': showRange ? 36 : 44, 'font-weight': 800, fill: g.color,
     });
     num.textContent = showRange ? `${U.round(lo, 0)}–${U.round(hi, 0)}` : String(total);
     svg.appendChild(num);
-    const lab = svgEl('text', { x: cx, y: cy - 2, 'text-anchor': 'middle', 'font-size': 13, fill: PAL.muted() });
+    /* 等级行原本用 muted（52% 透明度），在浅色主题上灰得发虚；
+       层级靠字号区分就够了（36 / 13 / 12.5），颜色统一提到 ink-2，先把可读性保住。 */
+    const lab = svgEl('text', {
+      x: cx, y: cy - 2, 'text-anchor': 'middle', 'font-size': 13, 'font-weight': 500, fill: PAL.ink2(),
+    });
     // 踩在等级边界上时，两个等级名一起给出，避免"到底算 B 还是 C"的争议
     lab.textContent = opts.gradeStraddle
       ? `${opts.gradeStraddle} 级之间 · 区间跨等级边界`
       : `${g.grade} 级 · ${g.label}`;
     svg.appendChild(lab);
-    if (showRange) {
-      const sub = svgEl('text', { x: cx, y: cy + 16, 'text-anchor': 'middle', 'font-size': 11, fill: PAL.muted() });
-      sub.textContent = `本档取值 ${total} 分 · 老师可在此区间内终评`;
-      svg.appendChild(sub);
+    const fades = [lab];
+    /* 下面这两行小字共用一套排版：字号比原来大 1.5 号、颜色取 ink-2（比 muted 深一档），
+       并且逐行往下错开 —— 之前它们都写在 cy+16 上，有区间又有终评时会整行叠在一起。 */
+    const note = (y, str) => {
+      const t = svgEl('text', {
+        x: cx, y: y, 'text-anchor': 'middle', 'font-size': 12.5,
+        'font-weight': 500, fill: PAL.ink2(),
+      });
+      t.textContent = str;
+      svg.appendChild(t);
+      fades.push(t);
+    };
+    if (showRange) note(cy + 21, `本档取值 ${total} 分 · 老师可在此区间内终评`);
+    // 老师已经终评过：弧画的是老师的分，但 AI 的判断不能就此消失——
+    // 把它压成一行小字留在下面，复核时才有对照物。
+    if (opts.aiTotal != null && Number(opts.aiTotal) !== Number(total)) {
+      note(showRange ? cy + 39 : cy + 21,
+        `AI 原判 ${opts.aiTotal} 分` + (showRange ? `（区间 ${U.round(lo, 0)}–${U.round(hi, 0)}）` : ''));
     }
+    /* 入场：弧从 0 画到得分位，数字在中心位原地放大出现（不再沿弧滚动）。
+       终态在上面已经画好了，popIn 只是把初态盖上去再逐帧逼近。 */
+    popIn(svg, {
+      num: num, numX: cx, numY: cy - 22, numSize: showRange ? 36 : 44, text: num.textContent,
+      fade: fades, arcs: sweeps,
+      cx: cx, cy: cy, r: r, total: total, lo: lo, hi: hi, showRange: showRange,
+    });
     return svg;
+  }
+
+  /**
+   * 入场动效：弧从 0 一路画到得分位，数字在中心位「由中间放大」出现。
+   *
+   * 两个刻意的取舍：
+   * 1) 数字不再沿弧滚动 —— 滚动时数字位数在变（0 → 68.4），宽度跟着跳，
+   *    配合缩放会抖成一团；固定终值只做缩放，出现过程才干净。
+   * 2) 缩放中心取数字的视觉中心（基线上方约 1/3 字高），不是基线本身。
+   *    按基线缩放数字会先"趴"在下面再往上顶，看着像被顶起来，而不是从中心长出来。
+   *
+   * 终态在 gauge() 里已经写死，这里只是把初态盖上去再逐帧逼近，
+   * 所以动画一旦不正常（老浏览器没有 rAF、冒烟测试的 DOM 桩上时间不推进、
+   * 用户开了减弱动效），都只会停在静态终态，不会留下画了一半的弧或缩小的数字。
+   */
+  function popIn(svg, a) {
+    try {
+      const win = svg.ownerDocument && svg.ownerDocument.defaultView;
+      if (!win || typeof win.requestAnimationFrame !== 'function') return;
+      if (win.matchMedia && win.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+      const dur = 820;
+      // 弧长 = r × 扫描角（整条半圆 = π）。解析算出来即可，
+      // 不去调 getTotalLength —— 那个方法在冒烟测试的 DOM 桩上根本不存在。
+      a.arcs.forEach((x) => {
+        x.len = Math.max(1, (a.r * Math.PI * U.clamp(x.v, 0, 100)) / 100);
+        x.el.setAttribute('stroke-dasharray', x.len);
+        x.el.setAttribute('stroke-dashoffset', x.len);
+      });
+      const num = a.num;
+      const oy = a.numY - (a.numSize || 44) * 0.34;
+      // 用 SVG transform 属性而不是 CSS transform：不依赖 transform-box / transform-origin
+      // 的浏览器支持差异，平移到原点再缩放再平移回去，等价于绕 (numX, oy) 缩放。
+      const setScale = (s) => num.setAttribute('transform',
+        `translate(${a.numX} ${oy}) scale(${s}) translate(${-a.numX} ${-oy})`);
+      // easeOutBack：末尾轻微过冲再收回，数字像"弹"出来而不是匀速长出来
+      const back = (p) => 1 + 1.8 * Math.pow(p - 1, 3) + 0.8 * Math.pow(p - 1, 2);
+      setScale(0.35);
+      num.setAttribute('opacity', 0);
+      a.fade.forEach((el) => { if (el) el.setAttribute('opacity', 0); });
+
+      let t0 = 0, frames = 0, done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        a.arcs.forEach((x) => x.el.setAttribute('stroke-dashoffset', 0));
+        num.removeAttribute('transform');
+        num.setAttribute('opacity', 1);
+        num.textContent = a.text;
+        a.fade.forEach((el) => { if (el) el.setAttribute('opacity', 1); });
+      };
+      const step = (ts) => {
+        if (done) return;
+        // DOM 桩上 rAF 不推进时间：用帧数兜底，免得回调空转把测试挂死
+        if (++frames > 90) { finish(); return; }
+        const now = typeof ts === 'number' && isFinite(ts) ? ts : Date.now();
+        const raw = U.clamp((now - t0) / dur, 0, 1);
+        if (raw >= 1) { finish(); return; }
+        const t = 1 - Math.pow(1 - raw, 3);   // 弧：ease-out，起步快、末尾稳稳落位
+        a.arcs.forEach((x) => x.el.setAttribute('stroke-dashoffset', x.len * (1 - t)));
+        // 数字比弧早一点到位：弧还在收尾时数字已经落定，视线先抓住分数再看弧
+        const p = U.clamp(raw / 0.72, 0, 1);
+        setScale(0.35 + 0.65 * back(p));
+        num.setAttribute('opacity', U.clamp(p / 0.45, 0, 1));
+        // 等级、区间说明这些小字等弧画到一半再淡入，不然一上来就糊在一起
+        a.fade.forEach((el) => { if (el) el.setAttribute('opacity', U.clamp((t - 0.5) / 0.5, 0, 1)); });
+        win.requestAnimationFrame(step);
+      };
+      win.requestAnimationFrame((ts) => {
+        t0 = typeof ts === 'number' && isFinite(ts) ? ts : Date.now();
+        step(t0);
+      });
+    } catch (e) { /* 装饰性动画：出任何岔子都保持静态终态 */ }
   }
 
 
