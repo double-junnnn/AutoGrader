@@ -160,15 +160,22 @@
    * 所以只在「动画卡通」主题下用它，其余主题回到文字标。
    */
   function renderLogo() {
-    const toon = AG.theme.get() === 'toon';
-    $('#logoBox').innerHTML = toon && AG.theme.HAS_MASCOT
+    // 吉祥物是品牌资产，**所有主题都用它当标志**；外观差异交给 CSS
+    // （卡通主题是暖奶油底，玻璃主题换成一块玻璃底座，见 main.css）。
+    // 原先只有卡通主题用它，默认主题改成浅玻璃之后顶栏就只剩「AG」两个字了。
+    const hasArt = !!AG.theme.HAS_MASCOT;
+    $('#logoBox').innerHTML = hasArt
       ? AG.theme.MASCOT_HEAD
       : '<span class="txt">AG</span>';
-    $('#logoBox').classList.toggle('is-art', !!toon && AG.theme.HAS_MASCOT);
+    $('#logoBox').classList.toggle('is-art', hasArt);
     // 顶栏头像是 innerHTML 重建的，重建后重新挂一次互动
     // （44px 太小，眼睛层不参与，只做倾斜 + 点击）
     if (AG.pet) AG.pet.attachAll();
   }
+
+  // 壁纸模块的提示语（上传失败/图片太大等）由这里统一弹出，
+  // 免得 wallpaper.js 反过来依赖 app.js 里的 toast。
+  U.bus.on('wallpaper:note', (m) => toast(m.text, m.kind || 'ok'));
 
   function setupAppearance() {
     AG.theme.apply(AG.theme.get());
@@ -181,10 +188,14 @@
       renderLogo();
       renderResult();
       if ($('#view-batch').style.display !== 'none') renderBatch();
+      // 换肤会改变「壁纸是否生效」与雾化兜底色，选择器要跟着刷新
+      if (AG.wallpaper) AG.wallpaper.mount($('#wallpaperBox'));
       toast('已切换界面主题：' + (t ? t.name : id), 'ok');
     };
     AG.theme.mountSkinBar($('#skinBarTop'), { compact: true, onChange: onTheme });
     AG.theme.mountSkinBar($('#skinBarSettings'), { onChange: onTheme });
+    // 壁纸选择器：与主题栏同属「外观」，主题栏下面紧跟一行
+    if (AG.wallpaper) AG.wallpaper.mount($('#wallpaperBox'));
 
     AG.voice.mountTonePicker($('#tonePicker'), {
       onChange: (id) => {
@@ -513,8 +524,8 @@
     const doc = state.docs.find((d) => d.id === state.currentId);
 
     if (!doc) {
-      // 空状态：卡通主题下用原创吉祥物插画，其余主题仍用通用图标
-      // （位图是暖色调的，在冷色主题里降透明度会显脏，不如不给）
+      // 空状态：只有卡通主题用大幅吉祥物插画（位图是暖色调，铺在玻璃主题的大片留白里会突兀）；
+      // 玻璃主题的品牌露出交给顶栏那个小标志（配玻璃底座，有容器框住就不会散）
       const toon = AG.theme.get() === 'toon';
       const art = (toon && AG.theme.HAS_MASCOT && AG.theme.MASCOT_FULL) || ICONS.target;
       card.innerHTML = `<div class="empty">

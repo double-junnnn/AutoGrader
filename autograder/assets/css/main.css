@@ -147,13 +147,13 @@
     radial-gradient(1100px 700px at 90% 2%, rgba(140, 180, 255, .46), transparent 62%),
     radial-gradient(900px 700px at 50% 112%, rgba(196, 220, 255, .55), transparent 60%),
     radial-gradient(1400px 900px at 50% 44%, rgba(255, 255, 255, .6), transparent 72%);
-  --panel: rgba(255, 255, 255, .55);
+  --panel: rgba(255, 255, 255, .34);
   --panel-solid: #f4f8ff;
-  --surface: rgba(255, 255, 255, .70);
+  --surface: rgba(255, 255, 255, .48);
   --surface-solid: #ffffff;
-  --surface-2: rgba(255, 255, 255, .42);
+  --surface-2: rgba(255, 255, 255, .26);
   --surface-2-solid: #eef4fd;
-  --surface-3: rgba(255, 255, 255, .30);
+  --surface-3: rgba(255, 255, 255, .22);
   --ink: #0a1020;                      /* 浅底深字 */
   --ink-2: rgba(10, 16, 32, .78);
   --muted: rgba(10, 16, 32, .52);      /* 说明文字低饱和 */
@@ -205,7 +205,7 @@
                inset 0 0 12px -4px rgba(38, 74, 140, .30),
                inset 0 -24px 36px -30px rgba(52, 104, 200, .50),
                0 48px 90px -32px rgba(24, 56, 120, .50);
-  --glass-blur: blur(18px) saturate(180%);
+  --glass-blur: blur(26px) saturate(190%) brightness(1.04);
   /* 玻璃体积：168° 厚度渐变（顶部厚→中部薄→下缘回亮）+ 右下冷色环境反光。
      左上那团「会动」的镜面高光斑不放在这里 —— CSS 自定义属性的 var()
      是在定义处（:root）解析的，写进 :root 变量里就吃不到元素级的 --lx/--ly。
@@ -216,12 +216,12 @@
     radial-gradient(80% 52% at calc(88% + var(--lx, 0) * 8%) 112%,
       rgba(182, 212, 255, .50), rgba(255, 255, 255, 0) 58%),
     linear-gradient(168deg,
-      rgba(255, 255, 255, .80) 0%,
-      rgba(255, 255, 255, .48) 40%,
-      rgba(255, 255, 255, .32) 66%,
-      rgba(255, 255, 255, .60) 100%);
-  --glass-hl: rgba(255, 255, 255, .78);   /* 动态镜面高光斑的颜色（左上，随 --lx/--ly 移动）*/
-  --glass-fill-sm: linear-gradient(168deg, rgba(255, 255, 255, .88) 0%, rgba(255, 255, 255, .54) 100%);
+      rgba(255, 255, 255, .40) 0%,
+      rgba(255, 255, 255, .22) 40%,
+      rgba(255, 255, 255, .13) 66%,
+      rgba(255, 255, 255, .26) 100%);
+  --glass-hl: rgba(255, 255, 255, .46);   /* 动态镜面高光斑的颜色（左上，随 --lx/--ly 移动）*/
+  --glass-fill-sm: linear-gradient(168deg, rgba(255, 255, 255, .26) 0%, rgba(255, 255, 255, .12) 100%);
   --glass-rim: rgba(255, 252, 246, .98);        /* 上缘：迎光面最亮（微暖白）*/
   --glass-rim-soft: rgba(255, 255, 255, .46);   /* 右侧：掠射光 */
   --glass-rim-b: rgba(168, 205, 255, .85);      /* 下缘：折射亮线（色散·蓝）*/
@@ -250,13 +250,13 @@
     radial-gradient(1000px 680px at 86% 6%, rgba(210, 120, 255, .30), transparent 62%),
     radial-gradient(900px 700px at 50% 108%, rgba(60, 150, 255, .22), transparent 60%),
     radial-gradient(1400px 900px at 50% 42%, rgba(255, 255, 255, .05), transparent 70%);
-  --panel: rgba(18, 13, 40, .52);
+  --panel: rgba(18, 13, 40, .36);
   --panel-solid: #120d28;
-  --surface: rgba(30, 22, 58, .58);
+  --surface: rgba(30, 22, 58, .46);
   --surface-solid: #191133;
-  --surface-2: rgba(13, 9, 30, .46);
+  --surface-2: rgba(13, 9, 30, .26);
   --surface-2-solid: #0d0920;
-  --surface-3: rgba(44, 32, 80, .52);
+  --surface-3: rgba(44, 32, 80, .28);
   --ink: #ffffff;
   --ink-2: rgba(255, 255, 255, .80);
   --muted: rgba(255, 255, 255, .54);
@@ -305,7 +305,7 @@
                inset 0 -24px 36px -28px rgba(120, 90, 255, .45),
                inset 0 26px 40px -34px rgba(255, 255, 255, .22),
                0 52px 96px -32px rgba(2, 0, 18, .92);
-  --glass-blur: blur(18px) saturate(195%) brightness(1.06);
+  --glass-blur: blur(26px) saturate(205%) brightness(1.08);
   /* 深色玻璃的体积更克制：白色只做边缘反射，主体靠紫调明暗拉开厚度。
      动态高光斑同样拆到文件末尾的选择器块（元素作用域），这里只留
      静态的右下蓝紫环境反光 —— 深空间里的"环境"是背景那几团弥散光。 */
@@ -317,7 +317,7 @@
       rgba(255, 255, 255, .07) 40%,
       rgba(255, 255, 255, .03) 66%,
       rgba(186, 166, 255, .15) 100%);
-  --glass-hl: rgba(214, 200, 255, .30);   /* 动态镜面高光斑的颜色（左上，随 --lx/--ly 移动）*/
+  --glass-hl: rgba(214, 200, 255, .38);   /* 动态镜面高光斑的颜色（左上，随 --lx/--ly 移动）*/
   --glass-fill-sm: linear-gradient(168deg, rgba(255, 255, 255, .22) 0%, rgba(190, 170, 255, .10) 100%);
   --glass-rim: rgba(255, 255, 255, .38);
   --glass-rim-soft: rgba(255, 255, 255, .16);
@@ -338,6 +338,10 @@ body {
   background: var(--bg);
   background-image: var(--bg-image, none);
   background-attachment: fixed;
+  /* 壁纸要铺满、居中、不重复；对多层渐变无副作用（渐变本来就铺满）。 */
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   color: var(--ink);
   font: 14.5px/1.7 var(--font-ui);
   -webkit-font-smoothing: antialiased;
@@ -358,6 +362,16 @@ h1, h2, h3, .brand h1 { font-family: var(--font-title); }
   -webkit-backdrop-filter: var(--glass-blur, none);
 }
 
+/* 卡片默认不开模糊（首屏十几张卡片各背一层模糊，滚动会掉帧）。
+   但一旦铺了壁纸，卡片下面就是有内容的背景 —— 只叠半透白会变成"白雾盖着"，
+   而不是玻璃。所以有壁纸时才把模糊打开：既拿到液态玻璃的通透感，
+   又把这份性能开销限定在值得的场景里。
+   22px 是折中：再大滚动会掉帧，再小糊不开背景的色块。 */
+.has-wallpaper .card {
+  backdrop-filter: blur(22px) saturate(175%);
+  -webkit-backdrop-filter: blur(22px) saturate(175%);
+}
+
 /* ---------- 布局 ---------- */
 .app { max-width: 1280px; margin: 0 auto; padding: 20px 20px 80px; }
 .topbar {
@@ -374,6 +388,35 @@ h1, h2, h3, .brand h1 { font-family: var(--font-title); }
 .logo img { width: 100%; height: 100%; object-fit: contain; display: block; }
 /* 位图吉祥物是暖色调的，压在品牌冷色渐变上会像贴纸 —— 换成它自带的暖奶油底 */
 .logo.is-art { background: #fcf7eb; box-shadow: inset 0 0 0 1.5px rgba(31, 26, 23, .14); }
+
+/* 玻璃主题下把标志的底换成一块「玻璃底座」。
+   位图是抠过底的透明 PNG，直接压在冷色玻璃上会像贴纸；
+   给半透明玻璃面 + 白色上缘高光 + 一圈细 rim，再把位图缩到 86% 让玻璃边露出来，
+   观感就从「贴在玻璃上的贴纸」变成「站在一片玻璃上」。 */
+:root[data-theme="classic"] .logo.is-art {
+  background: linear-gradient(168deg, rgba(255, 255, 255, .74), rgba(255, 255, 255, .36));
+  box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, .95),
+              inset 0 0 0 1px rgba(255, 255, 255, .80),
+              0 2px 10px -3px rgba(10, 16, 32, .30);
+  backdrop-filter: blur(14px) saturate(170%);
+  -webkit-backdrop-filter: blur(14px) saturate(170%);
+}
+:root[data-theme="tech"] .logo.is-art {
+  background: linear-gradient(168deg, rgba(255, 255, 255, .18), rgba(255, 255, 255, .05));
+  box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, .52),
+              inset 0 0 0 1px rgba(255, 255, 255, .22),
+              0 2px 14px -4px rgba(0, 0, 20, .62);
+  backdrop-filter: blur(14px) saturate(180%) brightness(1.05);
+  -webkit-backdrop-filter: blur(14px) saturate(180%) brightness(1.05);
+}
+.logo.is-art img, .logo.is-art svg.mascot { width: 86%; height: 86%; margin: 7%; }
+/* 万一没有位图、退回「AG」字标时，也给它补上玻璃质感的边缘高光 */
+:root[data-theme="classic"] .logo:not(.is-art),
+:root[data-theme="tech"] .logo:not(.is-art) {
+  box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, .55),
+              inset 0 0 0 1px rgba(255, 255, 255, .28),
+              0 2px 10px -3px rgba(10, 16, 32, .28);
+}
 .logo .txt { font-weight: 800; font-size: 18px; letter-spacing: -.5px; }
 .brand h1 { font-size: 18px; margin: 0; font-weight: 750; letter-spacing: -.2px; }
 .brand p { margin: 0; font-size: 12.5px; color: var(--muted); }
@@ -786,6 +829,48 @@ table.tb input { padding: 5px 8px; }
 .skin i.sw-toon { background: #ffd75c; }
 .skin i.sw-classic { background: #a7c6f7; }
 .skin i.sw-tech { background: #2b2154; }
+
+/* ---------- 玻璃主题壁纸（见 wallpaper.js） ----------
+ * 壁纸本身由 JS 写进 html 的 inline --bg-image（优先于主题选择器里的定义），
+ * 这里只负责选择器本体。缩略图用与真实壁纸同一套渐变，所见即所得。 */
+/* 外壳不用 label（label 会把点击转发给里面的隐藏 file input），
+   样式照着 .fld 来一份，视觉上仍是同一排字段。 */
+.wall-field { display: block; margin-bottom: 12px; }
+.wall-field > span { display: block; font-size: 12.5px; color: var(--muted); margin-bottom: 5px; font-weight: 600; }
+.wall-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(86px, 1fr));
+  gap: 8px; margin-top: 2px;
+}
+.wall-chip {
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  padding: 6px; cursor: pointer; transition: .15s;
+  background: var(--surface); border: var(--bw) solid var(--line-2);
+  border-radius: var(--radius-sm); color: var(--muted);
+}
+.wall-chip:hover { border-color: var(--brand); background: var(--brand-soft); }
+.wall-chip.on { border-color: var(--brand); background: var(--brand-soft); color: var(--brand); box-shadow: var(--shadow-sm); }
+/* 缩略图不描边：彩色色块加一圈黑描边会显脏（浅色壁纸尤其明显）。
+   改用玻璃语言界定边界 —— 外侧一层极淡投影 + 内侧上缘一道白色高光，
+   深色壁纸靠白边、浅色壁纸靠投影，两种底色都分得清。 */
+.wall-sw {
+  display: block; width: 100%; height: 44px; border-radius: 7px;
+  background-size: cover; background-position: center;
+  box-shadow: 0 1px 2px rgba(10, 16, 32, .10), inset 0 1px 0 rgba(255, 255, 255, .45);
+}
+/* 「无」这一格不铺渐变，改成一道斜杠，表示回到主题自带底色 */
+.wall-sw.is-none {
+  background: repeating-linear-gradient(135deg,
+    var(--surface-3) 0 7px, var(--surface) 7px 14px);
+}
+.wall-nm { font-size: 11.5px; line-height: 1.2; }
+.wall-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.wall-veil { display: block; margin-top: 12px; }
+.wall-veil input[type="range"] { width: 100%; accent-color: var(--brand); }
+.wall-veil b { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+
+@media print {
+  .wall-grid, .wall-row, .wall-veil { display: none !important; }
+}
 
 .tone-card { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
 .tone {

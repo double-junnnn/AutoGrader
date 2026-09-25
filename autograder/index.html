@@ -135,6 +135,11 @@
       <label class="fld"><span>界面主题</span>
         <div class="skin-bar" id="skinBarSettings"></div>
       </label>
+      <!-- 这里刻意用 div 而不是 label：壁纸选择器里有按钮和一个隐藏的 file input，
+           label 会把点击转发给它的关联控件，导致点任何空白处都弹出选文件对话框。 -->
+      <div class="wall-field"><span>背景壁纸<span class="sub" style="margin-left:6px">仅玻璃主题生效</span></span>
+        <div id="wallpaperBox"></div>
+      </div>
       <label class="fld"><span>评语语气</span>
         <div id="tonePicker"></div>
       </label>
@@ -437,6 +442,7 @@
 <script src="assets/js/mascots.js"></script>
 <script src="assets/js/mascot-pet.js"></script>
 <script src="assets/js/theme.js"></script>
+<script src="assets/js/wallpaper.js"></script>
 <script src="assets/js/voice.js"></script>
 <script src="assets/js/anchors.js"></script>
 <script src="assets/js/rubric.js"></script>
