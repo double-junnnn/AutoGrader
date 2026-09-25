@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AutoGrader · 计算机专业实验报告智能评阅平台</title>
-<meta name="description" content="面向高校教与学场景的 AI 评阅助手：批量解析实验报告，按量表逐项核查、生成分项得分与个性化评语，内置抄袭检测与站内答疑助手，零依赖双击即用。">
+<meta name="description" content="面向高校教与学场景的 AI 评阅助手：批量解析实验报告，按量表逐项核查、生成分项得分与个性化评语，内置站内答疑助手，零依赖双击即用。">
 <link rel="stylesheet" href="assets/css/main.css">
 </head>
 <body>
@@ -337,8 +337,8 @@
             <td>内置 9 类覆盖计算机专业主要方向，可改名、增删特征词与评分方向。<b>类型决定评分方向</b>——用数据结构量表评计算机网络实验不是分低，是评错方向</td>
           </tr>
           <tr>
-            <td style="white-space:nowrap">相似度查重</td>
-            <td>5-gram Jaccard 两两比对 + 热力图，≥45% 自动预警；比对范围默认「当前批次内」，可在设置里切换</td>
+            <td style="white-space:nowrap">查重能力</td>
+            <td>相似度矩阵 / 热力图已在 2026-09 二轮变更中<b>下线</b>：查重不是评分链路的一环，且「批次内相似」易被误读为「确认抄袭」</td>
           </tr>
           <tr>
             <td style="white-space:nowrap">可信度自检</td>
@@ -360,7 +360,7 @@
       <h3>技术形态与声明</h3>
       <p class="hint">
         原生 HTML / CSS / JavaScript，<b>零构建、零依赖</b>，双击 index.html 即可运行；
-        雷达图、热力图与 PDF 导出全部手写，不引第三方库。<br>
+        雷达图、仪表盘与 PDF 导出全部手写，不引第三方库。<br>
         报告正文与 API Key 只保存在本机浏览器，仅在主动评阅时才把文本发给所选模型服务商。<br>
         本项目为「粤港澳大湾区 AI Coding 创新大赛」参赛作品。吉祥物「小评审员」为原创形象，
         画风借鉴美式动画的通用视觉语言，不使用任何影视剧角色。
